@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { HealthModule } from './health/health.module';
+import { XpTransactionsModule } from './xp-transactions/xp-transactions.module';
 
 @Module({
   imports: [
@@ -8,6 +9,7 @@ import { HealthModule } from './health/health.module';
       isGlobal: true,
     }),
     HealthModule,
+    XpTransactionsModule,
   ],
 })
 export class AppModule {}
