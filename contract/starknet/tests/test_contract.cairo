@@ -1,4 +1,5 @@
 use gg_pay::interface::{IGGPayDispatcher, IGGPayDispatcherTrait};
+use gg_pay::wallet::{IWalletDispatcher, IWalletDispatcherTrait};
 use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use snforge_std::{
     ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
@@ -13,10 +14,17 @@ fn deploy_gg_pay() -> (ContractAddress, ContractAddress, ContractAddress) {
     let strk_token = deploy_mock_erc20();
     let platform_fee_bps: u16 = 200; // 2%
 
-    let contract = declare("GaslessGossipPayments").unwrap().contract_class();
-    let constructor_args = array![admin.into(), strk_token.into(), platform_fee_bps.into()];
+    let wallet_classhash = declare("Wallet").unwrap().contract_class();
 
-    let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
+    let mut calldata = ArrayTrait::new();
+    admin.serialize(ref calldata);
+    strk_token.serialize(ref calldata);
+    platform_fee_bps.serialize(ref calldata);
+    wallet_classhash.serialize(ref calldata);
+
+    let contract = declare("GaslessGossipPayments").unwrap().contract_class();
+
+    let (contract_address, _) = contract.deploy(@calldata).unwrap();
     (contract_address, admin, strk_token)
 }
 
@@ -707,4 +715,20 @@ fn test_set_platform_fee() {
     gg_pay.set_platform_fee(300);
 
     assert!(gg_pay.get_platform_fee() == 300, "Fee should be 300 bps");
+}
+
+#[test]
+fn test_set_username() {
+    let (contract_address, admin, _) = deploy_gg_pay();
+    let gg_pay = IGGPayDispatcher { contract_address };
+
+    // Change fee to 3%
+    start_cheat_caller_address(contract_address, admin);
+    let wallet = gg_pay.create_user('aji');
+
+    assert!(gg_pay.get_user_onchain_address('aji') == wallet, "Username should be 'aji'");
+    assert!(gg_pay.get_username_by_wallet(wallet) == 'aji', "Wallet should map to 'aji'");
+    gg_pay.update_username('aji', 'ajid');
+    assert!(gg_pay.get_user_onchain_address('ajid') == wallet, "Username should be 'ajid'");
+    assert!(gg_pay.get_username_by_wallet(wallet) == 'ajid', "Wallet should map to 'ajid'");
 }
