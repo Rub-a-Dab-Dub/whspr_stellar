@@ -4,17 +4,17 @@
 
 Chat, tip friends, join exclusive rooms, and level up—all with near-zero gas fees on BNB, Celo, and Base.
 
-🌐 **Live App**: [www.gaslessgossip.com](https://www.gaslessgossip.com)  
-📚 **Docs**: [Coming Soon]  
-💬 **Discord**: [Join Community]
+ **Live App**: [www.gaslessgossip.com](https://www.gaslessgossip.com)  
+ **Docs**: [Coming Soon]  
+ **Discord**: [Join Community]
 
----
 
-## ✨ What Can You Do?
 
-- 💬 **Chat & Earn**: Send messages and earn XP
-- 💰 **Tip in Chats**: Reward users with tokens (2% platform fee)
-- 🔐 **Token-Gated Rooms**: Create paid or invite-only rooms
+##  What Can You Do?
+
+-  **Chat & Earn**: Send messages and earn XP
+-  **Tip in Chats**: Reward users with tokens (2% platform fee)
+-  **Token-Gated Rooms**: Create paid or invite-only rooms
 - 🎁 **P2P Transfers**: Send tokens to friends (no fees!)
 - 🏆 **Level Up**: Complete quests, earn badges, climb leaderboards
 - ⏱️ **Timed Rooms**: Ephemeral chats that auto-delete
