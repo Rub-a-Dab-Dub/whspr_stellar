@@ -15,13 +15,13 @@ Chat, tip friends, join exclusive rooms, and level up—all with near-zero gas f
 -  **Chat & Earn**: Send messages and earn XP
 -  **Tip in Chats**: Reward users with tokens (2% platform fee)
 -  **Token-Gated Rooms**: Create paid or invite-only rooms
-- 🎁 **P2P Transfers**: Send tokens to friends (no fees!)
-- 🏆 **Level Up**: Complete quests, earn badges, climb leaderboards
-- ⏱️ **Timed Rooms**: Ephemeral chats that auto-delete
+- **P2P Transfers**: Send tokens to friends (no fees!)
+- **Level Up**: Complete quests, earn badges, climb leaderboards
+- **Timed Rooms**: Ephemeral chats that auto-delete
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -57,7 +57,7 @@ npm run docker:start
 npm run dev
 ```
 
-**Done!** 🎉
+**Done!**
 - API runs on `http://localhost:3001`
 - Web runs on `http://localhost:3000`
 - PostgreSQL on `localhost:5432`
@@ -71,14 +71,14 @@ npm run dev
 
 If you prefer installing PostgreSQL manually:
 
-#### 1️⃣ Clone & Install
+#### 1️ Clone & Install
 
 ```bash
 git clone https://github.com/Rub-a-Dab-Dub/gasless_gossip.git
 cd gasless_gossip
 ```
 
-### 2️⃣ Setup Database
+### 2️ Setup Database
 
 ```bash
 # Install PostgreSQL (macOS)
@@ -94,7 +94,7 @@ GRANT ALL PRIVILEGES ON DATABASE gasless TO gasless_user;
 EOF
 ```
 
-### 3️⃣ Backend Setup (NestJS)
+### 3️ Backend Setup (NestJS)
 
 ```bash
 cd api
@@ -131,7 +131,7 @@ npm run start:dev
 
 Backend runs on `http://localhost:3001`
 
-### 4️⃣ Web Frontend Setup (Next.js)
+### 4️ Web Frontend Setup (Next.js)
 
 ```bash
 cd ../web
@@ -317,7 +317,7 @@ npm run test:e2e          # Playwright E2E
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 We welcome contributions! Here's how to get started:
 
@@ -392,7 +392,7 @@ Look for issues tagged `good-first-issue` or `help-wanted`:
 
 ---
 
-## 📚 Key Concepts
+## Key Concepts
 
 ### Account Abstraction
 Users never pay gas fees. The backend's paymaster account sponsors all transactions using session keys.
@@ -411,7 +411,7 @@ Creators can set token-gated rooms. Platform takes 2%, creator gets 98%.
 
 ---
 
-## 🛠️ Tech Stack Details
+## Tech Stack Details
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
@@ -425,7 +425,7 @@ Creators can set token-gated rooms. Platform takes 2%, creator gets 98%.
 
 ---
 
-## 🔐 Environment Variables
+##  Environment Variables
 
 ### Backend (api/.env)
 
@@ -460,7 +460,7 @@ NEXT_PUBLIC_EVM_NETWORK=base # or bnb, celo
 
 ---
 
-## 🚨 Troubleshooting
+##  Troubleshooting
 
 ### Docker Issues
 
@@ -506,21 +506,21 @@ npm run docker:logs      # Look for "database system is ready"
 
 ---
 
-## 📄 License
+##  License
 
 MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
-- BNB Chain, Celo, and Base for blockchain infrastructure
+- Stellar for blockchain infrastructure
 - OpenZeppelin for secure contract libraries
 - NestJS team for excellent backend framework
 
 ---
 
-## 📞 Contact & Community
+##  Contact & Community
 
 - **Website**: [www.gaslessgossip.com](https://www.gaslessgossip.com)
 - **GitHub**: [Rub-a-Dab-Dub/gasless_gossip](https://github.com/Rub-a-Dab-Dub/gasless_gossip)
@@ -530,4 +530,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-**Built with ❤️ by the Gasless Gossip team**
+**Built with ❤️ by the whspr team**
