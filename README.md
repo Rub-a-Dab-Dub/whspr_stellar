@@ -2,7 +2,7 @@
 
 **A gamified, on-chain messaging app where gossip meets blockchain**
 
-Chat, tip friends, join exclusive rooms, and level up—all with near-zero gas fees on BNB, Celo, and Base.
+Chat, tip friends, join exclusive rooms, and level up—all with near-zero gas fees on Stellar, Celo, and Base.
 
  **Live App**: [www.gaslessgossip.com](https://www.gaslessgossip.com)  
  **Docs**: [Coming Soon]  
