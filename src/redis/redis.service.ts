@@ -1,66 +1,42 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+// src/redis/redis.service.ts
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
 @Injectable()
-export class RedisService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(RedisService.name);
+export class RedisService implements OnModuleDestroy {
   private client: Redis;
 
   constructor(private configService: ConfigService) {
-    const redisConfig = this.configService.get('redis');
-    this.client = new Redis(redisConfig);
-
-    this.client.on('connect', () => {
-      this.logger.log('Redis client connected');
-    });
-
-    this.client.on('ready', () => {
-      this.logger.log('Redis client ready');
-    });
-
-    this.client.on('error', (err) => {
-      this.logger.error('Redis client error:', err);
-    });
-
-    this.client.on('close', () => {
-      this.logger.warn('Redis client connection closed');
-    });
-
-    this.client.on('reconnecting', () => {
-      this.logger.log('Redis client reconnecting...');
+    this.client = new Redis({
+      host: this.configService.get('REDIS_HOST'),
+      port: this.configService.get('REDIS_PORT'),
+      password: this.configService.get('REDIS_PASSWORD'),
     });
   }
 
-  async onModuleInit() {
-    try {
-      await this.client.ping();
-      this.logger.log('Redis connection verified');
-    } catch (error) {
-      this.logger.error('Failed to verify Redis connection:', error);
+  async get(key: string): Promise<string | null> {
+    return await this.client.get(key);
+  }
+
+  async set(key: string, value: string, ttl?: number): Promise<void> {
+    if (ttl) {
+      await this.client.set(key, value, 'EX', ttl);
+    } else {
+      await this.client.set(key, value);
     }
   }
 
-  async onModuleDestroy() {
-    await this.client.quit();
-    this.logger.log('Redis client disconnected');
+  async del(key: string): Promise<void> {
+    await this.client.del(key);
   }
 
-  getClient(): Redis {
-    return this.client;
+  async exists(key: string): Promise<boolean> {
+    const result = await this.client.exists(key);
+    return result === 1;
   }
 
-  async ping(): Promise<string> {
-    return this.client.ping();
-  }
-
-  async isHealthy(): Promise<boolean> {
-    try {
-      const result = await this.client.ping();
-      return result === 'PONG';
-    } catch (error) {
-      this.logger.error('Redis health check failed:', error);
-      return false;
-    }
+  onModuleDestroy() {
+    this.client.disconnect();
   }
 }
