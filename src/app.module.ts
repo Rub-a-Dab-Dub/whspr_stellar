@@ -7,14 +7,18 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import evmConfig from './config/evm.config';
 import redisConfig from './config/redis.config';
+import pinataConfig from './config/pinata.config';
 import { validationSchema } from './config/validation.schema';
 import { HealthModule } from './health/health.module';
+import { UsersModule } from './users/users.module';
+import { MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
+import { LoggerMiddleware } from './logger/logger.middleware';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, evmConfig, redisConfig],
+      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig],
       validationSchema,
     }),
     TypeOrmModule.forRootAsync({
@@ -25,6 +29,7 @@ import { HealthModule } from './health/health.module';
       inject: [ConfigService],
     }),
     HealthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
