@@ -26,6 +26,8 @@
     "migration:revert": "npm run typeorm -- -d ./src/config/data-source.ts migration:revert"
   },
   "dependencies": {
+    "@nestjs/bull": "^11.0.4",
+    "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -33,6 +35,9 @@
     "@nestjs/typeorm": "^11.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "connect-redis": "^9.0.0",
+    "express-session": "^1.18.2",
+    "ioredis": "^5.9.2",
     "joi": "^18.0.2",
     "pg": "^8.17.2",
     "reflect-metadata": "^0.2.2",
@@ -46,6 +51,7 @@
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
     "@types/express": "^5.0.0",
+    "@types/express-session": "^1.18.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
