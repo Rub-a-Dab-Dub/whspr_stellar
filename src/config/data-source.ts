@@ -1,6 +1,10 @@
-import { registerAs } from '@nestjs/config';
+import { DataSource, DataSourceOptions } from 'typeorm';
+import * as dotenv from 'dotenv';
+import { ConfigService } from '@nestjs/config';
 
-export default registerAs('database', () => ({
+dotenv.config();
+
+export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   host: process.env.DATABASE_HOST,
   port: parseInt(process.env.DATABASE_PORT ?? '5432', 10),
@@ -9,12 +13,9 @@ export default registerAs('database', () => ({
   database: process.env.DATABASE_NAME,
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
-  autoLoadEntities: true,
-  synchronize: process.env.NODE_ENV !== 'production', // Disable in production
+  synchronize: false,
   logging: process.env.NODE_ENV === 'development',
-  extra: {
-    max: 10, // constant pooling
-    min: 2,
-    connectionTimeoutMillis: 2000,
-  },
-}));
+};
+
+const dataSource = new DataSource(dataSourceOptions);
+export default dataSource;
