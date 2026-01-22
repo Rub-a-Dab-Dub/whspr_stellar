@@ -19,6 +19,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesSeederService } from './database/seeders/roles.seeder';
+import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { RolesSeederService } from './database/seeders/roles.seeder';
     AuthModule,
     RedisModule,
     RolesModule,
+    SessionsModule,
   ],
   controllers: [AppController],
   providers: [
