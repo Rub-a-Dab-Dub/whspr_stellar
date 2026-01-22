@@ -9,6 +9,8 @@ import evmConfig from './config/evm.config';
 import redisConfig from './config/redis.config';
 import { validationSchema } from './config/validation.schema';
 import { HealthModule } from './health/health.module';
+import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { HealthModule } from './health/health.module';
       inject: [ConfigService],
     }),
     HealthModule,
+    UserModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
