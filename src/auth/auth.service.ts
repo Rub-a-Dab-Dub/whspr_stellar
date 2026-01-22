@@ -7,6 +7,7 @@ import { RedisService } from '../redis/redis.service';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { MailerService } from '@nestjs-modules/mailer';
+import { SessionService } from 'src/sessions/services/sessions.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     private configService: ConfigService,
     private redisService: RedisService,
     private mailerService: MailerService,
+    private readonly sessionService: SessionService,
   ) {}
 
   async register(email: string, password: string) {
@@ -57,18 +59,21 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      await this.usersService.incrementLoginAttempts(user.id || "");
+      await this.usersService.incrementLoginAttempts(user.id || '');
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Reset login attempts on successful login
-    await this.usersService.resetLoginAttempts(user.id || "");
+    await this.usersService.resetLoginAttempts(user.id || '');
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id || '', user.email);
 
     // Save refresh token
-    await this.usersService.updateRefreshToken(user.id || '', tokens.refreshToken);
+    await this.usersService.updateRefreshToken(
+      user.id || '',
+      tokens.refreshToken,
+    );
 
     return {
       accessToken: tokens.accessToken,
@@ -103,15 +108,22 @@ export class AuthService {
 
       // Generate new tokens
       const tokens = await this.generateTokens(user.id || '', user.email);
-      await this.usersService.updateRefreshToken(user.id || '', tokens.refreshToken);
+      await this.usersService.updateRefreshToken(
+        user.id || '',
+        tokens.refreshToken,
+      );
 
-      return tokens;
+      const token = await this.sessionService.refreshSession(
+        tokens.refreshToken,
+      );
+
+      return token;
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
-  async logout(userId: string, jti: string) {
+  async logout(userId: string, jti: string, sessionToken: string) {
     // Clear refresh token from database
     await this.usersService.updateRefreshToken(userId, null);
 
@@ -120,6 +132,9 @@ export class AuthService {
       this.configService.get('JWT_ACCESS_EXPIRATION'),
     );
     await this.redisService.set(`blacklist:${jti}`, 'true', accessExpiration);
+
+    const session = await this.sessionService.validateSession(sessionToken);
+    await this.sessionService.revokeSession(session.id, userId);
 
     return { message: 'Logout successful' };
   }
@@ -209,5 +224,14 @@ export class AuthService {
 
     const multipliers = { s: 1, m: 60, h: 3600, d: 86400 };
     return value * (multipliers[unit] || 1);
+  }
+
+  private getClientIp(req: Request): string {
+    return (
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      (req.headers['x-real-ip'] as string) ||
+      req.socket.remoteAddress ||
+      'unknown'
+    );
   }
 }
