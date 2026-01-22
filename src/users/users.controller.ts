@@ -20,10 +20,17 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SearchUsersDto } from './dto/search-users.dto';
+import { LeaderboardQueryDto } from './dto/leaderboard-query.dto';
+import { XpHistoryQueryDto } from './dto/xp-history-query.dto';
+import { AddXpDto } from './dto/add-xp.dto';
+import { XpService } from './services/xp.service';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly xpService: XpService,
+  ) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -78,5 +85,44 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
+  }
+
+  @Post(':id/xp')
+  @HttpCode(HttpStatus.OK)
+  addXp(@Param('id') id: string, @Body() addXpDto: AddXpDto) {
+    return this.xpService.addXp(id, addXpDto.action, addXpDto.description);
+  }
+
+  @Get(':id/xp')
+  getUserXpStats(@Param('id') id: string) {
+    return this.xpService.getUserXpStats(id);
+  }
+
+  @Get(':id/xp/history')
+  getUserXpHistory(
+    @Param('id') id: string,
+    @Query() query: XpHistoryQueryDto,
+  ) {
+    return this.xpService.getXpHistory(id, query.page, query.limit);
+  }
+
+  @Get('leaderboard/top')
+  getLeaderboard(@Query() query: LeaderboardQueryDto) {
+    return this.xpService.getLeaderboard(query.page, query.limit);
+  }
+
+  @Get('analytics/xp')
+  getXpAnalytics() {
+    return Promise.all([
+      this.xpService.getTotalXp(),
+      this.xpService.getAverageXpPerUser(),
+      this.xpService.getWeeklyXp(),
+      this.xpService.getXpByAction(),
+    ]).then(([total, average, weekly, byAction]) => ({
+      totalXp: total,
+      averageXpPerUser: average,
+      weekly,
+      byAction,
+    }));
   }
 }

@@ -7,6 +7,7 @@ export enum NotificationType {
   EMAIL = 'email',
   PUSH = 'push',
   SMS = 'sms',
+  LEVEL_UP = 'LEVEL_UP',
 }
 
 @Processor(QUEUE_NAMES.NOTIFICATIONS)
@@ -32,6 +33,9 @@ export class NotificationProcessor {
           break;
         case NotificationType.SMS:
           await this.sendSMS(recipient, message, metadata);
+          break;
+        case NotificationType.LEVEL_UP:
+          await this.handleLevelUp(job.data);
           break;
         default:
           throw new Error(`Unknown notification type: ${type}`);
@@ -71,5 +75,19 @@ export class NotificationProcessor {
     // TODO: Implement actual SMS sending logic (e.g., using Twilio, AWS SNS, etc.)
     await new Promise((resolve) => setTimeout(resolve, 500));
     this.logger.log(`SMS sent to ${recipient}`);
+  }
+
+  private async handleLevelUp(data: any) {
+    const { userId, username, oldLevel, newLevel, currentXp } = data;
+    this.logger.log(
+      `🎉 User ${username} (${userId}) leveled up from ${oldLevel} to ${newLevel}! Current XP: ${currentXp}`,
+    );
+    // TODO: Implement actual level-up notification logic
+    // - Send push notification to user
+    // - Send in-app notification
+    // - Update user achievements/badges
+    // - Broadcast to friends/followers
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    this.logger.log(`Level-up notification processed for user ${username}`);
   }
 }
