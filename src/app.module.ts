@@ -12,6 +12,7 @@ import { CacheModule } from './cache/cache.module';
 import { QueueModule } from './queue/queue.module';
 import { HealthModule } from './health/health.module';
 import { SessionModule } from './session/session.module';
+import { TestModule } from './test/test.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { SessionModule } from './session/session.module';
     QueueModule,
     HealthModule,
     SessionModule,
+    TestModule,
   ],
   controllers: [AppController],
   providers: [AppService],
