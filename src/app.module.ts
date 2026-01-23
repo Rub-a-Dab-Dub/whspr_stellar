@@ -20,6 +20,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesSeederService } from './database/seeders/roles.seeder';
 import { SessionsModule } from './sessions/sessions.module';
+import { MessageModule } from './message/message.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { SessionsModule } from './sessions/sessions.module';
     RedisModule,
     RolesModule,
     SessionsModule,
+    MessageModule,
   ],
   controllers: [AppController],
   providers: [
