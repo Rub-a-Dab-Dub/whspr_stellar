@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { MessageEditHistory } from './message-edit-history.entity';
+import { MessageReaction } from './message-reaction.entity';
 
 @Entity('messages')
 @Index(['conversationId', 'createdAt'])
@@ -63,4 +64,11 @@ export class Message {
     onDelete: 'CASCADE',
   })
   editHistory: MessageEditHistory[];
+
+  @OneToMany(() => MessageReaction, (reaction) => reaction.message, {
+    cascade: true,
+    onDelete: 'CASCADE',
+    eager: false,
+  })
+  reactions: MessageReaction[];
 }
