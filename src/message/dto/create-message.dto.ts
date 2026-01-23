@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, MaxLength, IsEnum, IsOptional, IsUrl } from 'class-validator';
+import { MessageType } from '../enums/message-type.enum';
 
 export class CreateMessageDto {
   @IsString()
@@ -7,5 +8,23 @@ export class CreateMessageDto {
 
   @IsString()
   @IsNotEmpty()
+  roomId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(1, { message: 'Message content cannot be empty' })
+  @MaxLength(5000, { message: 'Message content cannot exceed 5000 characters' })
   content: string;
+
+  @IsEnum(MessageType)
+  @IsOptional()
+  type?: MessageType;
+
+  @IsUrl()
+  @IsOptional()
+  mediaUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  fileName?: string;
 }

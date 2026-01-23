@@ -18,10 +18,14 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageOwnershipGuard } from './guards/message-ownership.guard';
 import { MessageResponseDto } from './dto/message-response.dto';
 import { MessageEditHistoryDto } from './dto/message-edit-history.dto';
+import { MessagesGateway } from './gateways/messages.gateway';
 
 @Controller('messages')
 export class MessageController {
-  constructor(private readonly messageService: MessageService) {}
+  constructor(
+    private readonly messageService: MessageService,
+    private readonly messagesGateway: MessagesGateway,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -30,6 +34,33 @@ export class MessageController {
     @Request() req,
   ): Promise<MessageResponseDto> {
     return this.messageService.createMessage(createMessageDto, req.user.id);
+  }
+
+  /**
+   * POST /rooms/:id/messages - Create message in room with WebSocket broadcast
+   */
+  @Post('rooms/:roomId/messages')
+  @HttpCode(HttpStatus.CREATED)
+  async createRoomMessage(
+    @Param('roomId') roomId: string,
+    @Body() createMessageDto: CreateMessageDto,
+    @Request() req,
+  ): Promise<MessageResponseDto> {
+    // Validate room membership
+    if (!this.messagesGateway.isUserInRoom(roomId, req.user.id)) {
+      throw new Error('User is not a member of this room');
+    }
+
+    // Create message
+    const message = await this.messageService.createMessage(
+      { ...createMessageDto, roomId },
+      req.user.id,
+    );
+
+    // Broadcast to room via WebSocket
+    this.messagesGateway.broadcastToRoom(roomId, 'message-created', message);
+
+    return message;
   }
 
   @Get('conversation/:conversationId')
@@ -49,6 +80,22 @@ export class MessageController {
     );
   }
 
+  /**
+   * Get messages for a room
+   */
+  @Get('rooms/:roomId')
+  async getRoomMessages(
+    @Param('roomId') roomId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 50,
+  ): Promise<{
+    messages: MessageResponseDto[];
+    total: number;
+    page: number;
+  }> {
+    return this.messageService.getRoomMessages(roomId, page, limit);
+  }
+
   @Get(':id')
   async getMessageById(
     @Param('id') messageId: string,
@@ -57,8 +104,12 @@ export class MessageController {
     return {
       id: message.id,
       conversationId: message.conversationId,
+      roomId: message.roomId,
       authorId: message.authorId,
       content: message.isDeleted ? '[deleted message]' : message.content,
+      type: message.type,
+      mediaUrl: message.mediaUrl,
+      fileName: message.fileName,
       originalContent: message.originalContent,
       isEdited: message.isEdited,
       editedAt: message.editedAt,
@@ -83,11 +134,17 @@ export class MessageController {
     @Body() updateMessageDto: UpdateMessageDto,
     @Request() req,
   ): Promise<MessageResponseDto> {
-    return this.messageService.editMessage(
+    const updatedMessage = await this.messageService.editMessage(
       messageId,
       updateMessageDto,
       req.user.id,
     );
+
+    // Broadcast edit via WebSocket
+    const message = await this.messageService.findByIdOrFail(messageId);
+    this.messagesGateway.broadcastToRoom(message.roomId, 'message-updated', updatedMessage);
+
+    return updatedMessage;
   }
 
   @Delete(':id')
@@ -101,6 +158,14 @@ export class MessageController {
       messageId,
       req.user.id,
     );
+
+    // Broadcast deletion via WebSocket
+    const message = await this.messageService.findByIdOrFail(messageId);
+    this.messagesGateway.broadcastToRoom(message.roomId, 'message-deleted', {
+      messageId,
+      deletedAt: new Date(),
+    });
+
     return {
       message: 'Message deleted successfully',
       deletedMessage,
@@ -127,6 +192,12 @@ export class MessageController {
     @Param('id') messageId: string,
     @Request() req,
   ): Promise<MessageResponseDto> {
-    return this.messageService.restoreMessage(messageId, req.user.id);
+    const restoredMessage = await this.messageService.restoreMessage(messageId, req.user.id);
+
+    // Broadcast restoration via WebSocket
+    const message = await this.messageService.findByIdOrFail(messageId);
+    this.messagesGateway.broadcastToRoom(message.roomId, 'message-restored', restoredMessage);
+
+    return restoredMessage;
   }
 }

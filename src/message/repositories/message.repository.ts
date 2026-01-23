@@ -61,6 +61,38 @@ export class MessageRepository extends Repository<Message> {
   async hardDeleteConversationMessages(conversationId: string): Promise<void> {
     await this.delete({ conversationId });
   }
+
+  async findRoomMessages(
+    roomId: string,
+    skip: number = 0,
+    take: number = 50,
+  ): Promise<[Message[], number]> {
+    return this.findAndCount({
+      where: {
+        roomId,
+        isDeleted: false,
+      },
+      relations: ['author', 'editHistory', 'reactions'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take,
+    });
+  }
+
+  async findMessagesByType(
+    roomId: string,
+    type: string,
+  ): Promise<Message[]> {
+    return this.find({
+      where: {
+        roomId,
+        type,
+        isDeleted: false,
+      },
+      relations: ['author'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 }
 
 @Injectable()

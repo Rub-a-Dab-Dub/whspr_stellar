@@ -17,6 +17,9 @@ import { ReactionNotificationService } from './reaction-notification.service';
 import { ReactionAnalyticsService } from './reaction-analytics.service';
 import { RedisModule } from '../redis/redis.module';
 import { CacheModule } from '../cache/cache.module';
+import { MessagesGateway } from './gateways/messages.gateway';
+import { ProfanityFilterService } from './services/profanity-filter.service';
+import { MessageBroadcastService } from './services/message-broadcast.service';
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { CacheModule } from '../cache/cache.module';
     ReactionService,
     ReactionNotificationService,
     ReactionAnalyticsService,
+    MessagesGateway,
+    ProfanityFilterService,
+    MessageBroadcastService,
   ],
   controllers: [MessageController, ReactionController],
   exports: [
@@ -43,6 +49,9 @@ import { CacheModule } from '../cache/cache.module';
     ReactionRepository,
     ReactionNotificationService,
     ReactionAnalyticsService,
+    MessagesGateway,
+    ProfanityFilterService,
+    MessageBroadcastService,
   ],
 })
 export class MessageModule {}

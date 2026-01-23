@@ -12,26 +12,61 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
 import { MessageEditHistoryDto } from './dto/message-edit-history.dto';
+import { ProfanityFilterService } from './services/profanity-filter.service';
+import { MessageType } from './enums/message-type.enum';
 
 @Injectable()
 export class MessageService {
   private readonly EDIT_TIME_LIMIT_MINUTES = 15;
+  private readonly MAX_MESSAGE_LENGTH = 5000;
+  private readonly MIN_MESSAGE_LENGTH = 1;
 
   constructor(
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
     @InjectRepository(MessageEditHistory)
     private readonly editHistoryRepository: Repository<MessageEditHistory>,
+    private readonly profanityFilterService: ProfanityFilterService,
   ) {}
 
+  /**
+   * Validate message content
+   */
+  private validateMessageContent(content: string): void {
+    if (!content || content.trim().length < this.MIN_MESSAGE_LENGTH) {
+      throw new BadRequestException('Message content cannot be empty');
+    }
+
+    if (content.length > this.MAX_MESSAGE_LENGTH) {
+      throw new BadRequestException(
+        `Message content cannot exceed ${this.MAX_MESSAGE_LENGTH} characters`,
+      );
+    }
+  }
+
+  /**
+   * Create a new message
+   */
   async createMessage(
     createMessageDto: CreateMessageDto,
     userId: string,
   ): Promise<MessageResponseDto> {
+    // Validate content
+    this.validateMessageContent(createMessageDto.content);
+
+    // Check for profanity
+    if (this.profanityFilterService.containsProfanity(createMessageDto.content)) {
+      throw new BadRequestException('Message contains inappropriate content');
+    }
+
     const message = this.messageRepository.create({
       conversationId: createMessageDto.conversationId,
+      roomId: createMessageDto.roomId,
       authorId: userId,
       content: createMessageDto.content,
+      type: createMessageDto.type || MessageType.TEXT,
+      mediaUrl: createMessageDto.mediaUrl || null,
+      fileName: createMessageDto.fileName || null,
       originalContent: null,
       isEdited: false,
     });
@@ -43,7 +78,7 @@ export class MessageService {
   async findById(messageId: string): Promise<Message | null> {
     return this.messageRepository.findOne({
       where: { id: messageId },
-      relations: ['editHistory', 'author'],
+      relations: ['editHistory', 'author', 'reactions'],
     });
   }
 
@@ -66,8 +101,35 @@ export class MessageService {
         conversationId,
         isDeleted: false,
       },
-      relations: ['author', 'editHistory'],
+      relations: ['author', 'editHistory', 'reactions'],
       order: { createdAt: 'ASC' },
+      skip,
+      take: limit,
+    });
+
+    return {
+      messages: messages.map((msg) => this.toResponseDto(msg)),
+      total,
+      page,
+    };
+  }
+
+  /**
+   * Get messages for a room
+   */
+  async getRoomMessages(
+    roomId: string,
+    page: number = 1,
+    limit: number = 50,
+  ): Promise<{ messages: MessageResponseDto[]; total: number; page: number }> {
+    const skip = (page - 1) * limit;
+    const [messages, total] = await this.messageRepository.findAndCount({
+      where: {
+        roomId,
+        isDeleted: false,
+      },
+      relations: ['author', 'editHistory', 'reactions'],
+      order: { createdAt: 'DESC' },
       skip,
       take: limit,
     });
@@ -84,6 +146,14 @@ export class MessageService {
     updateMessageDto: UpdateMessageDto,
     userId: string,
   ): Promise<MessageResponseDto> {
+    // Validate content
+    this.validateMessageContent(updateMessageDto.content);
+
+    // Check for profanity
+    if (this.profanityFilterService.containsProfanity(updateMessageDto.content)) {
+      throw new BadRequestException('Message contains inappropriate content');
+    }
+
     const message = await this.findByIdOrFail(messageId);
 
     // Check ownership
@@ -167,10 +237,6 @@ export class MessageService {
   async hardDeleteMessage(messageId: string, userId: string): Promise<void> {
     const message = await this.findByIdOrFail(messageId);
 
-    // Only admins can hard delete
-    // You can check user roles here if available
-    // For now, we'll just record it was hard deleted
-
     // Delete associated edit history (cascade should handle this)
     await this.editHistoryRepository.delete({ messageId });
 
@@ -231,15 +297,25 @@ export class MessageService {
     const dto: MessageResponseDto = {
       id: message.id,
       conversationId: message.conversationId,
+      roomId: message.roomId,
       authorId: message.authorId,
+      author: message.author
+        ? {
+            id: message.author.id,
+            email: message.author.email,
+          }
+        : undefined,
       content: message.isDeleted ? '[deleted message]' : message.content,
+      type: message.type,
+      mediaUrl: message.mediaUrl,
+      fileName: message.fileName,
       originalContent: message.originalContent,
       isEdited: message.isEdited,
       editedAt: message.editedAt,
       isDeleted: message.isDeleted,
-      deletedAt: message.deletedAt,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
+      reactionsCount: message.reactions ? message.reactions.length : 0,
     };
 
     if (includeHistory && message.editHistory) {
