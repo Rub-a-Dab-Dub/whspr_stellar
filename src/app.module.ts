@@ -7,8 +7,11 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import evmConfig from './config/evm.config';
 import redisConfig from './config/redis.config';
+import pinataConfig from './config/pinata.config';
 import { validationSchema } from './config/validation.schema';
 import { HealthModule } from './health/health.module';
+import { MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
+import { LoggerMiddleware } from './logger/logger.middleware';
 import { UsersModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
@@ -20,13 +23,13 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesSeederService } from './database/seeders/roles.seeder';
 import { SessionsModule } from './sessions/sessions.module';
-import { RoomModule } from './room/room.module';
+import { MessageModule } from './message/message.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, evmConfig, redisConfig],
+      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig],
       validationSchema,
     }),
     TypeOrmModule.forRootAsync({
@@ -69,7 +72,7 @@ import { RoomModule } from './room/room.module';
     RedisModule,
     RolesModule,
     SessionsModule,
-    RoomModule,
+    MessageModule,
   ],
   controllers: [AppController],
   providers: [
