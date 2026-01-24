@@ -11,17 +11,22 @@ import {
 import { User } from '../../user/entities/user.entity';
 import { MessageEditHistory } from './message-edit-history.entity';
 import { MessageReaction } from './message-reaction.entity';
+import { MessageType } from '../enums/message-type.enum';
 
 @Entity('messages')
 @Index(['conversationId', 'createdAt'])
 @Index(['authorId', 'createdAt'])
 @Index(['isDeleted', 'conversationId'])
+@Index(['type', 'conversationId'])
 export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
   conversationId: string;
+
+  @Column()
+  roomId: string;
 
   @ManyToOne(() => User, { eager: false, onDelete: 'CASCADE' })
   author: User;
@@ -31,6 +36,19 @@ export class Message {
 
   @Column('text')
   content: string;
+
+  @Column({
+    type: 'enum',
+    enum: MessageType,
+    default: MessageType.TEXT,
+  })
+  type: MessageType;
+
+  @Column({ nullable: true })
+  mediaUrl: string | null;
+
+  @Column({ nullable: true })
+  fileName: string | null;
 
   @Column('text', { nullable: true })
   originalContent: string | null;
