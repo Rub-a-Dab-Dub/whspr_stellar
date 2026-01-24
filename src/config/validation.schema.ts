@@ -16,4 +16,6 @@ export const validationSchema = Joi.object({
   REDIS_PORT: Joi.number().default(6379),
   REDIS_PASSWORD: Joi.string().allow('').optional(),
   REDIS_DB: Joi.number().default(0),
+  PINATA_JWT: Joi.string().required(),
+  PINATA_GATEWAY_URL: Joi.string().required(),
 });
