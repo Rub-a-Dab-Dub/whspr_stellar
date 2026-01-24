@@ -64,4 +64,17 @@ export class User {
 
   @Column({ type: 'timestamp', nullable: true })
   lastActiveAt!: Date;
+
+  @Column({ type: 'int', default: 0 })
+  currentXp!: number;
+
+  @Column({ type: 'int', default: 1 })
+  @Index()
+  level!: number;
+
+  @Column({ type: 'boolean', default: false })
+  isPremium!: boolean;
+
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: 1.0 })
+  xpMultiplier!: number;
 }
