@@ -112,6 +112,20 @@ export async function seedRolesAndPermissions(dataSource: DataSource) {
       resource: 'role',
       action: 'manage',
     },
+
+    // Admin permissions
+    {
+      name: 'admin.access',
+      description: 'Access admin dashboard',
+      resource: 'admin',
+      action: 'access',
+    },
+    {
+      name: 'user.impersonate',
+      description: 'Impersonate users for support',
+      resource: 'user',
+      action: 'impersonate',
+    },
   ];
 
   // Create permissions

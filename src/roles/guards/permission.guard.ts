@@ -20,12 +20,20 @@ export class PermissionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.roles) {
+    if (!user) {
+      return false;
+    }
+
+    // Get user object (could be user.user from JWT strategy or direct user)
+    const userObj = user.user || user;
+    const roles = userObj?.roles || [];
+
+    if (!roles || roles.length === 0) {
       return false;
     }
 
     // Get all permissions from user's roles
-    const userPermissions = user.roles.flatMap((role) =>
+    const userPermissions = roles.flatMap((role) =>
       role.permissions?.map((p) => p.name) || []
     );
 
