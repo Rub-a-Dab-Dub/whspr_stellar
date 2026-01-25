@@ -8,10 +8,12 @@ export enum NotificationType {
   PUSH = 'push',
   SMS = 'sms',
   LEVEL_UP = 'LEVEL_UP',
-  STREAK_INCREMENT = 'STREAK_INCREMENT',
-  STREAK_RESET = 'STREAK_RESET',
-  STREAK_REWARD = 'STREAK_REWARD',
-  STREAK_BADGE = 'STREAK_BADGE',
+  REWARD_GRANTED = 'REWARD_GRANTED',
+  REWARD_EXPIRED = 'REWARD_EXPIRED',
+  REWARD_TRADED = 'REWARD_TRADED',
+  REWARD_GIFTED = 'REWARD_GIFTED',
+  REWARD_PURCHASED = 'REWARD_PURCHASED',
+  REWARD_SOLD = 'REWARD_SOLD',
 }
 
 @Processor(QUEUE_NAMES.NOTIFICATIONS)
@@ -41,17 +43,13 @@ export class NotificationProcessor {
         case NotificationType.LEVEL_UP:
           await this.handleLevelUp(job.data);
           break;
-        case NotificationType.STREAK_INCREMENT:
-          await this.handleStreakIncrement(job.data);
-          break;
-        case NotificationType.STREAK_RESET:
-          await this.handleStreakReset(job.data);
-          break;
-        case NotificationType.STREAK_REWARD:
-          await this.handleStreakReward(job.data);
-          break;
-        case NotificationType.STREAK_BADGE:
-          await this.handleStreakBadge(job.data);
+        case NotificationType.REWARD_GRANTED:
+        case NotificationType.REWARD_EXPIRED:
+        case NotificationType.REWARD_TRADED:
+        case NotificationType.REWARD_GIFTED:
+        case NotificationType.REWARD_PURCHASED:
+        case NotificationType.REWARD_SOLD:
+          await this.handleRewardNotification(job.data);
           break;
         default:
           throw new Error(`Unknown notification type: ${type}`);
@@ -107,52 +105,19 @@ export class NotificationProcessor {
     this.logger.log(`Level-up notification processed for user ${username}`);
   }
 
-  private async handleStreakIncrement(data: any) {
-    const { userId, currentStreak, message } = data;
+  private async handleRewardNotification(data: any) {
+    const { type, userId, rewardId, rewardName, rewardType, message, eventName } = data;
     this.logger.log(
-      `🔥 User ${userId} streak incremented to ${currentStreak} days!`,
+      `🎁 Reward notification: ${type} for user ${userId}, reward: ${rewardName || rewardId}`,
     );
-    // TODO: Implement actual streak increment notification logic
+    
+    // TODO: Implement actual reward notification logic
     // - Send push notification to user
     // - Send in-app notification
-    // - Update user's streak display
+    // - Update user's reward inventory UI
+    // - For trades/gifts, notify both parties
+    
     await new Promise((resolve) => setTimeout(resolve, 500));
-    this.logger.log(`Streak increment notification processed for user ${userId}`);
-  }
-
-  private async handleStreakReset(data: any) {
-    const { userId, message } = data;
-    this.logger.log(`⚠️ User ${userId} streak has been reset.`);
-    // TODO: Implement actual streak reset notification logic
-    // - Send push notification to user
-    // - Send in-app notification
-    // - Encourage user to start a new streak
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    this.logger.log(`Streak reset notification processed for user ${userId}`);
-  }
-
-  private async handleStreakReward(data: any) {
-    const { userId, milestone, rewardAmount, message } = data;
-    this.logger.log(
-      `🎁 User ${userId} claimed ${milestone}-day streak reward: ${rewardAmount} XP!`,
-    );
-    // TODO: Implement actual streak reward notification logic
-    // - Send push notification to user
-    // - Send in-app notification
-    // - Show reward animation/confetti
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    this.logger.log(`Streak reward notification processed for user ${userId}`);
-  }
-
-  private async handleStreakBadge(data: any) {
-    const { userId, badgeType, message } = data;
-    this.logger.log(`🏆 User ${userId} unlocked streak badge: ${badgeType}!`);
-    // TODO: Implement actual streak badge notification logic
-    // - Send push notification to user
-    // - Send in-app notification
-    // - Show badge unlock animation
-    // - Update user's badge collection
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    this.logger.log(`Streak badge notification processed for user ${userId}`);
+    this.logger.log(`Reward notification ${type} processed for user ${userId}`);
   }
 }
