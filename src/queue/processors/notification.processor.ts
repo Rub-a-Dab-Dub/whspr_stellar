@@ -8,6 +8,10 @@ export enum NotificationType {
   PUSH = 'push',
   SMS = 'sms',
   LEVEL_UP = 'LEVEL_UP',
+  STREAK_INCREMENT = 'STREAK_INCREMENT',
+  STREAK_RESET = 'STREAK_RESET',
+  STREAK_REWARD = 'STREAK_REWARD',
+  STREAK_BADGE = 'STREAK_BADGE',
 }
 
 @Processor(QUEUE_NAMES.NOTIFICATIONS)
@@ -36,6 +40,18 @@ export class NotificationProcessor {
           break;
         case NotificationType.LEVEL_UP:
           await this.handleLevelUp(job.data);
+          break;
+        case NotificationType.STREAK_INCREMENT:
+          await this.handleStreakIncrement(job.data);
+          break;
+        case NotificationType.STREAK_RESET:
+          await this.handleStreakReset(job.data);
+          break;
+        case NotificationType.STREAK_REWARD:
+          await this.handleStreakReward(job.data);
+          break;
+        case NotificationType.STREAK_BADGE:
+          await this.handleStreakBadge(job.data);
           break;
         default:
           throw new Error(`Unknown notification type: ${type}`);
@@ -89,5 +105,54 @@ export class NotificationProcessor {
     // - Broadcast to friends/followers
     await new Promise((resolve) => setTimeout(resolve, 500));
     this.logger.log(`Level-up notification processed for user ${username}`);
+  }
+
+  private async handleStreakIncrement(data: any) {
+    const { userId, currentStreak, message } = data;
+    this.logger.log(
+      `🔥 User ${userId} streak incremented to ${currentStreak} days!`,
+    );
+    // TODO: Implement actual streak increment notification logic
+    // - Send push notification to user
+    // - Send in-app notification
+    // - Update user's streak display
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    this.logger.log(`Streak increment notification processed for user ${userId}`);
+  }
+
+  private async handleStreakReset(data: any) {
+    const { userId, message } = data;
+    this.logger.log(`⚠️ User ${userId} streak has been reset.`);
+    // TODO: Implement actual streak reset notification logic
+    // - Send push notification to user
+    // - Send in-app notification
+    // - Encourage user to start a new streak
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    this.logger.log(`Streak reset notification processed for user ${userId}`);
+  }
+
+  private async handleStreakReward(data: any) {
+    const { userId, milestone, rewardAmount, message } = data;
+    this.logger.log(
+      `🎁 User ${userId} claimed ${milestone}-day streak reward: ${rewardAmount} XP!`,
+    );
+    // TODO: Implement actual streak reward notification logic
+    // - Send push notification to user
+    // - Send in-app notification
+    // - Show reward animation/confetti
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    this.logger.log(`Streak reward notification processed for user ${userId}`);
+  }
+
+  private async handleStreakBadge(data: any) {
+    const { userId, badgeType, message } = data;
+    this.logger.log(`🏆 User ${userId} unlocked streak badge: ${badgeType}!`);
+    // TODO: Implement actual streak badge notification logic
+    // - Send push notification to user
+    // - Send in-app notification
+    // - Show badge unlock animation
+    // - Update user's badge collection
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    this.logger.log(`Streak badge notification processed for user ${userId}`);
   }
 }
