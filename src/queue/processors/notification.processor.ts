@@ -8,6 +8,12 @@ export enum NotificationType {
   PUSH = 'push',
   SMS = 'sms',
   LEVEL_UP = 'LEVEL_UP',
+  REWARD_GRANTED = 'REWARD_GRANTED',
+  REWARD_EXPIRED = 'REWARD_EXPIRED',
+  REWARD_TRADED = 'REWARD_TRADED',
+  REWARD_GIFTED = 'REWARD_GIFTED',
+  REWARD_PURCHASED = 'REWARD_PURCHASED',
+  REWARD_SOLD = 'REWARD_SOLD',
 }
 
 @Processor(QUEUE_NAMES.NOTIFICATIONS)
@@ -36,6 +42,14 @@ export class NotificationProcessor {
           break;
         case NotificationType.LEVEL_UP:
           await this.handleLevelUp(job.data);
+          break;
+        case NotificationType.REWARD_GRANTED:
+        case NotificationType.REWARD_EXPIRED:
+        case NotificationType.REWARD_TRADED:
+        case NotificationType.REWARD_GIFTED:
+        case NotificationType.REWARD_PURCHASED:
+        case NotificationType.REWARD_SOLD:
+          await this.handleRewardNotification(job.data);
           break;
         default:
           throw new Error(`Unknown notification type: ${type}`);
@@ -89,5 +103,21 @@ export class NotificationProcessor {
     // - Broadcast to friends/followers
     await new Promise((resolve) => setTimeout(resolve, 500));
     this.logger.log(`Level-up notification processed for user ${username}`);
+  }
+
+  private async handleRewardNotification(data: any) {
+    const { type, userId, rewardId, rewardName, rewardType, message, eventName } = data;
+    this.logger.log(
+      `🎁 Reward notification: ${type} for user ${userId}, reward: ${rewardName || rewardId}`,
+    );
+    
+    // TODO: Implement actual reward notification logic
+    // - Send push notification to user
+    // - Send in-app notification
+    // - Update user's reward inventory UI
+    // - For trades/gifts, notify both parties
+    
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    this.logger.log(`Reward notification ${type} processed for user ${userId}`);
   }
 }
