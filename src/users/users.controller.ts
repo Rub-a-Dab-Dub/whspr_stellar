@@ -14,6 +14,7 @@ import {
   FileTypeValidator,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
@@ -24,12 +25,16 @@ import { LeaderboardQueryDto } from './dto/leaderboard-query.dto';
 import { XpHistoryQueryDto } from './dto/xp-history-query.dto';
 import { AddXpDto } from './dto/add-xp.dto';
 import { XpService } from './services/xp.service';
+import { StreakService } from './services/streak.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/guards/jwt-refresh-auth.guard';
 
 @Controller('users')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly xpService: XpService,
+    private readonly streakService: StreakService,
   ) { }
 
   @Post()
@@ -124,5 +129,45 @@ export class UsersController {
       weekly,
       byAction,
     }));
+  }
+
+  // Streak endpoints
+  @UseGuards(JwtAuthGuard)
+  @Get('me/streak')
+  getMyStreak(@CurrentUser() user: any) {
+    return this.streakService.getUserStreak(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/streak/track-login')
+  @HttpCode(HttpStatus.OK)
+  trackDailyLogin(@CurrentUser() user: any) {
+    return this.streakService.trackDailyLogin(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/streak/use-freeze')
+  @HttpCode(HttpStatus.OK)
+  useFreezeItem(@CurrentUser() user: any) {
+    return this.streakService.useFreezeItem(user.userId);
+  }
+
+  @Get('streak/leaderboard')
+  getStreakLeaderboard(@Query() query: LeaderboardQueryDto) {
+    return this.streakService.getStreakLeaderboard(query.page, query.limit);
+  }
+
+  @Get('analytics/streak')
+  getStreakAnalytics() {
+    return this.streakService.getStreakAnalytics();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/streak/history')
+  getMyStreakHistory(
+    @CurrentUser() user: any,
+    @Query() query: XpHistoryQueryDto,
+  ) {
+    return this.streakService.getStreakHistory(user.userId, query.page, query.limit);
   }
 }

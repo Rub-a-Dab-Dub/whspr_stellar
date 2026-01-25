@@ -1,5 +1,5 @@
 // src/auth/auth.service.ts
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../user/user.service';
@@ -8,9 +8,13 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { SessionService } from 'src/sessions/services/sessions.service';
+import { StreakService } from '../users/services/streak.service';
+import { UsersService as ProfileUsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -18,6 +22,8 @@ export class AuthService {
     private redisService: RedisService,
     private mailerService: MailerService,
     private readonly sessionService: SessionService,
+    private readonly streakService: StreakService,
+    private readonly profileUsersService: ProfileUsersService,
   ) {}
 
   async register(email: string, password: string) {
@@ -74,6 +80,19 @@ export class AuthService {
       user.id || '',
       tokens.refreshToken,
     );
+
+    // Track daily login for streak system
+    try {
+      // Try to find user in profile system by email
+      const profileUser = await this.profileUsersService.findByEmail(user.email);
+      if (profileUser) {
+        await this.streakService.trackDailyLogin(profileUser.id);
+        this.logger.log(`Streak tracked for user ${profileUser.id}`);
+      }
+    } catch (error) {
+      // Log but don't fail login if streak tracking fails
+      this.logger.warn(`Failed to track streak for user ${user.email}: ${error.message}`);
+    }
 
     return {
       accessToken: tokens.accessToken,
