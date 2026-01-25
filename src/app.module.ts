@@ -24,6 +24,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesSeederService } from './database/seeders/roles.seeder';
 import { SessionsModule } from './sessions/sessions.module';
 import { MessageModule } from './message/message.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { MessageModule } from './message/message.module';
     RolesModule,
     SessionsModule,
     MessageModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

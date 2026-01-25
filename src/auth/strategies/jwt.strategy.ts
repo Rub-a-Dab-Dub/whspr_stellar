@@ -43,6 +43,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Account is locked');
     }
 
-    return { userId: payload.sub, email: payload.email };
+    // Check if user is banned or suspended
+    if (user.isBanned) {
+      throw new UnauthorizedException('Account is banned');
+    }
+
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      throw new UnauthorizedException('Account is suspended');
+    }
+
+    return { 
+      userId: payload.sub, 
+      email: payload.email,
+      user, // Include full user object with roles
+    };
   }
 }

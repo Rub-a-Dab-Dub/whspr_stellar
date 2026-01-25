@@ -54,6 +54,39 @@ export class User {
   @Exclude()
   refreshToken: string | undefined;
 
+  @Column({ default: false })
+  isBanned!: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  bannedAt: Date | undefined;
+
+  @Column({ type: 'uuid', nullable: true })
+  bannedBy: string | undefined;
+
+  @Column({ type: 'text', nullable: true })
+  banReason: string | undefined;
+
+  @Column({ type: 'timestamp', nullable: true })
+  suspendedUntil: Date | undefined;
+
+  @Column({ type: 'timestamp', nullable: true })
+  suspendedAt: Date | undefined;
+
+  @Column({ type: 'uuid', nullable: true })
+  suspendedBy: string | undefined;
+
+  @Column({ type: 'text', nullable: true })
+  suspensionReason: string | undefined;
+
+  @Column({ default: false })
+  isVerified!: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  verifiedAt: Date | undefined;
+
+  @Column({ type: 'uuid', nullable: true })
+  verifiedBy: string | undefined;
+
   @ManyToMany(() => Role, (role) => role.users, {
     eager: true,
     cascade: true,
@@ -73,5 +106,11 @@ export class User {
 
   get isLocked(): boolean {
     return !!(this.lockoutUntil && this.lockoutUntil > new Date());
+  }
+
+  get isSuspended(): boolean {
+    return !!(
+      this.suspendedUntil && this.suspendedUntil > new Date()
+    );
   }
 }
