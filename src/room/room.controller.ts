@@ -7,9 +7,17 @@ import {
   Param,
   Body,
   UseGuards,
+  Query,
+  CurrentUser,
 } from '@nestjs/common';
 import { RoomSettingsService } from './room.service';
 import { UpdateRoomSettingsDto } from './dto/room-settings.dto';
+import { RoomPaymentService } from './services/room-payment.service';
+import { PayEntryDto } from './dto/pay-entry.dto';
+import { RefundPaymentDto } from './dto/refund-payment.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RoleGuard } from '../roles/guards/role.guard';
+import { Roles } from '../roles/decorators/roles.decorator';
 
 @Controller('rooms/:roomId/settings')
 export class RoomSettingsController {
@@ -45,5 +53,65 @@ export class RoomSettingsController {
   async unpinMessage(@Param('pinnedId') pinnedId: string) {
     await this.settingsService.unpinMessage(pinnedId);
     return { success: true };
+  }
+}
+
+@Controller('rooms')
+export class RoomPaymentController {
+  constructor(private roomPaymentService: RoomPaymentService) {}
+
+  @Post(':id/pay-entry')
+  @UseGuards(JwtAuthGuard)
+  async payRoomEntry(
+    @Param('id') roomId: string,
+    @Body() payEntryDto: PayEntryDto,
+    @CurrentUser() user: any,
+  ) {
+    // Assuming user has a walletAddress field
+    return this.roomPaymentService.payRoomEntry(
+      roomId,
+      user.id,
+      user.walletAddress,
+      payEntryDto
+    );
+  }
+
+  @Get(':id/access-status')
+  @UseGuards(JwtAuthGuard)
+  async checkAccess(
+    @Param('id') roomId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.roomPaymentService.checkUserAccess(user.id, roomId);
+  }
+
+  @Get('payments/history')
+  @UseGuards(JwtAuthGuard)
+  async getPaymentHistory(
+    @CurrentUser() user: any,
+    @Query('roomId') roomId?: string,
+  ) {
+    return this.roomPaymentService.getUserPaymentHistory(user.id, roomId);
+  }
+
+  @Get('payments/:paymentId')
+  @UseGuards(JwtAuthGuard)
+  async getPaymentStatus(
+    @Param('paymentId') paymentId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.roomPaymentService.getPaymentStatus(paymentId, user.id);
+  }
+
+  @Post('payments/:paymentId/refund')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('admin')
+  async refundPayment(
+    @Param('paymentId') paymentId: string,
+    @Body() refundDto: RefundPaymentDto,
+    @CurrentUser() user: any,
+  ) {
+    refundDto.paymentId = paymentId;
+    return this.roomPaymentService.refundPayment(refundDto, user.id);
   }
 }
