@@ -14,9 +14,8 @@ pub enum ContractError {
     InvalidUsername = 7,
     InvalidAmount = 8,
     InsufficientBalance = 9,
-    TransferToSelf = 10,
-    TransferLimitExceeded = 11,
-    DailyCapExceeded = 12,
+    TransferLimitExceeded = 10,
+    DailyCapExceeded = 11,
 }
 
 #[contract]
@@ -79,10 +78,8 @@ pub struct UserProfile {
 #[derive(Clone)]
 #[contracttype]
 pub struct TransferSettings {
-    pub min_transfer_amount: i128,
     pub max_transfer_amount: i128,
     pub daily_transfer_cap: i128,
-    pub transfers_enabled: bool,
 }
 
 /// Daily transfer tracking per user
@@ -90,7 +87,6 @@ pub struct TransferSettings {
 #[contracttype]
 pub struct DailyTransferRecord {
     pub total_transferred: i128,
-    pub transfer_count: u32,
     pub last_reset_timestamp: u64,
 }
 
@@ -127,10 +123,8 @@ impl BaseContract {
 
         // Initialize default transfer settings
         let default_transfer_settings = TransferSettings {
-            min_transfer_amount: 1,
             max_transfer_amount: 1_000_000_000_000, // Default max: 1 trillion stroops
             daily_transfer_cap: 10_000_000_000_000, // Default daily cap: 10 trillion stroops
-            transfers_enabled: true,
         };
         env.storage()
             .instance()
@@ -493,7 +487,6 @@ impl BaseContract {
     /// Initialize or update transfer settings (admin only)
     pub fn init_transfer_settings(
         env: Env,
-        min_transfer_amount: i128,
         max_transfer_amount: i128,
         daily_transfer_cap: i128,
     ) -> Result<(), ContractError> {
@@ -505,19 +498,13 @@ impl BaseContract {
 
         admin.require_auth();
 
-        if min_transfer_amount <= 0 || max_transfer_amount <= 0 || daily_transfer_cap <= 0 {
-            return Err(ContractError::InvalidAmount);
-        }
-
-        if min_transfer_amount > max_transfer_amount {
+        if max_transfer_amount <= 0 || daily_transfer_cap <= 0 {
             return Err(ContractError::InvalidAmount);
         }
 
         let settings = TransferSettings {
-            min_transfer_amount,
             max_transfer_amount,
             daily_transfer_cap,
-            transfers_enabled: true,
         };
 
         env.storage()
@@ -525,39 +512,6 @@ impl BaseContract {
             .set(&DataKey::TransferSettings, &settings);
 
         Ok(())
-    }
-
-    /// Enable or disable P2P transfers (admin only)
-    pub fn set_transfers_enabled(env: Env, enabled: bool) -> Result<(), ContractError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(ContractError::NotInitialized)?;
-
-        admin.require_auth();
-
-        let mut settings: TransferSettings = env
-            .storage()
-            .instance()
-            .get(&DataKey::TransferSettings)
-            .ok_or(ContractError::NotInitialized)?;
-
-        settings.transfers_enabled = enabled;
-
-        env.storage()
-            .instance()
-            .set(&DataKey::TransferSettings, &settings);
-
-        Ok(())
-    }
-
-    /// Get current transfer settings
-    pub fn get_transfer_settings(env: Env) -> Result<TransferSettings, ContractError> {
-        env.storage()
-            .instance()
-            .get(&DataKey::TransferSettings)
-            .ok_or(ContractError::NotInitialized)
     }
 
     /// P2P Token Transfer - Zero Fees
@@ -577,26 +531,12 @@ impl BaseContract {
             .get(&DataKey::TransferSettings)
             .ok_or(ContractError::NotInitialized)?;
 
-        // Check if transfers are enabled
-        if !transfer_settings.transfers_enabled {
-            return Err(ContractError::Unauthorized);
-        }
-
         // Validate amount
         if amount <= 0 {
             return Err(ContractError::InvalidAmount);
         }
 
-        // Prevent transfer to self
-        if sender == recipient {
-            return Err(ContractError::TransferToSelf);
-        }
-
         // Check transfer limits
-        if amount < transfer_settings.min_transfer_amount {
-            return Err(ContractError::InvalidAmount);
-        }
-
         if amount > transfer_settings.max_transfer_amount {
             return Err(ContractError::TransferLimitExceeded);
         }
@@ -611,14 +551,12 @@ impl BaseContract {
             .get(&DataKey::DailyTransferRecord(sender.clone()))
             .unwrap_or(DailyTransferRecord {
                 total_transferred: 0,
-                transfer_count: 0,
                 last_reset_timestamp: current_timestamp,
             });
 
         // Reset daily cap if a day has passed
         if current_timestamp >= daily_record.last_reset_timestamp + seconds_per_day {
             daily_record.total_transferred = 0;
-            daily_record.transfer_count = 0;
             daily_record.last_reset_timestamp = current_timestamp;
         }
 
@@ -648,7 +586,6 @@ impl BaseContract {
 
         // Update daily transfer record
         daily_record.total_transferred += amount;
-        daily_record.transfer_count += 1;
 
         env.storage()
             .instance()
@@ -668,88 +605,11 @@ impl BaseContract {
         Ok(())
     }
 
-    /// Get user's daily transfer record
-    pub fn get_daily_transfer_record(
-        env: Env,
-        user: Address,
-    ) -> Result<DailyTransferRecord, ContractError> {
-        let current_timestamp = env.ledger().timestamp();
-        let seconds_per_day: u64 = 86400;
-
-        let record: DailyTransferRecord = env
-            .storage()
-            .instance()
-            .get(&DataKey::DailyTransferRecord(user))
-            .unwrap_or(DailyTransferRecord {
-                total_transferred: 0,
-                transfer_count: 0,
-                last_reset_timestamp: current_timestamp,
-            });
-
-        // Return reset record if day has passed (for accurate reading)
-        if current_timestamp >= record.last_reset_timestamp + seconds_per_day {
-            Ok(DailyTransferRecord {
-                total_transferred: 0,
-                transfer_count: 0,
-                last_reset_timestamp: current_timestamp,
-            })
-        } else {
-            Ok(record)
-        }
-    }
-
-    /// Get remaining daily transfer allowance for a user
-    pub fn get_remaining_daily_allowance(env: Env, user: Address) -> Result<i128, ContractError> {
-        let transfer_settings: TransferSettings = env
-            .storage()
-            .instance()
-            .get(&DataKey::TransferSettings)
-            .ok_or(ContractError::NotInitialized)?;
-
-        let current_timestamp = env.ledger().timestamp();
-        let seconds_per_day: u64 = 86400;
-
-        let record: DailyTransferRecord = env
-            .storage()
-            .instance()
-            .get(&DataKey::DailyTransferRecord(user))
-            .unwrap_or(DailyTransferRecord {
-                total_transferred: 0,
-                transfer_count: 0,
-                last_reset_timestamp: current_timestamp,
-            });
-
-        // If day has passed, return full allowance
-        if current_timestamp >= record.last_reset_timestamp + seconds_per_day {
-            Ok(transfer_settings.daily_transfer_cap)
-        } else {
-            Ok(transfer_settings.daily_transfer_cap - record.total_transferred)
-        }
-    }
-
-    /// Reset a user's daily transfer record (admin only, for emergency use)
-    pub fn reset_daily_transfer_record(env: Env, user: Address) -> Result<(), ContractError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(ContractError::NotInitialized)?;
-
-        admin.require_auth();
-
-        let current_timestamp = env.ledger().timestamp();
-
-        let reset_record = DailyTransferRecord {
-            total_transferred: 0,
-            transfer_count: 0,
-            last_reset_timestamp: current_timestamp,
-        };
-
+    pub fn get_transfer_settings(env: Env) -> Result<TransferSettings, ContractError> {
         env.storage()
             .instance()
-            .set(&DataKey::DailyTransferRecord(user), &reset_record);
-
-        Ok(())
+            .get(&DataKey::TransferSettings)
+            .ok_or(ContractError::NotInitialized)
     }
 }
 
