@@ -299,12 +299,24 @@ impl BaseContract {
     }
 
     pub fn reward_tip_received(env: Env, user: Address) -> Result<(), ContractError> {
+        require_admin(&env)?;
         let (old_level, new_level) =
             award_xp(&env, user.clone(), XP_TIP_RECEIVED, ActionType::TipReceived)?;
 
         emit_level_up(&env, user, old_level, new_level);
 
         Ok(())
+    }
+
+    fn require_admin(env: &Env) -> Result<Address, ContractError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::NotInitialized)?;
+
+        admin.require_auth();
+        Ok(admin)
     }
 
     /// Initialize platform settings (must be called after init)
