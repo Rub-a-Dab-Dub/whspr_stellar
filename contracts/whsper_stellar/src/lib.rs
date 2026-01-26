@@ -1,6 +1,8 @@
 #![no_std]
 
-use soroban_sdk::{Address, Env, Symbol, contract, contracterror, contractimpl, contracttype, token};
+use soroban_sdk::{
+    Address, Env, Symbol, contract, contracterror, contractimpl, contracttype, token,
+};
 
 #[contracterror]
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -13,7 +15,7 @@ pub enum ContractError {
     UsernameTaken = 6,
     InvalidUsername = 7,
     XpCooldownActive = 8,
-    XpRateLimited = 9
+    XpRateLimited = 9,
 }
 
 #[derive(Clone)]
@@ -38,8 +40,15 @@ pub enum DataKey {
     TotalFeesWithdrawn,
     User(Address),
     Username(Symbol),
-    HourlyXp(Address, u64)
+    HourlyXp(Address, u64),
 }
+
+// all this XP point are subject to change
+const XP_MESSAGE: u64 = 1;
+const XP_TIP_RECEIVED: u64 = 5;
+
+const XP_COOLDOWN_SECONDS: u64 = 30;
+const MAX_XP_PER_HOUR: u64 = 60;
 
 /// Simple metadata structure
 #[derive(Clone)]
@@ -214,6 +223,77 @@ impl BaseContract {
         profile.level = calculate_level(profile.xp);
 
         env.storage().instance().set(&DataKey::User(user), &profile);
+
+        Ok(())
+    }
+
+    fn award_xp(
+        env: &Env,
+        user: Address,
+        xp_amount: u64,
+        action: ActionType,
+    ) -> Result<(u32, u32), ContractError> {
+        let now = env.ledger().timestamp();
+
+        if let Some(last_ts) = env
+            .storage()
+            .instance()
+            .get::<_, u64>(&DataKey::LastAction(user.clone(), action.clone()))
+        {
+            if now < last_ts + XP_COOLDOWN_SECONDS {
+                return Err(ContractError::XpCooldownActive);
+            }
+        }
+
+        let hour_bucket = now / 3600;
+
+        let current_hour_xp: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::HourlyXp(user.clone(), hour_bucket))
+            .unwrap_or(0);
+
+        if current_hour_xp + xp_amount > MAX_XP_PER_HOUR {
+            return Err(ContractError::XpRateLimited);
+        }
+
+        let mut profile: UserProfile = env
+            .storage()
+            .instance()
+            .get(&DataKey::User(user.clone()))
+            .ok_or(ContractError::UserNotFound)?;
+
+        let old_level = profile.level;
+
+        profile.xp += xp_amount;
+        profile.level = calculate_level(profile.xp);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::User(user.clone()), &profile);
+        env.storage()
+            .instance()
+            .set(&DataKey::LastAction(user.clone(), action), &now);
+
+        env.storage().instance().set(
+            &DataKey::HourlyXp(user.clone(), hour_bucket),
+            &(current_hour_xp + xp_amount),
+        );
+
+        Ok((old_level, profile.level))
+    }
+
+    fn emit_level_up(env: &Env, user: Address, old_level: u32, new_level: u32) {
+        if new_level > old_level {
+            env.events()
+                .publish((Symbol::new(env, "level_up"), user), (old_level, new_level));
+        }
+    }
+
+    pub fn reward_message(env: Env, user: Address) -> Result<(), ContractError> {
+        let (old_level, new_level) = award_xp(&env, user.clone(), XP_MESSAGE, ActionType::Message)?;
+
+        emit_level_up(&env, user, old_level, new_level);
 
         Ok(())
     }
