@@ -298,6 +298,15 @@ impl BaseContract {
         Ok(())
     }
 
+    pub fn reward_tip_received(env: Env, user: Address) -> Result<(), ContractError> {
+        let (old_level, new_level) =
+            award_xp(&env, user.clone(), XP_TIP_RECEIVED, ActionType::TipReceived)?;
+
+        emit_level_up(&env, user, old_level, new_level);
+
+        Ok(())
+    }
+
     /// Initialize platform settings (must be called after init)
     pub fn init_platform_settings(env: Env, fee_percentage: u32, fee_token: Address) {
         let admin: Address = env
