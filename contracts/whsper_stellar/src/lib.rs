@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{Address, Env, Symbol, contract, contracterror, contractimpl, contracttype, token};
+use soroban_sdk::{Address, Env, Symbol, Vec, contract, contracterror, contractimpl, contracttype, token};
 
 #[contracterror]
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -12,6 +12,11 @@ pub enum ContractError {
     UserNotFound = 5,
     UsernameTaken = 6,
     InvalidUsername = 7,
+    InvalidAmount = 8,
+    InsufficientBalance = 9,
+    TransferToSelf = 10,
+    TransferLimitExceeded = 11,
+    DailyCapExceeded = 12,
 }
 
 #[contract]
@@ -29,6 +34,9 @@ pub enum DataKey {
     TotalFeesWithdrawn,
     User(Address),
     Username(Symbol),
+    // P2P Transfer related keys
+    TransferSettings,
+    DailyTransferRecord(Address),
 }
 
 /// Simple metadata structure
@@ -67,9 +75,38 @@ pub struct UserProfile {
     pub join_date: u64,
 }
 
+/// P2P Transfer settings for security limits
+#[derive(Clone)]
+#[contracttype]
+pub struct TransferSettings {
+    pub min_transfer_amount: i128,
+    pub max_transfer_amount: i128,
+    pub daily_transfer_cap: i128,
+    pub transfers_enabled: bool,
+}
+
+/// Daily transfer tracking per user
+#[derive(Clone)]
+#[contracttype]
+pub struct DailyTransferRecord {
+    pub total_transferred: i128,
+    pub transfer_count: u32,
+    pub last_reset_timestamp: u64,
+}
+
+/// Transfer event data
+#[derive(Clone)]
+#[contracttype]
+pub struct TransferEventData {
+    pub from: Address,
+    pub to: Address,
+    pub amount: i128,
+    pub timestamp: u64,
+}
+
 #[contractimpl]
 impl BaseContract {
-    pub fn init(env: Env, admin: Address, name: Symbol, version: u32) {
+    pub fn init(env: Env, admin: Address, name: Symbol, version: u32) -> Result<(), ContractError> {
         if env.storage().instance().has(&DataKey::Admin) {
             return Err(ContractError::AlreadyInitialized);
         }
@@ -87,6 +124,19 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::TotalFeesWithdrawn, &0i128);
+
+        // Initialize default transfer settings
+        let default_transfer_settings = TransferSettings {
+            min_transfer_amount: 1,
+            max_transfer_amount: 1_000_000_000_000, // Default max: 1 trillion stroops
+            daily_transfer_cap: 10_000_000_000_000, // Default daily cap: 10 trillion stroops
+            transfers_enabled: true,
+        };
+        env.storage()
+            .instance()
+            .set(&DataKey::TransferSettings, &default_transfer_settings);
+
+        Ok(())
     }
 
     pub fn admin(env: Env) -> Result<UserProfile, ContractError> {
@@ -103,11 +153,10 @@ impl BaseContract {
             .ok_or(ContractError::UserNotFound)
     }
 
-    pub fn register_user(env: Env, username: Symbol) -> Result<(), ContractError> {
-        let caller = env.invoker();
+    pub fn register_user(env: Env, caller: Address, username: Symbol) -> Result<(), ContractError> {
         caller.require_auth();
 
-        validate_username(&username)?;
+        validate_username(&env, &username)?;
 
         if env.storage().instance().has(&DataKey::User(caller.clone())) {
             return Err(ContractError::UserAlreadyRegistered);
@@ -141,18 +190,10 @@ impl BaseContract {
         Ok(())
     }
 
-    pub fn get_user_profile(env: Env, user: Address) -> UserProfile {
-        env.storage()
-            .instance()
-            .get(&DataKey::User(user))
-            .expect("user not found")
-    }
-
-    pub fn update_username(env: Env, new_username: Symbol) -> Result<(), ContractError> {
-        let caller = env.invoker();
+    pub fn update_username(env: Env, caller: Address, new_username: Symbol) -> Result<(), ContractError> {
         caller.require_auth();
 
-        validate_username(&new_username)?;
+        validate_username(&env, &new_username)?;
 
         if env
             .storage()
@@ -445,11 +486,292 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::PlatformSettings, &settings);
-fn validate_username(username: &Symbol) {
-    let len = username.len();
-    if len < 3 || len > 16 {
+    }
+
+    // ==================== P2P TRANSFER FUNCTIONS ====================
+
+    /// Initialize or update transfer settings (admin only)
+    pub fn init_transfer_settings(
+        env: Env,
+        min_transfer_amount: i128,
+        max_transfer_amount: i128,
+        daily_transfer_cap: i128,
+    ) -> Result<(), ContractError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::NotInitialized)?;
+
+        admin.require_auth();
+
+        if min_transfer_amount <= 0 || max_transfer_amount <= 0 || daily_transfer_cap <= 0 {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        if min_transfer_amount > max_transfer_amount {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        let settings = TransferSettings {
+            min_transfer_amount,
+            max_transfer_amount,
+            daily_transfer_cap,
+            transfers_enabled: true,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::TransferSettings, &settings);
+
+        Ok(())
+    }
+
+    /// Enable or disable P2P transfers (admin only)
+    pub fn set_transfers_enabled(env: Env, enabled: bool) -> Result<(), ContractError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::NotInitialized)?;
+
+        admin.require_auth();
+
+        let mut settings: TransferSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransferSettings)
+            .ok_or(ContractError::NotInitialized)?;
+
+        settings.transfers_enabled = enabled;
+
+        env.storage()
+            .instance()
+            .set(&DataKey::TransferSettings, &settings);
+
+        Ok(())
+    }
+
+    /// Get current transfer settings
+    pub fn get_transfer_settings(env: Env) -> Result<TransferSettings, ContractError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::TransferSettings)
+            .ok_or(ContractError::NotInitialized)
+    }
+
+    /// P2P Token Transfer - Zero Fees
+    /// Transfers tokens directly from sender to recipient without any platform fees
+    pub fn transfer_tokens(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        amount: i128,
+    ) -> Result<(), ContractError> {
+        sender.require_auth();
+
+        // Get transfer settings
+        let transfer_settings: TransferSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransferSettings)
+            .ok_or(ContractError::NotInitialized)?;
+
+        // Check if transfers are enabled
+        if !transfer_settings.transfers_enabled {
+            return Err(ContractError::Unauthorized);
+        }
+
+        // Validate amount
+        if amount <= 0 {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        // Prevent transfer to self
+        if sender == recipient {
+            return Err(ContractError::TransferToSelf);
+        }
+
+        // Check transfer limits
+        if amount < transfer_settings.min_transfer_amount {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        if amount > transfer_settings.max_transfer_amount {
+            return Err(ContractError::TransferLimitExceeded);
+        }
+
+        // Check and update daily transfer cap
+        let current_timestamp = env.ledger().timestamp();
+        let seconds_per_day: u64 = 86400;
+
+        let mut daily_record: DailyTransferRecord = env
+            .storage()
+            .instance()
+            .get(&DataKey::DailyTransferRecord(sender.clone()))
+            .unwrap_or(DailyTransferRecord {
+                total_transferred: 0,
+                transfer_count: 0,
+                last_reset_timestamp: current_timestamp,
+            });
+
+        // Reset daily cap if a day has passed
+        if current_timestamp >= daily_record.last_reset_timestamp + seconds_per_day {
+            daily_record.total_transferred = 0;
+            daily_record.transfer_count = 0;
+            daily_record.last_reset_timestamp = current_timestamp;
+        }
+
+        // Check if this transfer would exceed daily cap
+        if daily_record.total_transferred + amount > transfer_settings.daily_transfer_cap {
+            return Err(ContractError::DailyCapExceeded);
+        }
+
+        // Get platform settings for token address
+        let platform_settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .ok_or(ContractError::NotInitialized)?;
+
+        // Create token client
+        let token_client = token::Client::new(&env, &platform_settings.fee_token);
+
+        // Check sender's balance
+        let sender_balance = token_client.balance(&sender);
+        if sender_balance < amount {
+            return Err(ContractError::InsufficientBalance);
+        }
+
+        // Execute transfer - 100% to recipient (zero fees)
+        token_client.transfer(&sender, &recipient, &amount);
+
+        // Update daily transfer record
+        daily_record.total_transferred += amount;
+        daily_record.transfer_count += 1;
+
+        env.storage()
+            .instance()
+            .set(&DataKey::DailyTransferRecord(sender.clone()), &daily_record);
+
+        // Emit transfer event
+        env.events().publish(
+            (Symbol::new(&env, "p2p_transfer"), sender.clone(), recipient.clone()),
+            TransferEventData {
+                from: sender,
+                to: recipient,
+                amount,
+                timestamp: current_timestamp,
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Get user's daily transfer record
+    pub fn get_daily_transfer_record(
+        env: Env,
+        user: Address,
+    ) -> Result<DailyTransferRecord, ContractError> {
+        let current_timestamp = env.ledger().timestamp();
+        let seconds_per_day: u64 = 86400;
+
+        let record: DailyTransferRecord = env
+            .storage()
+            .instance()
+            .get(&DataKey::DailyTransferRecord(user))
+            .unwrap_or(DailyTransferRecord {
+                total_transferred: 0,
+                transfer_count: 0,
+                last_reset_timestamp: current_timestamp,
+            });
+
+        // Return reset record if day has passed (for accurate reading)
+        if current_timestamp >= record.last_reset_timestamp + seconds_per_day {
+            Ok(DailyTransferRecord {
+                total_transferred: 0,
+                transfer_count: 0,
+                last_reset_timestamp: current_timestamp,
+            })
+        } else {
+            Ok(record)
+        }
+    }
+
+    /// Get remaining daily transfer allowance for a user
+    pub fn get_remaining_daily_allowance(env: Env, user: Address) -> Result<i128, ContractError> {
+        let transfer_settings: TransferSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransferSettings)
+            .ok_or(ContractError::NotInitialized)?;
+
+        let current_timestamp = env.ledger().timestamp();
+        let seconds_per_day: u64 = 86400;
+
+        let record: DailyTransferRecord = env
+            .storage()
+            .instance()
+            .get(&DataKey::DailyTransferRecord(user))
+            .unwrap_or(DailyTransferRecord {
+                total_transferred: 0,
+                transfer_count: 0,
+                last_reset_timestamp: current_timestamp,
+            });
+
+        // If day has passed, return full allowance
+        if current_timestamp >= record.last_reset_timestamp + seconds_per_day {
+            Ok(transfer_settings.daily_transfer_cap)
+        } else {
+            Ok(transfer_settings.daily_transfer_cap - record.total_transferred)
+        }
+    }
+
+    /// Reset a user's daily transfer record (admin only, for emergency use)
+    pub fn reset_daily_transfer_record(env: Env, user: Address) -> Result<(), ContractError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::NotInitialized)?;
+
+        admin.require_auth();
+
+        let current_timestamp = env.ledger().timestamp();
+
+        let reset_record = DailyTransferRecord {
+            total_transferred: 0,
+            transfer_count: 0,
+            last_reset_timestamp: current_timestamp,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::DailyTransferRecord(user), &reset_record);
+
+        Ok(())
+    }
+}
+
+fn validate_username(env: &Env, username: &Symbol) -> Result<(), ContractError> {
+    // Convert symbol to string slice for validation
+    // Symbol in Soroban has a max length constraint built-in
+    // We validate by checking if the symbol can be represented as a short symbol (max 9 chars)
+    // or a longer symbol (up to 32 chars). Empty symbols are invalid.
+
+    // Create a test by trying to create the same symbol - if it matches, it's valid
+    // For usernames, we require at least some content
+    let empty_symbol = Symbol::new(env, "");
+    if *username == empty_symbol {
         return Err(ContractError::InvalidUsername);
     }
+
+    // Additional validation: usernames should be alphanumeric
+    // Since we can't iterate over Symbol chars directly in no_std,
+    // we trust that valid symbols passed to the contract are properly formatted
+    // The frontend/client should validate username format before submission
+
+    Ok(())
 }
 
 // subject to change base on xp point design

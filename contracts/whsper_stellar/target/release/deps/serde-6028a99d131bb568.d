@@ -1,0 +1,14 @@
+/Users/ram/Desktop/whspr_stellar/contracts/whsper_stellar/target/release/deps/serde-6028a99d131bb568.d: /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/ram/Desktop/whspr_stellar/contracts/whsper_stellar/target/release/build/serde-1a20f7e444a88e14/out/private.rs
+
+/Users/ram/Desktop/whspr_stellar/contracts/whsper_stellar/target/release/deps/libserde-6028a99d131bb568.rlib: /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/ram/Desktop/whspr_stellar/contracts/whsper_stellar/target/release/build/serde-1a20f7e444a88e14/out/private.rs
+
+/Users/ram/Desktop/whspr_stellar/contracts/whsper_stellar/target/release/deps/libserde-6028a99d131bb568.rmeta: /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/ram/Desktop/whspr_stellar/contracts/whsper_stellar/target/release/build/serde-1a20f7e444a88e14/out/private.rs
+
+/Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/ram/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/ram/Desktop/whspr_stellar/contracts/whsper_stellar/target/release/build/serde-1a20f7e444a88e14/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/ram/Desktop/whspr_stellar/contracts/whsper_stellar/target/release/build/serde-1a20f7e444a88e14/out

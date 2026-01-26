@@ -1,0 +1,1 @@
+{"rustc":18415816196306954164,"features":"[\"std\"]","declared_features":"[\"default\", \"std\"]","target":996231028007045470,"profile":8276155916380437441,"path":11849939544396356339,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"debug/.fingerprint/wasmi_arena-cd8ae7a0f7d3d160/dep-lib-wasmi_arena","checksum":false}}],"rustflags":[],"config":2069994364910194474,"compile_kind":0}
