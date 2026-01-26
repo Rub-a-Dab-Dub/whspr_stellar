@@ -12,6 +12,15 @@ pub enum ContractError {
     UserNotFound = 5,
     UsernameTaken = 6,
     InvalidUsername = 7,
+    XpCooldownActive = 8,
+    XpRateLimited = 9
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub enum ActionType {
+    Message,
+    TipReceived,
 }
 
 #[contract]
@@ -29,6 +38,7 @@ pub enum DataKey {
     TotalFeesWithdrawn,
     User(Address),
     Username(Symbol),
+    HourlyXp(Address, u64)
 }
 
 /// Simple metadata structure
@@ -445,6 +455,8 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::PlatformSettings, &settings);
+    }
+}
 fn validate_username(username: &Symbol) {
     let len = username.len();
     if len < 3 || len > 16 {
