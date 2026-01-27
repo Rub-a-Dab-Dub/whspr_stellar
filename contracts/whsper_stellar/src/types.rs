@@ -1,12 +1,4 @@
-use soroban_sdk::{contracttype, Address};
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum ActionType {
-    Message = 0,
-    Tip = 1,
-    Transfer = 2,
-}
+use soroban_sdk::{contracterror, contracttype, Address, Symbol, Vec};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -17,6 +9,34 @@ pub struct RateLimitConfig {
     pub daily_message_limit: u32,
     pub daily_tip_limit: u32,
     pub daily_transfer_limit: u32,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ContractError {
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    Unauthorized = 3,
+    UserAlreadyRegistered = 4,
+    UserNotFound = 5,
+    UsernameTaken = 6,
+    InvalidUsername = 7,
+    RoomAlreadyExists = 8,
+    RoomNotFound = 9,
+    RoomCancelled = 10,
+    NotRoomCreator = 11,
+    AccessAlreadyGranted = 12,
+    InsufficientFunds = 13,
+    XpCooldownActive = 14,
+    XpRateLimited = 15,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum ActionType {
+    Message = 0,
+    TipReceived = 1,
+    Transfer = 2,
 }
 
 
@@ -65,6 +85,23 @@ pub struct DailyStats {
     pub tip_count: u32,
     pub transfer_count: u32,
     pub last_day: u64, // epoch day
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct Room {
+    pub id: Symbol,
+    pub creator: Address,
+    pub entry_fee: i128,
+    pub is_cancelled: bool,
+    pub total_revenue: i128,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct RoomMember {
+    pub has_access: bool,
+    pub joined_at: u64,
 }
 
 impl Default for DailyStats {

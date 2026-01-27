@@ -47,17 +47,17 @@ fn test_cooldown() {
     env.ledger().with_mut(|li| li.timestamp = 0);
 
     // First message should succeed
-    client.send_message(&user);
+    client.reward_message(&user);
 
     // Immediate second message should fail (default cooldown 60s)
-    let res = client.try_send_message(&user);
+    let res = client.try_reward_message(&user);
     assert!(res.is_err());
 
     // Advance time by 61 seconds
     env.ledger().with_mut(|li| li.timestamp = 61);
 
     // Should succeed now
-    let res = client.try_send_message(&user);
+    let res = client.try_reward_message(&user);
     assert!(res.is_ok());
 }
 
@@ -86,18 +86,18 @@ fn test_daily_limit() {
     client.set_config(&config);
 
     // Send 2 messages (should succeed)
-    client.send_message(&user);
-    client.send_message(&user);
+    client.reward_message(&user);
+    client.reward_message(&user);
 
     // 3rd message should fail
-    let res = client.try_send_message(&user);
+    let res = client.try_reward_message(&user);
     assert!(res.is_err());
 
     // Advance to next day (86400 seconds)
     env.ledger().with_mut(|li| li.timestamp = 86401);
 
     // Should succeed again
-    let res = client.try_send_message(&user);
+    let res = client.try_reward_message(&user);
     assert!(res.is_ok());
 }
 
@@ -126,14 +126,14 @@ fn test_admin_override() {
     client.set_config(&config);
 
     // Should fail
-    let res = client.try_send_message(&user);
+    let res = client.try_reward_message(&user);
     assert!(res.is_err());
 
     // Enable override
     client.set_override(&user, &true);
 
     // Should succeed
-    let res = client.try_send_message(&user);
+    let res = client.try_reward_message(&user);
     assert!(res.is_ok());
 }
 
@@ -165,15 +165,15 @@ fn test_reputation_scaling() {
     client.set_reputation(&user, &100);
 
     env.ledger().with_mut(|li| li.timestamp = 0);
-    client.send_message(&user);
+    client.reward_message(&user);
 
     // Try at 30s (should fail, need 50s)
     env.ledger().with_mut(|li| li.timestamp = 30);
-    let res = client.try_send_message(&user);
+    let res = client.try_reward_message(&user);
     assert!(res.is_err());
 
     // Try at 51s (should succeed)
     env.ledger().with_mut(|li| li.timestamp = 51);
-    let res = client.try_send_message(&user);
+    let res = client.try_reward_message(&user);
     assert!(res.is_ok());
 }
