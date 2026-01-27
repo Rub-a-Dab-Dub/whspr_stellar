@@ -1,20 +1,49 @@
 #![no_std]
 
-mod test;
-mod storage;
-mod types;
 mod ratelimit;
+mod storage;
+mod test;
+mod types;
 
-use soroban_sdk::{
-    Address, Env, Symbol, Vec, contract, contractimpl, token,
+use crate::ratelimit::{check_can_act, record_action};
+use crate::storage::DataKey;
+use crate::types::{
+    ActionType, ContractMetadata, DailyStats, PlatformSettings, RateLimitConfig, Room, RoomMember,
+    TreasuryAnalytics, UserProfile,
 };
+use soroban_sdk::{contract, contracterror, contractimpl, token, Address, Env, Symbol, Vec};
 
-pub use crate::types::*;
 pub use crate::storage::*;
+pub use crate::types::*;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ContractError {
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    Unauthorized = 3,
+    UserAlreadyRegistered = 4,
+    UserNotFound = 5,
+    UsernameTaken = 6,
+    InvalidUsername = 7,
+    XpCooldownActive = 8,
+    XpRateLimited = 9,
+    InvalidAmount = 10,
+    RoomAlreadyExists = 11,
+    RoomNotFound = 12,
+    RoomCancelled = 13,
+    NotRoomCreator = 14,
+    AccessAlreadyGranted = 15,
+    InsufficientFunds = 16,
+}
 
 #[contract]
 pub struct BaseContract;
 
+<<<<<<< HEAD
+=======
+/// Constants
+>>>>>>> 75ac6d5 (implements direct peer-to-peer token transfers without platform fees)
 // all this XP point are subject to change
 const XP_MESSAGE: u64 = 1;
 const XP_TIP_RECEIVED: u64 = 5;
@@ -32,11 +61,11 @@ impl BaseContract {
         admin.require_auth();
 
         let metadata = ContractMetadata { name, version };
-        
+
         // Default Rate Limit Config
         let config = RateLimitConfig {
-            message_cooldown: 60, // 1 minute
-            tip_cooldown: 300,    // 5 minutes
+            message_cooldown: 60,   // 1 minute
+            tip_cooldown: 300,      // 5 minutes
             transfer_cooldown: 600, // 10 minutes
             daily_message_limit: 100,
             daily_tip_limit: 50,
@@ -45,12 +74,18 @@ impl BaseContract {
 
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Metadata, &metadata);
-        env.storage().instance().set(&DataKey::RateLimitConfig, &config);
-        
+        env.storage()
+            .instance()
+            .set(&DataKey::RateLimitConfig, &config);
+
         // Initialize Treasury Keys
         env.storage().instance().set(&DataKey::Treasury, &0i128);
-        env.storage().instance().set(&DataKey::TotalFeesCollected, &0i128);
-        env.storage().instance().set(&DataKey::TotalFeesWithdrawn, &0i128);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFeesCollected, &0i128);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFeesWithdrawn, &0i128);
         Ok(())
     }
 
@@ -72,22 +107,28 @@ impl BaseContract {
     pub fn set_config(env: Env, config: RateLimitConfig) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::RateLimitConfig, &config);
+        env.storage()
+            .instance()
+            .set(&DataKey::RateLimitConfig, &config);
     }
 
     pub fn set_reputation(env: Env, user: Address, reputation: u32) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::UserReputation(user), &reputation);
+        env.storage()
+            .instance()
+            .set(&DataKey::UserReputation(user), &reputation);
     }
 
     pub fn set_override(env: Env, user: Address, is_exempt: bool) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::AdminOverride(user), &is_exempt);
+        env.storage()
+            .instance()
+            .set(&DataKey::AdminOverride(user), &is_exempt);
     }
 
-    // User Profile Functions (New)
+    // User Profile Functions
     pub fn get_user_profile(env: Env, user: Address) -> Result<UserProfile, ContractError> {
         env.storage()
             .instance()
@@ -305,13 +346,17 @@ impl BaseContract {
     pub fn register_user(env: Env, user: Address, username: Symbol) -> Result<(), ContractError> {
         user.require_auth();
 
-        validate_username(&username)?;
+        validate_username(username.clone())?;
 
         if env.storage().instance().has(&DataKey::User(user.clone())) {
             return Err(ContractError::UserAlreadyRegistered);
         }
 
-        if env.storage().instance().has(&DataKey::Username(username.clone())) {
+        if env
+            .storage()
+            .instance()
+            .has(&DataKey::Username(username.clone()))
+        {
             return Err(ContractError::UsernameTaken);
         }
 
@@ -324,8 +369,12 @@ impl BaseContract {
             join_date: env.ledger().timestamp(),
         };
 
-        env.storage().instance().set(&DataKey::User(user.clone()), &profile);
-        env.storage().instance().set(&DataKey::Username(username), &user);
+        env.storage()
+            .instance()
+            .set(&DataKey::User(user.clone()), &profile);
+        env.storage()
+            .instance()
+            .set(&DataKey::Username(username), &user);
 
         Ok(())
     }
@@ -337,7 +386,7 @@ impl BaseContract {
     ) -> Result<(), ContractError> {
         user.require_auth();
 
-        validate_username(&new_username)?;
+        validate_username(new_username.clone())?;
 
         if env
             .storage()
@@ -353,8 +402,12 @@ impl BaseContract {
             .get(&DataKey::User(user.clone()))
             .ok_or(ContractError::UserNotFound)?;
 
-        env.storage().instance().remove(&DataKey::Username(profile.username.clone()));
-        env.storage().instance().set(&DataKey::Username(new_username.clone()), &user);
+        env.storage()
+            .instance()
+            .remove(&DataKey::Username(profile.username.clone()));
+        env.storage()
+            .instance()
+            .set(&DataKey::Username(new_username.clone()), &user);
 
         profile.username = new_username;
 
@@ -390,9 +443,19 @@ impl BaseContract {
         env: &Env,
         user: Address,
         xp_amount: u64,
-        _action: ActionType,
+        action: ActionType,
     ) -> Result<(u32, u32), ContractError> {
         let now = env.ledger().timestamp();
+
+        if let Some(last_ts) = env
+            .storage()
+            .instance()
+            .get::<_, u64>(&DataKey::UserLastAction(user.clone(), action.clone()))
+        {
+            if now < last_ts + XP_COOLDOWN_SECONDS {
+                return Err(ContractError::XpCooldownActive);
+            }
+        }
         let hour_bucket = now / 3600;
 
         let current_hour_xp: u64 = env
@@ -426,6 +489,9 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::User(user.clone()), &profile);
+        env.storage()
+            .instance()
+            .set(&DataKey::UserLastAction(user.clone(), action), &now);
 
         env.storage().instance().set(
             &DataKey::HourlyXp(user.clone(), hour_bucket),
@@ -442,44 +508,78 @@ impl BaseContract {
         }
     }
 
-    pub fn reward_message(env: Env, user: Address) -> Result<(), ContractError> {
-        ratelimit::check_can_act(&env, &user, ActionType::Message);
-        
-        let (old_level, new_level) = Self::award_xp(&env, user.clone(), XP_MESSAGE, ActionType::Message)?;
+    pub fn send_message(env: Env, user: Address) -> Result<(), ContractError> {
+        user.require_auth();
+        check_can_act(&env, &user, ActionType::Message);
+        record_action(&env, &user, ActionType::Message);
+        Ok(())
+    }
 
-        Self::emit_level_up(&env, user.clone(), old_level, new_level);
-        ratelimit::record_action(&env, &user, ActionType::Message);
+    pub fn reward_message(env: Env, user: Address) -> Result<(), ContractError> {
+        // Note: We might want to restrict who can call this (e.g. admin or checking logic)
+        // For now, assuming it's called by an automated system or we rely on internal checks.
+        // The original HEAD had ratelimit checks here. The Remote moved them to send_message.
+        // Typically rewards are triggered by the system.
+        
+        let (old_level, new_level) =
+            Self::award_xp(&env, user.clone(), XP_MESSAGE, ActionType::Message)?;
+
+        Self::emit_level_up(&env, user, old_level, new_level);
 
         Ok(())
     }
 
     pub fn reward_tip_received(env: Env, user: Address) -> Result<(), ContractError> {
-        Self::require_admin(&env)?;
-        ratelimit::check_can_act(&env, &user, ActionType::TipReceived);
-
+        require_admin(&env)?;
         let (old_level, new_level) =
             Self::award_xp(&env, user.clone(), XP_TIP_RECEIVED, ActionType::TipReceived)?;
 
-        Self::emit_level_up(&env, user.clone(), old_level, new_level);
-        ratelimit::record_action(&env, &user, ActionType::TipReceived);
+        Self::emit_level_up(&env, user, old_level, new_level);
 
         Ok(())
     }
 
-    fn require_admin(env: &Env) -> Result<Address, ContractError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(ContractError::NotInitialized)?;
+    // P2P Token Transfers (Zero Fees)
+    pub fn transfer_tokens(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        token: Address,
+        amount: i128,
+    ) -> Result<(), ContractError> {
+        // 1. Validate Access
+        sender.require_auth();
 
-        admin.require_auth();
-        Ok(admin)
+        if amount <= 0 {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        // 2. Rate Limiting
+        check_can_act(&env, &sender, ActionType::Transfer);
+
+        // 3. Perform Token Transfer (0% Fee)
+        let token_client = token::Client::new(&env, &token);
+        token_client.transfer(&sender, &recipient, &amount);
+
+        // 4. Record Action for Rate Limiting
+        record_action(&env, &sender, ActionType::Transfer);
+
+        // 5. Emit Event
+        env.events().publish(
+            (Symbol::new(&env, "transfer"), sender, recipient),
+            (token, amount),
+        );
+
+        Ok(())
     }
 
     /// Initialize platform settings (must be called after init)
     pub fn init_platform_settings(env: Env, fee_percentage: u32, fee_token: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("not initialized");
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
         admin.require_auth();
 
         if fee_percentage > 10000 {
@@ -492,109 +592,215 @@ impl BaseContract {
             fee_token,
         };
 
-        env.storage().instance().set(&DataKey::PlatformSettings, &settings);
+        env.storage()
+            .instance()
+            .set(&DataKey::PlatformSettings, &settings);
     }
 
     pub fn get_platform_settings(env: Env) -> PlatformSettings {
-        env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized")
+        env.storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized")
     }
 
     pub fn update_fee_percentage(env: Env, new_fee_percentage: u32) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("not initialized");
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
         admin.require_auth();
 
         if new_fee_percentage > 10000 {
             panic!("fee percentage cannot exceed 100%");
         }
 
-        let mut settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let mut settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         settings.fee_percentage = new_fee_percentage;
-        env.storage().instance().set(&DataKey::PlatformSettings, &settings);
+        env.storage()
+            .instance()
+            .set(&DataKey::PlatformSettings, &settings);
     }
 
     pub fn collect_fee(env: Env, amount: i128) {
-        let settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         let fee_amount = (amount * settings.fee_percentage as i128) / 10000;
 
-        let mut treasury_balance: i128 = env.storage().instance().get(&DataKey::Treasury).unwrap_or(0);
+        let mut treasury_balance: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0);
         treasury_balance += fee_amount;
-        env.storage().instance().set(&DataKey::Treasury, &treasury_balance);
+        env.storage()
+            .instance()
+            .set(&DataKey::Treasury, &treasury_balance);
 
-        let mut total_collected: i128 = env.storage().instance().get(&DataKey::TotalFeesCollected).unwrap_or(0);
+        let mut total_collected: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalFeesCollected)
+            .unwrap_or(0);
         total_collected += fee_amount;
-        env.storage().instance().set(&DataKey::TotalFeesCollected, &total_collected);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFeesCollected, &total_collected);
     }
 
     pub fn withdraw_fees(env: Env, amount: i128, recipient: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("not initialized");
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
         admin.require_auth();
 
         if amount <= 0 {
             panic!("withdrawal amount must be positive");
         }
 
-        let mut treasury_balance: i128 = env.storage().instance().get(&DataKey::Treasury).unwrap_or(0);
+        let mut treasury_balance: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0);
         if amount > treasury_balance {
             panic!("insufficient treasury balance");
         }
 
-        let settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         let token_client = token::Client::new(&env, &settings.fee_token);
         token_client.transfer(&env.current_contract_address(), &recipient, &amount);
 
         treasury_balance -= amount;
-        env.storage().instance().set(&DataKey::Treasury, &treasury_balance);
+        env.storage()
+            .instance()
+            .set(&DataKey::Treasury, &treasury_balance);
 
-        let mut total_withdrawn: i128 = env.storage().instance().get(&DataKey::TotalFeesWithdrawn).unwrap_or(0);
+        let mut total_withdrawn: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalFeesWithdrawn)
+            .unwrap_or(0);
         total_withdrawn += amount;
-        env.storage().instance().set(&DataKey::TotalFeesWithdrawn, &total_withdrawn);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFeesWithdrawn, &total_withdrawn);
     }
 
     pub fn get_treasury_balance(env: Env) -> i128 {
-        env.storage().instance().get(&DataKey::Treasury).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0)
     }
 
     pub fn get_total_fees_collected(env: Env) -> i128 {
-        env.storage().instance().get(&DataKey::TotalFeesCollected).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::TotalFeesCollected)
+            .unwrap_or(0)
     }
 
     pub fn get_total_fees_withdrawn(env: Env) -> i128 {
-        env.storage().instance().get(&DataKey::TotalFeesWithdrawn).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::TotalFeesWithdrawn)
+            .unwrap_or(0)
     }
 
     pub fn get_treasury_analytics(env: Env) -> TreasuryAnalytics {
-        let settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         TreasuryAnalytics {
-            current_balance: env.storage().instance().get(&DataKey::Treasury).unwrap_or(0),
-            total_collected: env.storage().instance().get(&DataKey::TotalFeesCollected).unwrap_or(0),
-            total_withdrawn: env.storage().instance().get(&DataKey::TotalFeesWithdrawn).unwrap_or(0),
+            current_balance: env
+                .storage()
+                .instance()
+                .get(&DataKey::Treasury)
+                .unwrap_or(0),
+            total_collected: env
+                .storage()
+                .instance()
+                .get(&DataKey::TotalFeesCollected)
+                .unwrap_or(0),
+            total_withdrawn: env
+                .storage()
+                .instance()
+                .get(&DataKey::TotalFeesWithdrawn)
+                .unwrap_or(0),
             fee_percentage: settings.fee_percentage,
         }
     }
 
     pub fn calculate_fee(env: Env, amount: i128) -> i128 {
-        let settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         (amount * settings.fee_percentage as i128) / 10000
     }
 
     pub fn update_admin(env: Env, new_admin: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("not initialized");
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
         admin.require_auth();
 
         env.storage().instance().set(&DataKey::Admin, &new_admin);
 
         // Update admin in platform settings if initialized
         if env.storage().instance().has(&DataKey::PlatformSettings) {
-             let mut settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).unwrap();
-             settings.admin_address = new_admin;
-             env.storage().instance().set(&DataKey::PlatformSettings, &settings);
+            let mut settings: PlatformSettings = env
+                .storage()
+                .instance()
+                .get(&DataKey::PlatformSettings)
+                .unwrap();
+            settings.admin_address = new_admin;
+            env.storage()
+                .instance()
+                .set(&DataKey::PlatformSettings, &settings);
         }
     }
 }
 
-fn validate_username(_username: &Symbol) -> Result<(), ContractError> {
-    // Length check removed as it's hard to do cleanly with Symbol in no_std without Env access.
-    // Host will enforce the limit (32 chars) anyway.
+fn require_admin(env: &Env) -> Result<Address, ContractError> {
+    let admin: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .ok_or(ContractError::NotInitialized)?;
+
+    admin.require_auth();
+    Ok(admin)
+}
+
+fn validate_username(username: Symbol) -> Result<(), ContractError> {
+    // Basic validation just relying on Symbol's inherent limits.
+    // Symbols are essentially short strings (max 32 chars).
+    if username.len() == 0 {
+         return Err(ContractError::InvalidUsername);
+    }
+    Ok(())
+}
     Ok(())
 }
 

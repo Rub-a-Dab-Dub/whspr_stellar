@@ -1,5 +1,5 @@
-use soroban_sdk::{contracttype, Address};
 use crate::types::ActionType;
+use soroban_sdk::{contracttype, Address};
 
 #[derive(Clone)]
 #[contracttype]

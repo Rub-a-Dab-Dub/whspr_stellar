@@ -1,19 +1,15 @@
 #![cfg(test)]
 
 use super::*;
+use crate::types::{ActionType, RateLimitConfig};
 use soroban_sdk::{
-    Env, 
-    testutils::{
-        Address as _, 
-        Ledger as _, 
-    }, 
-    Address, 
+    testutils::{Address as _, Ledger as _},
+    token, // Import token module
+    Address,
+    Env,
     Symbol,
     Vec,
 };
-use crate::types::{RateLimitConfig, ActionType};
-
-
 
 #[test]
 fn test_initialization() {
@@ -21,7 +17,7 @@ fn test_initialization() {
     env.mock_all_auths();
 
     let admin = Address::generate(&env);
-    
+
     // contract implementation
     let contract_id = env.register_contract(None, BaseContract);
     let client = BaseContractClient::new(&env, &contract_id);
@@ -33,17 +29,16 @@ fn test_initialization() {
 fn test_cooldown() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
-    
+
     let contract_id = env.register_contract(None, BaseContract);
     let client = BaseContractClient::new(&env, &contract_id);
 
     client.init(&admin, &Symbol::new(&env, "Test"), &1);
 
     // Set timestamp to 0
-    // If set_timestamp doesn't exist on Ledger testutils in this version, use with_mut
     env.ledger().with_mut(|li| li.timestamp = 0);
 
     // First message should succeed
@@ -65,10 +60,10 @@ fn test_cooldown() {
 fn test_daily_limit() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
-    
+
     let contract_id = env.register_contract(None, BaseContract);
     let client = BaseContractClient::new(&env, &contract_id);
 
@@ -76,7 +71,7 @@ fn test_daily_limit() {
 
     // Set a small daily limit for testing
     let config = RateLimitConfig {
-        message_cooldown: 0, 
+        message_cooldown: 0,
         tip_cooldown: 0,
         transfer_cooldown: 0,
         daily_message_limit: 2,
@@ -105,10 +100,10 @@ fn test_daily_limit() {
 fn test_admin_override() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
-    
+
     let contract_id = env.register_contract(None, BaseContract);
     let client = BaseContractClient::new(&env, &contract_id);
 
@@ -167,7 +162,7 @@ fn test_reputation_scaling() {
     env.ledger().with_mut(|li| li.timestamp = 0);
     client.reward_message(&user);
 
-    // Try at 30s (should fail, need 50s)
+    // Try at 30s (should fail, need 50s with scaling)
     env.ledger().with_mut(|li| li.timestamp = 30);
     let res = client.try_reward_message(&user);
     assert!(res.is_err());
@@ -176,4 +171,57 @@ fn test_reputation_scaling() {
     env.ledger().with_mut(|li| li.timestamp = 51);
     let res = client.try_reward_message(&user);
     assert!(res.is_ok());
+}
+
+#[test]
+fn test_transfer_tokens() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let user1 = Address::generate(&env);
+    let user2 = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Setup Token
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token = token::Client::new(&env, &token_id);
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+
+    // Mint tokens to user1
+    token_admin_client.mint(&user1, &1000);
+
+    // Configure Rate Limits (ensure allow enough for test)
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 5, // Limit to 5
+    };
+    client.set_config(&config);
+
+    // 1. Successful Transfer (100 amount)
+    client.transfer_tokens(&user1, &user2, &token_id, &100);
+
+    // Check balances (Zero Fee)
+    assert_eq!(token.balance(&user1), 900);
+    assert_eq!(token.balance(&user2), 100);
+
+    // 2. Rate Limit Test
+    // We did 1. Do 4 more.
+    client.transfer_tokens(&user1, &user2, &token_id, &10);
+    client.transfer_tokens(&user1, &user2, &token_id, &10);
+    client.transfer_tokens(&user1, &user2, &token_id, &10);
+    client.transfer_tokens(&user1, &user2, &token_id, &10);
+
+    // 6th should fail
+    let res = client.try_transfer_tokens(&user1, &user2, &token_id, &10);
+    assert!(res.is_err());
 }

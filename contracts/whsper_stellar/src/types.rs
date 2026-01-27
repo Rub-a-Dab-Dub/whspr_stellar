@@ -1,45 +1,24 @@
-use soroban_sdk::{contracterror, contracttype, Address, Symbol, Vec};
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[contracttype]
-pub struct RateLimitConfig {
-    pub message_cooldown: u64, // seconds
-    pub tip_cooldown: u64,     // seconds
-    pub transfer_cooldown: u64, // seconds
-    pub daily_message_limit: u32,
-    pub daily_tip_limit: u32,
-    pub daily_transfer_limit: u32,
-}
-
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ContractError {
-    AlreadyInitialized = 1,
-    NotInitialized = 2,
-    Unauthorized = 3,
-    UserAlreadyRegistered = 4,
-    UserNotFound = 5,
-    UsernameTaken = 6,
-    InvalidUsername = 7,
-    RoomAlreadyExists = 8,
-    RoomNotFound = 9,
-    RoomCancelled = 10,
-    NotRoomCreator = 11,
-    AccessAlreadyGranted = 12,
-    InsufficientFunds = 13,
-    XpCooldownActive = 14,
-    XpRateLimited = 15,
-}
+use soroban_sdk::{contracttype, Address, Symbol};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
 pub enum ActionType {
     Message = 0,
-    TipReceived = 1,
+    Tip = 1,
     Transfer = 2,
+    TipReceived = 3,
 }
 
-
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct RateLimitConfig {
+    pub message_cooldown: u64,  // seconds
+    pub tip_cooldown: u64,      // seconds
+    pub transfer_cooldown: u64, // seconds
+    pub daily_message_limit: u32,
+    pub daily_tip_limit: u32,
+    pub daily_transfer_limit: u32,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -75,8 +54,6 @@ pub struct UserProfile {
     pub badges: soroban_sdk::Vec<soroban_sdk::Symbol>,
     pub join_date: u64,
 }
-
-
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
