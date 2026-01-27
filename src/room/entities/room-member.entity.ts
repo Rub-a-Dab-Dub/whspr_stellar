@@ -10,7 +10,7 @@ import {
   Unique,
 } from 'typeorm';
 import { Room } from './room.entity';
-import { User } from '../../../user/entities/user.entity';
+import { User } from '../../user/entities/user.entity';
 
 export enum MemberRole {
   ADMIN = 'ADMIN',
