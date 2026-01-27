@@ -1,14 +1,11 @@
-#![cfg(test)]
-
 use super::*;
-use crate::types::{ActionType, RateLimitConfig};
+use crate::types::RateLimitConfig;
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     token, // Import token module
     Address,
     Env,
     Symbol,
-    Vec,
 };
 
 #[test]
@@ -189,7 +186,8 @@ fn test_transfer_tokens() {
 
     // Setup Token
     let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
     let token = token::Client::new(&env, &token_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
 

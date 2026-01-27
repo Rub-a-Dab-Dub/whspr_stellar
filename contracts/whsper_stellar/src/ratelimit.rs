@@ -9,15 +9,13 @@ pub fn check_can_act(env: &Env, user: &Address, action: ActionType) {
         .storage()
         .instance()
         .has(&DataKey::AdminOverride(user.clone()))
-    {
-        if env
+        && env
             .storage()
             .instance()
             .get(&DataKey::AdminOverride(user.clone()))
             .unwrap_or(false)
-        {
-            return; // User is exempt from limits
-        }
+    {
+        return; // User is exempt from limits
     }
 
     // 2. Load Configuration
@@ -65,7 +63,7 @@ pub fn check_can_act(env: &Env, user: &Address, action: ActionType) {
         .storage()
         .instance()
         .get(&daily_stats_key)
-        .unwrap_or(DailyStats::default());
+        .unwrap_or_default();
 
     let current_day = current_time / 86400; // 86400 seconds in a day
 
@@ -108,7 +106,7 @@ pub fn record_action(env: &Env, user: &Address, action: ActionType) {
         .storage()
         .instance()
         .get(&daily_stats_key)
-        .unwrap_or(DailyStats::default());
+        .unwrap_or_default();
 
     if daily_stats.last_day != current_day {
         daily_stats = DailyStats {

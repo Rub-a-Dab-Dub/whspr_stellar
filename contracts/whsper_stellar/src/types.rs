@@ -55,7 +55,7 @@ pub struct UserProfile {
     pub join_date: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 #[contracttype]
 pub struct DailyStats {
     pub message_count: u32,
@@ -79,15 +79,4 @@ pub struct Room {
 pub struct RoomMember {
     pub has_access: bool,
     pub joined_at: u64,
-}
-
-impl Default for DailyStats {
-    fn default() -> Self {
-        Self {
-            message_count: 0,
-            tip_count: 0,
-            transfer_count: 0,
-            last_day: 0,
-        }
-    }
 }

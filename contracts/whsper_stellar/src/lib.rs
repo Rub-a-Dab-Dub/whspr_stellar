@@ -40,10 +40,6 @@ pub enum ContractError {
 #[contract]
 pub struct BaseContract;
 
-<<<<<<< HEAD
-=======
-/// Constants
->>>>>>> 75ac6d5 (implements direct peer-to-peer token transfers without platform fees)
 // all this XP point are subject to change
 const XP_MESSAGE: u64 = 1;
 const XP_TIP_RECEIVED: u64 = 5;
@@ -450,7 +446,7 @@ impl BaseContract {
         if let Some(last_ts) = env
             .storage()
             .instance()
-            .get::<_, u64>(&DataKey::UserLastAction(user.clone(), action.clone()))
+            .get::<_, u64>(&DataKey::UserLastAction(user.clone(), action))
         {
             if now < last_ts + XP_COOLDOWN_SECONDS {
                 return Err(ContractError::XpCooldownActive);
@@ -794,13 +790,10 @@ fn require_admin(env: &Env) -> Result<Address, ContractError> {
 }
 
 fn validate_username(username: Symbol) -> Result<(), ContractError> {
-    // Basic validation just relying on Symbol's inherent limits.
-    // Symbols are essentially short strings (max 32 chars).
+    // Basic validation relying on Symbol's inherent limits (max 32 chars).
     if username.len() == 0 {
-         return Err(ContractError::InvalidUsername);
+        return Err(ContractError::InvalidUsername);
     }
-    Ok(())
-}
     Ok(())
 }
 
