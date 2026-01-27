@@ -4,6 +4,7 @@ import { CacheModule } from '../cache/cache.module';
 import { RedisModule } from '../redis/redis.module';
 import { QueueModule } from '../queue/queue.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ChainModule } from '../chain/chain.module';
 
 // Entities
 import { Room } from './entities/room.entity';
@@ -62,6 +63,7 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
       RoomWhitelist,
       RoomEmergencyPause,
     ]),
+    ChainModule,
     CacheModule,
     RedisModule,
     QueueModule,

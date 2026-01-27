@@ -9,6 +9,7 @@ import { PayEntryDto } from '../dto/pay-entry.dto';
 import { PaymentStatusDto } from '../dto/payment-status.dto';
 import { RefundPaymentDto } from '../dto/refund-payment.dto';
 import { WithdrawFundsDto } from '../dto/withdraw-funds.dto';
+import { SupportedChain } from '../../chain/enums/supported-chain.enum';
 
 @Injectable()
 export class RoomPaymentService {
@@ -63,12 +64,14 @@ export class RoomPaymentService {
       throw new BadRequestException('This transaction has already been processed');
     }
 
-    // Verify blockchain transaction
+    // Verify blockchain transaction on the specified chain
+    const chain = (payEntryDto.blockchainNetwork as SupportedChain) || SupportedChain.ETHEREUM;
     const verification = await this.paymentVerificationService.verifyTransaction(
       payEntryDto.transactionHash,
       room.entryFee,
       roomId,
-      userAddress
+      userAddress,
+      chain,
     );
 
     if (!verification.verified) {
