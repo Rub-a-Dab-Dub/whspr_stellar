@@ -1,19 +1,11 @@
 #![cfg(test)]
 
 use super::*;
+use crate::types::{ActionType, RateLimitConfig};
 use soroban_sdk::{
-    Env, 
-    testutils::{
-        Address as _, 
-        Ledger as _, 
-    }, 
-    Address, 
-    Symbol,
-    Vec,
+    testutils::{Address as _, Ledger as _},
+    Address, Env, Symbol, Vec,
 };
-use crate::types::{RateLimitConfig, ActionType};
-
-
 
 #[test]
 fn test_initialization() {
@@ -21,7 +13,7 @@ fn test_initialization() {
     env.mock_all_auths();
 
     let admin = Address::generate(&env);
-    
+
     // contract implementation
     let contract_id = env.register_contract(None, BaseContract);
     let client = BaseContractClient::new(&env, &contract_id);
@@ -33,10 +25,10 @@ fn test_initialization() {
 fn test_cooldown() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
-    
+
     let contract_id = env.register_contract(None, BaseContract);
     let client = BaseContractClient::new(&env, &contract_id);
 
@@ -65,10 +57,10 @@ fn test_cooldown() {
 fn test_daily_limit() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
-    
+
     let contract_id = env.register_contract(None, BaseContract);
     let client = BaseContractClient::new(&env, &contract_id);
 
@@ -76,7 +68,7 @@ fn test_daily_limit() {
 
     // Set a small daily limit for testing
     let config = RateLimitConfig {
-        message_cooldown: 0, 
+        message_cooldown: 0,
         tip_cooldown: 0,
         transfer_cooldown: 0,
         daily_message_limit: 2,
@@ -105,10 +97,10 @@ fn test_daily_limit() {
 fn test_admin_override() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
-    
+
     let contract_id = env.register_contract(None, BaseContract);
     let client = BaseContractClient::new(&env, &contract_id);
 
