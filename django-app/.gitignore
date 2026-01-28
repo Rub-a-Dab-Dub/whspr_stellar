@@ -1,0 +1,51 @@
+# Python & Virtual Environment
+venv/
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.installed.cfg
+*.egg
+build/
+dist/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Database
+db.sqlite3
+*.db
+*.sqlite
+*.sqlite3
+
+# Static & Media Files
+staticfiles/
+media/
+/static/
+
+# OS Files
+Thumbs.db
+*.log
+
+# Django
+*.pot
+local_settings.py

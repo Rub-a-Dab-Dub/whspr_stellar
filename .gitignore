@@ -26,5 +26,5 @@ Thumbs.db
 *.sln
 *.sw?
 
-
 package-lock.json
+requirements.md
