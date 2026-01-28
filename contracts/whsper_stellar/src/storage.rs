@@ -1,5 +1,5 @@
-use soroban_sdk::{contracttype, Address};
 use crate::types::ActionType;
+use soroban_sdk::{contracttype, Address};
 
 #[derive(Clone)]
 #[contracttype]
@@ -21,4 +21,7 @@ pub enum DataKey {
     RoomMember(soroban_sdk::Symbol, Address),
     CreatorBalance(Address),
     HourlyXp(Address, u64),
+    Room(u64),
+    RoomList,
+    NextRoomId,
 }
