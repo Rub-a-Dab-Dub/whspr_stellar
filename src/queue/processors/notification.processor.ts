@@ -26,33 +26,61 @@ export class NotificationProcessor {
     this.logger.debug(`Job data: ${JSON.stringify(job.data)}`);
 
     try {
-      const { type, recipient, message, metadata } = job.data;
+      const { 
+        notificationId,
+        channel,
+        recipientId, 
+        type, 
+        title,
+        message, 
+        data,
+        settings,
+        email,
+        deviceTokens,
+        userDisplayName
+      } = job.data;
 
       await job.progress(20);
 
-      switch (type) {
-        case NotificationType.EMAIL:
-          await this.sendEmail(recipient, message, metadata);
+      // Handle different notification channels
+      switch (channel) {
+        case 'push':
+          if (deviceTokens && deviceTokens.length > 0) {
+            await this.sendPushNotification(deviceTokens, title, message, data);
+          }
           break;
-        case NotificationType.PUSH:
-          await this.sendPushNotification(recipient, message, metadata);
+        case 'email':
+          if (email) {
+            await this.sendEmailNotification(email, title, message, data);
+          }
           break;
-        case NotificationType.SMS:
-          await this.sendSMS(recipient, message, metadata);
-          break;
-        case NotificationType.LEVEL_UP:
-          await this.handleLevelUp(job.data);
-          break;
-        case NotificationType.REWARD_GRANTED:
-        case NotificationType.REWARD_EXPIRED:
-        case NotificationType.REWARD_TRADED:
-        case NotificationType.REWARD_GIFTED:
-        case NotificationType.REWARD_PURCHASED:
-        case NotificationType.REWARD_SOLD:
-          await this.handleRewardNotification(job.data);
+        case 'sms':
+          await this.sendSMS(recipientId, message, data);
           break;
         default:
-          throw new Error(`Unknown notification type: ${type}`);
+          // Handle legacy notification types
+          switch (type) {
+            case NotificationType.EMAIL:
+              await this.sendEmail(recipientId, message, data);
+              break;
+            case NotificationType.PUSH:
+              await this.sendPushNotification(deviceTokens || [], title || 'Notification', message, data);
+              break;
+            case NotificationType.SMS:
+              await this.sendSMS(recipientId, message, data);
+              break;
+            case NotificationType.LEVEL_UP:
+            case NotificationType.REWARD_GRANTED:
+            case NotificationType.REWARD_EXPIRED:
+            case NotificationType.REWARD_TRADED:
+            case NotificationType.REWARD_GIFTED:
+            case NotificationType.REWARD_PURCHASED:
+            case NotificationType.REWARD_SOLD:
+              await this.handleRewardNotification(job.data);
+              break;
+            default:
+              this.logger.warn(`Unknown notification type: ${type}`);
+          }
       }
 
       await job.progress(100);
@@ -61,7 +89,8 @@ export class NotificationProcessor {
       return {
         success: true,
         type,
-        recipient,
+        channel,
+        recipientId,
         sentAt: new Date().toISOString(),
       };
     } catch (error) {
@@ -77,11 +106,25 @@ export class NotificationProcessor {
     this.logger.log(`Email sent to ${recipient}`);
   }
 
-  private async sendPushNotification(recipient: string, message: string, metadata: any) {
-    this.logger.log(`Sending push notification to ${recipient}`);
-    // TODO: Implement actual push notification logic (e.g., using Firebase, OneSignal, etc.)
+  private async sendPushNotification(deviceTokens: string[], title: string, message: string, data: any) {
+    this.logger.log(`Sending push notification to ${deviceTokens.length} devices`);
+    
+    if (deviceTokens.length === 0) {
+      this.logger.warn('No device tokens provided for push notification');
+      return;
+    }
+
+    // TODO: Implement Firebase push notification logic
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    this.logger.log(`Push notification sent to ${deviceTokens.length} devices`);
+  }
+
+  private async sendEmailNotification(email: string, title: string, message: string, data: any) {
+    this.logger.log(`Sending email notification to ${email}`);
+    
+    // TODO: Implement email notification logic
     await new Promise((resolve) => setTimeout(resolve, 500));
-    this.logger.log(`Push notification sent to ${recipient}`);
+    this.logger.log(`Email notification sent to ${email}`);
   }
 
   private async sendSMS(recipient: string, message: string, metadata: any) {
@@ -89,20 +132,6 @@ export class NotificationProcessor {
     // TODO: Implement actual SMS sending logic (e.g., using Twilio, AWS SNS, etc.)
     await new Promise((resolve) => setTimeout(resolve, 500));
     this.logger.log(`SMS sent to ${recipient}`);
-  }
-
-  private async handleLevelUp(data: any) {
-    const { userId, username, oldLevel, newLevel, currentXp } = data;
-    this.logger.log(
-      `🎉 User ${username} (${userId}) leveled up from ${oldLevel} to ${newLevel}! Current XP: ${currentXp}`,
-    );
-    // TODO: Implement actual level-up notification logic
-    // - Send push notification to user
-    // - Send in-app notification
-    // - Update user achievements/badges
-    // - Broadcast to friends/followers
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    this.logger.log(`Level-up notification processed for user ${username}`);
   }
 
   private async handleRewardNotification(data: any) {

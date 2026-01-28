@@ -25,6 +25,7 @@ import { RolesSeederService } from './database/seeders/roles.seeder';
 import { SessionsModule } from './sessions/sessions.module';
 import { MessageModule } from './message/message.module';
 import { RewardsModule } from './rewards/rewards.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { RewardsModule } from './rewards/rewards.module';
     SessionsModule,
     MessageModule,
     RewardsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
