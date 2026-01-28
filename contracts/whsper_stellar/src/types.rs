@@ -20,6 +20,55 @@ pub struct RateLimitConfig {
     pub daily_transfer_limit: u32,
 }
 
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ContractError {
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    Unauthorized = 3,
+    UserAlreadyRegistered = 4,
+    UserNotFound = 5,
+    UsernameTaken = 6,
+    InvalidUsername = 7,
+    RoomAlreadyExists = 8,
+    RoomNotFound = 9,
+    RoomCancelled = 10,
+    NotRoomCreator = 11,
+    AccessAlreadyGranted = 12,
+    InsufficientFunds = 13,
+    XpCooldownActive = 14,
+    XpRateLimited = 15,
+    InvalidRoomType = 16,
+    UserAlreadyInRoom = 17,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum ActionType {
+    Message = 0,
+    TipReceived = 1,
+    Transfer = 2,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub enum RoomType {
+    Public,
+    TokenGated,
+    InviteOnly,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct Room {
+    pub id: u64,
+    pub creator: Address,
+    pub room_type: RoomType,
+    pub entry_fee: u64, // 0 for non-token-gated
+    pub participants: Vec<Address>,
+    pub created_at: u64,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct ContractMetadata {
@@ -55,7 +104,7 @@ pub struct UserProfile {
     pub join_date: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct DailyStats {
     pub message_count: u32,

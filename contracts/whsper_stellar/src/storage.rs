@@ -21,4 +21,7 @@ pub enum DataKey {
     RoomMember(soroban_sdk::Symbol, Address),
     CreatorBalance(Address),
     HourlyXp(Address, u64),
+    Room(u64),
+    RoomList,
+    NextRoomId,
 }

@@ -1,11 +1,8 @@
 use super::*;
-use crate::types::RateLimitConfig;
+use crate::types::{ActionType, RateLimitConfig};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
-    token, // Import token module
-    Address,
-    Env,
-    Symbol,
+    Address, Env, Symbol, Vec,
 };
 
 #[test]

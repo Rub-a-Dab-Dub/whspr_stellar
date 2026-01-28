@@ -5,37 +5,10 @@ mod storage;
 mod test;
 mod types;
 
-use crate::ratelimit::{check_can_act, record_action};
-use crate::storage::DataKey;
-use crate::types::{
-    ActionType, ContractMetadata, DailyStats, PlatformSettings, RateLimitConfig, Room, RoomMember,
-    TreasuryAnalytics, UserProfile,
-};
-use soroban_sdk::{contract, contracterror, contractimpl, token, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, token, Address, Env, Symbol, Vec};
 
 pub use crate::storage::*;
 pub use crate::types::*;
-
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ContractError {
-    AlreadyInitialized = 1,
-    NotInitialized = 2,
-    Unauthorized = 3,
-    UserAlreadyRegistered = 4,
-    UserNotFound = 5,
-    UsernameTaken = 6,
-    InvalidUsername = 7,
-    XpCooldownActive = 8,
-    XpRateLimited = 9,
-    InvalidAmount = 10,
-    RoomAlreadyExists = 11,
-    RoomNotFound = 12,
-    RoomCancelled = 13,
-    NotRoomCreator = 14,
-    AccessAlreadyGranted = 15,
-    InsufficientFunds = 16,
-}
 
 #[contract]
 pub struct BaseContract;
@@ -512,11 +485,8 @@ impl BaseContract {
     }
 
     pub fn reward_message(env: Env, user: Address) -> Result<(), ContractError> {
-        // Note: We might want to restrict who can call this (e.g. admin or checking logic)
-        // For now, assuming it's called by an automated system or we rely on internal checks.
-        // The original HEAD had ratelimit checks here. The Remote moved them to send_message.
-        // Typically rewards are triggered by the system.
-        
+        ratelimit::check_can_act(&env, &user, ActionType::Message);
+
         let (old_level, new_level) =
             Self::award_xp(&env, user.clone(), XP_MESSAGE, ActionType::Message)?;
 
@@ -775,6 +745,154 @@ impl BaseContract {
                 .instance()
                 .set(&DataKey::PlatformSettings, &settings);
         }
+    }
+
+    fn next_room_id(env: &Env) -> u64 {
+        let id: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextRoomId)
+            .unwrap_or(1);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::NextRoomId, &(id + 1));
+
+        id
+    }
+
+    pub fn create_room(env: Env, room_type: RoomType) -> Result<u64, ContractError> {
+        let creator = env.invoker();
+        creator.require_auth();
+
+        let room_id = next_room_id(&env);
+
+        let mut participants = Vec::new(&env);
+        participants.push_back(creator.clone());
+
+        let room = Room {
+            id: room_id,
+            creator: creator.clone(),
+            room_type,
+            entry_fee: 0,
+            participants,
+            created_at: env.ledger().timestamp(),
+        };
+
+        env.storage().instance().set(&DataKey::Room(room_id), &room);
+
+        let mut rooms: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomList)
+            .unwrap_or(Vec::new(&env));
+
+        rooms.push_back(room_id);
+
+        env.storage().instance().set(&DataKey::RoomList, &rooms);
+
+        Ok(room_id)
+    }
+
+    pub fn set_entry_fee(env: Env, room_id: u64, fee: u64) -> Result<(), ContractError> {
+        let caller = env.invoker();
+        caller.require_auth();
+
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        if room.creator != caller {
+            return Err(ContractError::Unauthorized);
+        }
+
+        if let RoomType::TokenGated = room.room_type {
+            room.entry_fee = fee;
+        } else {
+            return Err(ContractError::InvalidRoomType);
+        }
+
+        env.storage().instance().set(&DataKey::Room(room_id), &room);
+
+        Ok(())
+    }
+
+    pub fn add_participant(env: Env, room_id: u64, user: Address) -> Result<(), ContractError> {
+        let caller = env.invoker();
+        caller.require_auth();
+
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        match room.room_type {
+            RoomType::Public => {}
+            RoomType::InviteOnly => {
+                if caller != room.creator {
+                    return Err(ContractError::Unauthorized);
+                }
+            }
+            RoomType::TokenGated => {
+                // token payment verification goes here later
+            }
+        }
+
+        if room.participants.contains(&user) {
+            return Err(ContractError::UserAlreadyInRoom);
+        }
+
+        room.participants.push_back(user);
+
+        env.storage().instance().set(&DataKey::Room(room_id), &room);
+
+        Ok(())
+    }
+
+    pub fn remove_participant(env: Env, room_id: u64, user: Address) -> Result<(), ContractError> {
+        let caller = env.invoker();
+        caller.require_auth();
+
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        if caller != room.creator && caller != user {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let mut updated = Vec::new(&env);
+
+        for p in room.participants.iter() {
+            if p != user {
+                updated.push_back(p);
+            }
+        }
+
+        room.participants = updated;
+
+        env.storage().instance().set(&DataKey::Room(room_id), &room);
+
+        Ok(())
+    }
+
+    pub fn list_rooms(env: Env) -> Vec<u64> {
+        env.storage()
+            .instance()
+            .get(&DataKey::RoomList)
+            .unwrap_or(Vec::new(&env))
+    }
+
+    pub fn get_room(env: Env, room_id: u64) -> Result<Room, ContractError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)
     }
 }
 
