@@ -12,12 +12,14 @@ import {
 } from '@nestjs/common';
 import { RoomSettingsService } from './room.service';
 import { UpdateRoomSettingsDto } from './dto/room-settings.dto';
+import { WithdrawFundsDto } from './dto/withdraw-funds.dto';
 import { RoomPaymentService } from './services/room-payment.service';
 import { PayEntryDto } from './dto/pay-entry.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../roles/guards/role.guard';
 import { Roles } from '../roles/decorators/roles.decorator';
+import { RoleType } from '../roles/entities/role.entity';
 
 @Controller('rooms/:roomId/settings')
 export class RoomSettingsController {
@@ -105,7 +107,7 @@ export class RoomPaymentController {
 
   @Post('payments/:paymentId/refund')
   @UseGuards(JwtAuthGuard, RoleGuard)
-  @Roles('admin')
+  @Roles(RoleType.ADMIN)
   async refundPayment(
     @Param('paymentId') paymentId: string,
     @Body() refundDto: RefundPaymentDto,
@@ -113,5 +115,26 @@ export class RoomPaymentController {
   ) {
     refundDto.paymentId = paymentId;
     return this.roomPaymentService.refundPayment(refundDto, user.id);
+  }
+
+  @Get('earnings')
+  @UseGuards(JwtAuthGuard)
+  async getCreatorEarnings(@CurrentUser() user: any) {
+    return this.roomPaymentService.getCreatorEarnings(user.id);
+  }
+
+  @Post('withdraw')
+  @UseGuards(JwtAuthGuard)
+  async withdrawFunds(
+    @CurrentUser() user: any,
+    @Body() withdrawDto: WithdrawFundsDto,
+  ) {
+    return this.roomPaymentService.withdrawFunds(user.id, withdrawDto);
+  }
+
+  @Get(':id/revenue')
+  @UseGuards(JwtAuthGuard)
+  async getRoomRevenue(@Param('id') roomId: string) {
+    return this.roomPaymentService.getRoomRevenue(roomId);
   }
 }

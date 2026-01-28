@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address};
+use soroban_sdk::{contracttype, Address, Symbol};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -6,20 +6,68 @@ pub enum ActionType {
     Message = 0,
     Tip = 1,
     Transfer = 2,
+    TipReceived = 3,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct RateLimitConfig {
-    pub message_cooldown: u64, // seconds
-    pub tip_cooldown: u64,     // seconds
+    pub message_cooldown: u64,  // seconds
+    pub tip_cooldown: u64,      // seconds
     pub transfer_cooldown: u64, // seconds
     pub daily_message_limit: u32,
     pub daily_tip_limit: u32,
     pub daily_transfer_limit: u32,
 }
 
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ContractError {
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    Unauthorized = 3,
+    UserAlreadyRegistered = 4,
+    UserNotFound = 5,
+    UsernameTaken = 6,
+    InvalidUsername = 7,
+    RoomAlreadyExists = 8,
+    RoomNotFound = 9,
+    RoomCancelled = 10,
+    NotRoomCreator = 11,
+    AccessAlreadyGranted = 12,
+    InsufficientFunds = 13,
+    XpCooldownActive = 14,
+    XpRateLimited = 15,
+    InvalidRoomType = 16,
+    UserAlreadyInRoom = 17,
+}
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum ActionType {
+    Message = 0,
+    TipReceived = 1,
+    Transfer = 2,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub enum RoomType {
+    Public,
+    TokenGated,
+    InviteOnly,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct Room {
+    pub id: u64,
+    pub creator: Address,
+    pub room_type: RoomType,
+    pub entry_fee: u64, // 0 for non-token-gated
+    pub participants: Vec<Address>,
+    pub created_at: u64,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -56,8 +104,6 @@ pub struct UserProfile {
     pub join_date: u64,
 }
 
-
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct DailyStats {
@@ -67,13 +113,19 @@ pub struct DailyStats {
     pub last_day: u64, // epoch day
 }
 
-impl Default for DailyStats {
-    fn default() -> Self {
-        Self {
-            message_count: 0,
-            tip_count: 0,
-            transfer_count: 0,
-            last_day: 0,
-        }
-    }
+#[derive(Clone)]
+#[contracttype]
+pub struct Room {
+    pub id: Symbol,
+    pub creator: Address,
+    pub entry_fee: i128,
+    pub is_cancelled: bool,
+    pub total_revenue: i128,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct RoomMember {
+    pub has_access: bool,
+    pub joined_at: u64,
 }

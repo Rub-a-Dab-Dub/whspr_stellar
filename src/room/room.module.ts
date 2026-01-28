@@ -11,11 +11,15 @@ import { RoomMember } from './entities/room-member.entity';
 import { RoomInvitation } from './entities/room-invitation.entity';
 import { RoomPayment } from './entities/room-payment.entity';
 import { UserRoomAccess } from './entities/user-room-access.entity';
+import { RoomBan } from './entities/room-ban.entity';
+import { RoomWhitelist } from './entities/room-whitelist.entity';
+import { RoomEmergencyPause } from './entities/room-emergency-pause.entity';
 
 // Controllers
 import { RoomController } from './room.controller';
 import { RoomMemberController } from './room-member.controller';
 import { RoomInvitationController } from './room-invitation.controller';
+import { RoomRoleController } from './room-role.controller';
 
 // Services
 import { RoomService } from './room.service';
@@ -26,6 +30,7 @@ import { MemberActivityService } from './services/member-activity.service';
 import { RoomAnalyticsService } from './room-analytics.service';
 import { PaymentVerificationService } from './services/payment-verification.service';
 import { RoomPaymentService } from './services/room-payment.service';
+import { RoomRoleService } from './services/room-role.service';
 
 // Repositories
 import { RoomMemberRepository } from './repositories/room-member.repository';
@@ -47,13 +52,27 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Room, RoomMember, RoomInvitation, RoomPayment, UserRoomAccess]),
+    TypeOrmModule.forFeature([
+      Room,
+      RoomMember,
+      RoomInvitation,
+      RoomPayment,
+      UserRoomAccess,
+      RoomBan,
+      RoomWhitelist,
+      RoomEmergencyPause,
+    ]),
     CacheModule,
     RedisModule,
     QueueModule,
     ScheduleModule.forRoot(),
   ],
-  controllers: [RoomController, RoomMemberController, RoomInvitationController],
+  controllers: [
+    RoomController,
+    RoomMemberController,
+    RoomInvitationController,
+    RoomRoleController,
+  ],
   providers: [
     RoomService,
     RoomMemberService,
@@ -63,6 +82,7 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     RoomAnalyticsService,
     PaymentVerificationService,
     RoomPaymentService,
+    RoomRoleService,
     RoomMemberRepository,
     RoomInvitationRepository,
     MemberGuard,
@@ -83,7 +103,8 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     RoomMemberRepository,
     RoomInvitationRepository,
     RoomPaymentService,
+    RoomRoleService,
     RoomAccessGuard,
   ],
 })
-export class RoomModule {}
+export class RoomModule { }

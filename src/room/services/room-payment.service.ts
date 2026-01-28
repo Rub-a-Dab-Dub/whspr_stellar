@@ -8,6 +8,7 @@ import { PaymentVerificationService } from './payment-verification.service';
 import { PayEntryDto } from '../dto/pay-entry.dto';
 import { PaymentStatusDto } from '../dto/payment-status.dto';
 import { RefundPaymentDto } from '../dto/refund-payment.dto';
+import { WithdrawFundsDto } from '../dto/withdraw-funds.dto';
 
 @Injectable()
 export class RoomPaymentService {
@@ -219,7 +220,7 @@ export class RoomPaymentService {
       order: { createdAt: 'DESC' }
     });
 
-    return payments.map(p => this.mapPaymentToDto(p));
+    return payments.map((p: any) => this.mapPaymentToDto(p));
   }
 
   async refundPayment(refundDto: RefundPaymentDto, adminUserId: string): Promise<PaymentStatusDto> {
@@ -277,6 +278,76 @@ export class RoomPaymentService {
     }
 
     this.logger.log(`Expired ${expiredAccess.length} room access entries`);
+  }
+
+  async getRoomRevenue(roomId: string): Promise<{ totalRevenue: string; platformFees: string; creatorEarnings: string }> {
+    const payments = await this.paymentRepository.find({
+      where: { roomId, status: PaymentStatus.COMPLETED }
+    });
+
+    const totalRevenue = payments.reduce((acc: number, p: any) => acc + parseFloat(p.amount), 0);
+    const platformFees = payments.reduce((acc: number, p: any) => acc + parseFloat(p.platformFee), 0);
+    const creatorEarnings = payments.reduce((acc: number, p: any) => acc + parseFloat(p.creatorAmount), 0);
+
+    return {
+      totalRevenue: totalRevenue.toString(),
+      platformFees: platformFees.toString(),
+      creatorEarnings: creatorEarnings.toString()
+    };
+  }
+
+  async getCreatorEarnings(userId: string): Promise<{ totalEarned: string; totalWithdrawn: string; balance: string }> {
+    // This assumes we have a way to track withdrawals in the DB.
+    // For now, let's aggregate from payments in creator's rooms.
+    const rooms = await this.roomRepository.find({
+      where: { creator: { id: userId } as any }
+    });
+
+    const roomIds = rooms.map((r: any) => r.id);
+    if (roomIds.length === 0) {
+      return { totalEarned: '0', totalWithdrawn: '0', balance: '0' };
+    }
+
+    const payments = await this.paymentRepository.createQueryBuilder('payment')
+      .where('payment.roomId IN (:...roomIds)', { roomIds })
+      .andWhere('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .getMany();
+
+    const totalEarned = payments.reduce((acc: number, p: any) => acc + parseFloat(p.creatorAmount), 0);
+    
+    // In a real app, we would subtract actual withdrawals from a withdrawals table.
+    // For this implementation, we'll return the total earned as balance.
+    return {
+      totalEarned: totalEarned.toString(),
+      totalWithdrawn: '0',
+      balance: totalEarned.toString()
+    };
+  }
+
+  async withdrawFunds(userId: string, withdrawDto: WithdrawFundsDto): Promise<{ transactionHash: string; amount: string; status: string }> {
+    const earnings = await this.getCreatorEarnings(userId);
+    const amountToWithdraw = parseFloat(withdrawDto.amount);
+    const balance = parseFloat(earnings.balance);
+
+    if (amountToWithdraw <= 0) {
+       throw new BadRequestException('Withdrawal amount must be positive');
+    }
+
+    if (amountToWithdraw > balance) {
+      throw new BadRequestException('Insufficient balance');
+    }
+
+    // Here we would call the blockchain service to actually transfer funds
+    // For now, we simulate a successful withdrawal
+    const transactionHash = `simulated-withdrawal-${Date.now()}`;
+
+    this.logger.log(`User ${userId} withdrew ${withdrawDto.amount} to ${withdrawDto.address}`);
+
+    return {
+      transactionHash,
+      amount: withdrawDto.amount,
+      status: 'completed'
+    };
   }
 
   private mapPaymentToDto(payment: RoomPayment): PaymentStatusDto {
