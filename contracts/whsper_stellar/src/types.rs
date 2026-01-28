@@ -9,6 +9,17 @@ pub enum ActionType {
     TipReceived = 3,
 }
 
+#[derive(Clone)]
+#[contracttype]
+pub struct Message {
+    pub id: u64,
+    pub room_id: u64,
+    pub sender: Address,
+    pub content_hash: BytesN<32>,
+    pub timestamp: u64,
+    pub tip_amount: u64,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct RateLimitConfig {
@@ -40,6 +51,8 @@ pub enum ContractError {
     XpRateLimited = 15,
     InvalidRoomType = 16,
     UserAlreadyInRoom = 17,
+    InvalidContentHash = 18,
+    RoomMessageLimitReached = 19,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
