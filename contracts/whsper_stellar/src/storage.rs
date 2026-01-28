@@ -1,4 +1,4 @@
-use crate::types::ActionType;
+use crate::types::{ActionType, Badge};
 use soroban_sdk::{contracttype, Address};
 
 #[derive(Clone)]
@@ -17,11 +17,15 @@ pub enum DataKey {
     TotalFeesWithdrawn,
     User(Address),
     Username(soroban_sdk::Symbol),
-    Room(soroban_sdk::Symbol),
-    RoomMember(soroban_sdk::Symbol, Address),
+    PaidRoom(soroban_sdk::Symbol),
+    PaidRoomMember(soroban_sdk::Symbol, Address),
     CreatorBalance(Address),
     HourlyXp(Address, u64),
-    Room(u64),
+    BadgeMetadata(Badge),
+    UserMessageCount(Address),
+    UserTipReceivedCount(Address),
+    UserRoomsCreated(Address),
+    RoomById(u64),
     RoomList,
     NextRoomId,
     Message(u64, u64),

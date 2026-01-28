@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Symbol};
+use soroban_sdk::{contracterror, contracttype, Address, String, Symbol, Vec};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -9,6 +9,7 @@ pub enum ActionType {
     TipReceived = 3,
 }
 
+<<<<<<< Updated upstream
 #[derive(Clone)]
 #[contracttype]
 pub struct Message {
@@ -18,6 +19,35 @@ pub struct Message {
     pub content_hash: BytesN<32>,
     pub timestamp: u64,
     pub tip_amount: u64,
+=======
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum Badge {
+    FirstMessage = 0,
+    Tipper100 = 1,
+    Level10 = 2,
+    RoomCreator = 3,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum BadgeRarity {
+    Common = 0,
+    Uncommon = 1,
+    Rare = 2,
+    Epic = 3,
+    Legendary = 4,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BadgeMetadata {
+    pub badge: Badge,
+    pub name: String,
+    pub description: String,
+    pub icon_url: String,
+    pub rarity: BadgeRarity,
+>>>>>>> Stashed changes
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -51,6 +81,7 @@ pub enum ContractError {
     XpRateLimited = 15,
     InvalidRoomType = 16,
     UserAlreadyInRoom = 17,
+<<<<<<< Updated upstream
     InvalidContentHash = 18,
     RoomMessageLimitReached = 19,
 }
@@ -61,6 +92,9 @@ pub enum ActionType {
     Message = 0,
     TipReceived = 1,
     Transfer = 2,
+=======
+    InvalidAmount = 18,
+>>>>>>> Stashed changes
 }
 
 #[derive(Clone)]
@@ -113,7 +147,7 @@ pub struct UserProfile {
     pub username: soroban_sdk::Symbol,
     pub xp: u64,
     pub level: u32,
-    pub badges: soroban_sdk::Vec<soroban_sdk::Symbol>,
+    pub badges: Vec<Badge>,
     pub join_date: u64,
 }
 
@@ -126,9 +160,20 @@ pub struct DailyStats {
     pub last_day: u64, // epoch day
 }
 
+impl Default for DailyStats {
+    fn default() -> Self {
+        Self {
+            message_count: 0,
+            tip_count: 0,
+            transfer_count: 0,
+            last_day: 0,
+        }
+    }
+}
+
 #[derive(Clone)]
 #[contracttype]
-pub struct Room {
+pub struct PaidRoom {
     pub id: Symbol,
     pub creator: Address,
     pub entry_fee: i128,
@@ -138,7 +183,7 @@ pub struct Room {
 
 #[derive(Clone)]
 #[contracttype]
-pub struct RoomMember {
+pub struct PaidRoomMember {
     pub has_access: bool,
     pub joined_at: u64,
 }
