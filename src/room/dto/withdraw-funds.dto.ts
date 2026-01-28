@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsNumberString } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumberString, IsEnum } from 'class-validator';
+import { SupportedChain } from '../../chain/enums/supported-chain.enum';
 
 export class WithdrawFundsDto {
   @IsString()
@@ -9,7 +10,7 @@ export class WithdrawFundsDto {
   @IsNotEmpty()
   amount: string;
 
-  @IsString()
+  @IsEnum(SupportedChain)
   @IsNotEmpty()
-  blockchainNetwork: string;
+  blockchainNetwork: SupportedChain;
 }

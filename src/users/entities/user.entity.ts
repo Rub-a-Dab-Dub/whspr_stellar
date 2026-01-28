@@ -77,4 +77,7 @@ export class User {
 
   @Column({ type: 'decimal', precision: 3, scale: 2, default: 1.0 })
   xpMultiplier!: number;
+
+  @Column({ name: 'preferred_chain', nullable: true, default: null })
+  preferredChain!: string;
 }

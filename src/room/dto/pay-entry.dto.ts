@@ -1,13 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsEnum } from 'class-validator';
+import { SupportedChain } from '../../chain/enums/supported-chain.enum';
 
 export class PayEntryDto {
   @IsString()
   @IsNotEmpty()
   transactionHash: string;
 
-  @IsString()
+  @IsEnum(SupportedChain)
   @IsOptional()
-  blockchainNetwork?: string;
+  blockchainNetwork?: SupportedChain;
 
   @IsBoolean()
   @IsOptional()

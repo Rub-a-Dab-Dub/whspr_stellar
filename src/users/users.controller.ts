@@ -28,6 +28,7 @@ import { XpService } from './services/xp.service';
 import { StreakService } from './services/streak.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/guards/jwt-refresh-auth.guard';
+import { UpdateChainPreferenceDto } from '../chain/dto/update-chain-preference.dto';
 
 @Controller('users')
 export class UsersController {
@@ -160,6 +161,24 @@ export class UsersController {
   @Get('analytics/streak')
   getStreakAnalytics() {
     return this.streakService.getStreakAnalytics();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/chain-preference')
+  updateChainPreference(
+    @CurrentUser() user: any,
+    @Body() dto: UpdateChainPreferenceDto,
+  ) {
+    return this.usersService.update(user.userId, {
+      preferredChain: dto.preferredChain,
+    } as any);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/chain-preference')
+  async getChainPreference(@CurrentUser() user: any) {
+    const userEntity = await this.usersService.findOne(user.userId);
+    return { preferredChain: userEntity.preferredChain || null };
   }
 
   @UseGuards(JwtAuthGuard)

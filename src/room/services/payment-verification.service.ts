@@ -1,34 +1,23 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
+import { ChainService } from '../../chain/chain.service';
+import { SupportedChain } from '../../chain/enums/supported-chain.enum';
 
 @Injectable()
 export class PaymentVerificationService {
   private readonly logger = new Logger(PaymentVerificationService.name);
-  private provider: ethers.JsonRpcProvider;
-  private ggpayContract: ethers.Contract;
 
-  constructor(private configService: ConfigService) {
-    const rpcUrl = this.configService.get<string>('EVM_RPC_URL');
-    const contractAddress = this.configService.get<string>('GGPAY_CONTRACT_ADDRESS');
-    
-    this.provider = new ethers.JsonRpcProvider(rpcUrl);
-    
-    // GGPay ABI - adjust based on your contract
-    const abi = [
-      'event PaymentProcessed(address indexed payer, address indexed recipient, uint256 amount, uint256 platformFee, string roomId)',
-      'function processPayment(address recipient, string memory roomId) external payable',
-      'function platformFeePercentage() external view returns (uint256)'
-    ];
-    
-    this.ggpayContract = new ethers.Contract(contractAddress, abi, this.provider);
-  }
+  constructor(private chainService: ChainService) {}
 
+  /**
+   * Verify a payment transaction on the specified chain.
+   */
   async verifyTransaction(
     transactionHash: string,
     expectedAmount: string,
     roomId: string,
-    userAddress: string
+    userAddress: string,
+    chain: SupportedChain = SupportedChain.ETHEREUM,
   ): Promise<{
     verified: boolean;
     amount: string;
@@ -37,9 +26,12 @@ export class PaymentVerificationService {
     blockNumber: number;
   }> {
     try {
+      const provider = this.chainService.getProvider(chain);
+      const contract = this.chainService.getContract(chain);
+
       // Get transaction receipt
-      const receipt = await this.provider.getTransactionReceipt(transactionHash);
-      
+      const receipt = await provider.getTransactionReceipt(transactionHash);
+
       if (!receipt) {
         throw new BadRequestException('Transaction not found or not confirmed');
       }
@@ -48,17 +40,26 @@ export class PaymentVerificationService {
         throw new BadRequestException('Transaction failed on blockchain');
       }
 
+      // Validate the transaction is on the expected chain
+      const chainConfig = this.chainService.getChainConfig(chain);
+      const network = await provider.getNetwork();
+      if (Number(network.chainId) !== chainConfig.chainId) {
+        throw new BadRequestException(
+          `Chain ID mismatch: expected ${chainConfig.chainId}, got ${network.chainId}`,
+        );
+      }
+
       // Parse logs to find PaymentProcessed event
-      const iface = new ethers.Interface(this.ggpayContract.interface.fragments);
+      const iface = new ethers.Interface(contract.interface.fragments);
       let paymentEvent = null;
 
       for (const log of receipt.logs) {
         try {
           const parsed = iface.parseLog({
             topics: log.topics as string[],
-            data: log.data
+            data: log.data,
           });
-          
+
           if (parsed && parsed.name === 'PaymentProcessed') {
             paymentEvent = parsed;
             break;
@@ -100,7 +101,7 @@ export class PaymentVerificationService {
         amount: amountInEther,
         platformFee: platformFeeInEther,
         creatorAmount,
-        blockNumber: receipt.blockNumber
+        blockNumber: receipt.blockNumber,
       };
     } catch (error) {
       this.logger.error(`Transaction verification failed: ${error.message}`, error.stack);
@@ -108,25 +109,32 @@ export class PaymentVerificationService {
     }
   }
 
-  async getTransactionStatus(transactionHash: string): Promise<{
+  /**
+   * Get the status of a transaction on the specified chain.
+   */
+  async getTransactionStatus(
+    transactionHash: string,
+    chain: SupportedChain = SupportedChain.ETHEREUM,
+  ): Promise<{
     confirmed: boolean;
     confirmations: number;
     status?: number;
   }> {
     try {
-      const receipt = await this.provider.getTransactionReceipt(transactionHash);
-      
+      const provider = this.chainService.getProvider(chain);
+      const receipt = await provider.getTransactionReceipt(transactionHash);
+
       if (!receipt) {
         return { confirmed: false, confirmations: 0 };
       }
 
-      const currentBlock = await this.provider.getBlockNumber();
+      const currentBlock = await provider.getBlockNumber();
       const confirmations = currentBlock - receipt.blockNumber + 1;
 
       return {
         confirmed: true,
         confirmations,
-        status: receipt.status
+        status: receipt.status,
       };
     } catch (error) {
       this.logger.error(`Failed to get transaction status: ${error.message}`);
@@ -144,7 +152,7 @@ export class PaymentVerificationService {
 
     return {
       platformFee,
-      creatorAmount
+      creatorAmount,
     };
   }
 }

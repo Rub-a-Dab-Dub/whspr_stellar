@@ -18,4 +18,15 @@ export const validationSchema = Joi.object({
   REDIS_DB: Joi.number().default(0),
   PINATA_JWT: Joi.string().required(),
   PINATA_GATEWAY_URL: Joi.string().required(),
+
+  // Per-chain RPC URLs (optional, falls back to defaults in chain registry)
+  CHAIN_ETHEREUM_RPC_URL: Joi.string().uri().optional(),
+  CHAIN_ETHEREUM_CONTRACT_ADDRESS: Joi.string().optional(),
+  CHAIN_BNB_RPC_URL: Joi.string().uri().optional(),
+  CHAIN_BNB_CONTRACT_ADDRESS: Joi.string().optional(),
+  CHAIN_CELO_RPC_URL: Joi.string().uri().optional(),
+  CHAIN_CELO_CONTRACT_ADDRESS: Joi.string().optional(),
+  CHAIN_BASE_RPC_URL: Joi.string().uri().optional(),
+  CHAIN_BASE_CONTRACT_ADDRESS: Joi.string().optional(),
+  GGPAY_CONTRACT_ADDRESS: Joi.string().optional(),
 });
