@@ -1,4 +1,4 @@
-use soroban_sdk::{contracterror, contracttype, Address, String, Symbol, Vec};
+use soroban_sdk::{contracterror, contracttype, Address, BytesN, String, Symbol, Vec};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -9,7 +9,6 @@ pub enum ActionType {
     TipReceived = 3,
 }
 
-<<<<<<< Updated upstream
 #[derive(Clone)]
 #[contracttype]
 pub struct Message {
@@ -19,7 +18,8 @@ pub struct Message {
     pub content_hash: BytesN<32>,
     pub timestamp: u64,
     pub tip_amount: u64,
-=======
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
 pub enum Badge {
@@ -47,7 +47,6 @@ pub struct BadgeMetadata {
     pub description: String,
     pub icon_url: String,
     pub rarity: BadgeRarity,
->>>>>>> Stashed changes
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -81,20 +80,9 @@ pub enum ContractError {
     XpRateLimited = 15,
     InvalidRoomType = 16,
     UserAlreadyInRoom = 17,
-<<<<<<< Updated upstream
     InvalidContentHash = 18,
     RoomMessageLimitReached = 19,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[contracttype]
-pub enum ActionType {
-    Message = 0,
-    TipReceived = 1,
-    Transfer = 2,
-=======
-    InvalidAmount = 18,
->>>>>>> Stashed changes
+    InvalidAmount = 20,
 }
 
 #[derive(Clone)]

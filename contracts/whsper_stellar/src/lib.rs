@@ -6,7 +6,7 @@ mod test;
 mod types;
 
 use crate::ratelimit::{check_can_act, record_action};
-use soroban_sdk::{contract, contractimpl, token, Address, Env, String, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env, String, Symbol, Vec};
 
 pub use crate::storage::*;
 pub use crate::types::*;
@@ -625,14 +625,13 @@ impl BaseContract {
         count
     }
 
-    pub fn send_message(env: Env, user: Address) -> Result<(), ContractError> {
-        user.require_auth();
-        check_can_act(&env, &user, ActionType::Message);
-        record_action(&env, &user, ActionType::Message);
+    fn record_message_action(env: &Env, user: Address) -> Result<(), ContractError> {
+        check_can_act(env, &user, ActionType::Message);
+        record_action(env, &user, ActionType::Message);
 
-        let message_count = Self::increment_message_count(&env, user.clone());
+        let message_count = Self::increment_message_count(env, user.clone());
         if message_count == 1 {
-            let _ = Self::award_badge(&env, user, Badge::FirstMessage)?;
+            let _ = Self::award_badge(env, user, Badge::FirstMessage)?;
         }
         Ok(())
     }
@@ -1103,11 +1102,11 @@ impl BaseContract {
 
     pub fn send_message(
         env: Env,
+        sender: Address,
         room_id: u64,
         content_hash: BytesN<32>,
         tip_amount: u64,
     ) -> Result<u64, ContractError> {
-        let sender = env.invoker();
         sender.require_auth();
 
         verify_content_hash(&content_hash)?;
@@ -1115,7 +1114,7 @@ impl BaseContract {
         let mut room: Room = env
             .storage()
             .instance()
-            .get(&DataKey::Room(room_id))
+            .get(&DataKey::RoomById(room_id))
             .ok_or(ContractError::RoomNotFound)?;
 
         // Ensure sender is participant
@@ -1133,7 +1132,9 @@ impl BaseContract {
             return Err(ContractError::RoomMessageLimitReached);
         }
 
-        let message_id = next_message_id(&env, room_id);
+        let message_id = Self::next_message_id(&env, room_id);
+
+        Self::record_message_action(&env, sender.clone())?;
 
         let message = Message {
             id: message_id,
@@ -1154,9 +1155,9 @@ impl BaseContract {
 
         // XP reward (already spam-protected)
         let (old_level, new_level) =
-            award_xp(&env, sender.clone(), XP_MESSAGE_SENT, ActionType::Message)?;
+            Self::award_xp(&env, sender.clone(), XP_MESSAGE_SENT, ActionType::Message)?;
 
-        emit_level_up(&env, sender, old_level, new_level);
+        Self::emit_level_up(&env, sender, old_level, new_level);
 
         Ok(message_id)
     }
