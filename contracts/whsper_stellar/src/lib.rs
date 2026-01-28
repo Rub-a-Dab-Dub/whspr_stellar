@@ -20,6 +20,10 @@ const XP_TIP_RECEIVED: u64 = 5;
 const XP_COOLDOWN_SECONDS: u64 = 30;
 const MAX_XP_PER_HOUR: u64 = 60;
 
+const XP_MESSAGE_SENT: u64 = 1;
+const MAX_MESSAGES_PER_ROOM: u32 = 10_000;
+const MAX_PAGE_SIZE: u32 = 50;
+
 #[contractimpl]
 impl BaseContract {
     pub fn init(env: Env, admin: Address, name: Symbol, version: u32) -> Result<(), ContractError> {
@@ -894,8 +898,126 @@ impl BaseContract {
             .get(&DataKey::Room(room_id))
             .ok_or(ContractError::RoomNotFound)
     }
+
+    fn next_message_id(env: &Env, room_id: u64) -> u64 {
+        let id: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextMessageId(room_id))
+            .unwrap_or(1);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::NextMessageId(room_id), &(id + 1));
+
+        id
+    }
+
+    pub fn send_message(
+        env: Env,
+        room_id: u64,
+        content_hash: BytesN<32>,
+        tip_amount: u64,
+    ) -> Result<u64, ContractError> {
+        let sender = env.invoker();
+        sender.require_auth();
+
+        verify_content_hash(&content_hash)?;
+
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        // Ensure sender is participant
+        if !room.participants.contains(&sender) {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let count: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::MessageCount(room_id))
+            .unwrap_or(0);
+
+        if count >= MAX_MESSAGES_PER_ROOM {
+            return Err(ContractError::RoomMessageLimitReached);
+        }
+
+        let message_id = next_message_id(&env, room_id);
+
+        let message = Message {
+            id: message_id,
+            room_id,
+            sender: sender.clone(),
+            content_hash,
+            timestamp: env.ledger().timestamp(),
+            tip_amount,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Message(room_id, message_id), &message);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::MessageCount(room_id), &(count + 1));
+
+        // XP reward (already spam-protected)
+        let (old_level, new_level) =
+            award_xp(&env, sender.clone(), XP_MESSAGE_SENT, ActionType::Message)?;
+
+        emit_level_up(&env, sender, old_level, new_level);
+
+        Ok(message_id)
+    }
+
+    pub fn get_messages(
+        env: Env,
+        room_id: u64,
+        start_after: Option<u64>,
+        limit: u32,
+    ) -> Result<Vec<Message>, ContractError> {
+        let max = if limit > MAX_PAGE_SIZE {
+            MAX_PAGE_SIZE
+        } else {
+            limit
+        };
+
+        let total: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::MessageCount(room_id))
+            .unwrap_or(0);
+
+        let mut messages = Vec::new(&env);
+
+        let mut current = start_after.unwrap_or(0) + 1;
+        let mut fetched = 0;
+
+        while fetched < max && current <= total as u64 {
+            if let Some(msg) = env
+                .storage()
+                .instance()
+                .get(&DataKey::Message(room_id, current))
+            {
+                messages.push_back(msg);
+                fetched += 1;
+            }
+            current += 1;
+        }
+
+        Ok(messages)
+    }
 }
 
+fn verify_content_hash(hash: &BytesN<32>) -> Result<(), ContractError> {
+    if hash.to_array() == [0u8; 32] {
+        return Err(ContractError::InvalidContentHash);
+    }
+    Ok(())
+}
 fn require_admin(env: &Env) -> Result<Address, ContractError> {
     let admin: Address = env
         .storage()

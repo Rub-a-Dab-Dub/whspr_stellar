@@ -24,4 +24,7 @@ pub enum DataKey {
     Room(u64),
     RoomList,
     NextRoomId,
+    Message(u64, u64),
+    NextMessageId(u64),
+    MessageCount(u64),
 }
