@@ -41,6 +41,7 @@ pub fn check_can_act(env: &Env, user: &Address, action: ActionType) {
         ActionType::Message => (config.message_cooldown, config.daily_message_limit),
         ActionType::TipReceived => (config.tip_cooldown, config.daily_tip_limit),
         ActionType::Transfer => (config.transfer_cooldown, config.daily_transfer_limit),
+        ActionType::TipReceived => (0, u32::MAX), // No rate limit for receiving tips logic here
     };
 
     let scaled_cooldown = base_cooldown * (200 - effective_rep as u64) / 200;
@@ -82,6 +83,7 @@ pub fn check_can_act(env: &Env, user: &Address, action: ActionType) {
         ActionType::Message => daily_stats.message_count,
         ActionType::TipReceived => daily_stats.tip_count,
         ActionType::Transfer => daily_stats.transfer_count,
+        ActionType::TipReceived => 0, // Not tracked in daily stats this way
     };
 
     if current_count as u64 >= scaled_daily_limit {
@@ -121,6 +123,7 @@ pub fn record_action(env: &Env, user: &Address, action: ActionType) {
         ActionType::Message => daily_stats.message_count += 1,
         ActionType::TipReceived => daily_stats.tip_count += 1,
         ActionType::Transfer => daily_stats.transfer_count += 1,
+        ActionType::TipReceived => {} // Do not count towards daily limits
     }
 
     env.storage().instance().set(&daily_stats_key, &daily_stats);

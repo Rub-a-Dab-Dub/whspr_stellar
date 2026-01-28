@@ -1,4 +1,13 @@
-use soroban_sdk::{contracterror, contracttype, Address, Symbol, Vec};
+use soroban_sdk::{contracttype, Address, Symbol};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum ActionType {
+    Message = 0,
+    Tip = 1,
+    Transfer = 2,
+    TipReceived = 3,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -119,15 +128,4 @@ pub struct Room {
 pub struct RoomMember {
     pub has_access: bool,
     pub joined_at: u64,
-}
-
-impl Default for DailyStats {
-    fn default() -> Self {
-        Self {
-            message_count: 0,
-            tip_count: 0,
-            transfer_count: 0,
-            last_day: 0,
-        }
-    }
 }

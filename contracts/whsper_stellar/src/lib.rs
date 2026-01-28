@@ -97,7 +97,7 @@ impl BaseContract {
             .set(&DataKey::AdminOverride(user), &is_exempt);
     }
 
-    // User Profile Functions (New)
+    // User Profile Functions
     pub fn get_user_profile(env: Env, user: Address) -> Result<UserProfile, ContractError> {
         env.storage()
             .instance()
@@ -315,7 +315,7 @@ impl BaseContract {
     pub fn register_user(env: Env, user: Address, username: Symbol) -> Result<(), ContractError> {
         user.require_auth();
 
-        validate_username(&username)?;
+        validate_username(username.clone())?;
 
         if env.storage().instance().has(&DataKey::User(user.clone())) {
             return Err(ContractError::UserAlreadyRegistered);
@@ -355,7 +355,7 @@ impl BaseContract {
     ) -> Result<(), ContractError> {
         user.require_auth();
 
-        validate_username(&new_username)?;
+        validate_username(new_username.clone())?;
 
         if env
             .storage()
@@ -412,9 +412,19 @@ impl BaseContract {
         env: &Env,
         user: Address,
         xp_amount: u64,
-        _action: ActionType,
+        action: ActionType,
     ) -> Result<(u32, u32), ContractError> {
         let now = env.ledger().timestamp();
+
+        if let Some(last_ts) = env
+            .storage()
+            .instance()
+            .get::<_, u64>(&DataKey::UserLastAction(user.clone(), action))
+        {
+            if now < last_ts + XP_COOLDOWN_SECONDS {
+                return Err(ContractError::XpCooldownActive);
+            }
+        }
         let hour_bucket = now / 3600;
 
         let current_hour_xp: u64 = env
@@ -448,6 +458,9 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::User(user.clone()), &profile);
+        env.storage()
+            .instance()
+            .set(&DataKey::UserLastAction(user.clone(), action), &now);
 
         env.storage().instance().set(
             &DataKey::HourlyXp(user.clone(), hour_bucket),
@@ -464,40 +477,66 @@ impl BaseContract {
         }
     }
 
+    pub fn send_message(env: Env, user: Address) -> Result<(), ContractError> {
+        user.require_auth();
+        check_can_act(&env, &user, ActionType::Message);
+        record_action(&env, &user, ActionType::Message);
+        Ok(())
+    }
+
     pub fn reward_message(env: Env, user: Address) -> Result<(), ContractError> {
         ratelimit::check_can_act(&env, &user, ActionType::Message);
 
         let (old_level, new_level) =
             Self::award_xp(&env, user.clone(), XP_MESSAGE, ActionType::Message)?;
 
-        Self::emit_level_up(&env, user.clone(), old_level, new_level);
-        ratelimit::record_action(&env, &user, ActionType::Message);
+        Self::emit_level_up(&env, user, old_level, new_level);
 
         Ok(())
     }
 
     pub fn reward_tip_received(env: Env, user: Address) -> Result<(), ContractError> {
-        Self::require_admin(&env)?;
-        ratelimit::check_can_act(&env, &user, ActionType::TipReceived);
-
+        require_admin(&env)?;
         let (old_level, new_level) =
             Self::award_xp(&env, user.clone(), XP_TIP_RECEIVED, ActionType::TipReceived)?;
 
-        Self::emit_level_up(&env, user.clone(), old_level, new_level);
-        ratelimit::record_action(&env, &user, ActionType::TipReceived);
+        Self::emit_level_up(&env, user, old_level, new_level);
 
         Ok(())
     }
 
-    fn require_admin(env: &Env) -> Result<Address, ContractError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(ContractError::NotInitialized)?;
+    // P2P Token Transfers (Zero Fees)
+    pub fn transfer_tokens(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        token: Address,
+        amount: i128,
+    ) -> Result<(), ContractError> {
+        // 1. Validate Access
+        sender.require_auth();
 
-        admin.require_auth();
-        Ok(admin)
+        if amount <= 0 {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        // 2. Rate Limiting
+        check_can_act(&env, &sender, ActionType::Transfer);
+
+        // 3. Perform Token Transfer (0% Fee)
+        let token_client = token::Client::new(&env, &token);
+        token_client.transfer(&sender, &recipient, &amount);
+
+        // 4. Record Action for Rate Limiting
+        record_action(&env, &sender, ActionType::Transfer);
+
+        // 5. Emit Event
+        env.events().publish(
+            (Symbol::new(&env, "transfer"), sender, recipient),
+            (token, amount),
+        );
+
+        Ok(())
     }
 
     /// Initialize platform settings (must be called after init)
@@ -857,9 +896,22 @@ impl BaseContract {
     }
 }
 
-fn validate_username(_username: &Symbol) -> Result<(), ContractError> {
-    // Length check removed as it's hard to do cleanly with Symbol in no_std without Env access.
-    // Host will enforce the limit (32 chars) anyway.
+fn require_admin(env: &Env) -> Result<Address, ContractError> {
+    let admin: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .ok_or(ContractError::NotInitialized)?;
+
+    admin.require_auth();
+    Ok(admin)
+}
+
+fn validate_username(username: Symbol) -> Result<(), ContractError> {
+    // Basic validation relying on Symbol's inherent limits (max 32 chars).
+    if username.len() == 0 {
+        return Err(ContractError::InvalidUsername);
+    }
     Ok(())
 }
 
