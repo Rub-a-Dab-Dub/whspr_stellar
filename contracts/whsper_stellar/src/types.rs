@@ -3,8 +3,8 @@ use soroban_sdk::{contracterror, contracttype, Address, Symbol, Vec};
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct RateLimitConfig {
-    pub message_cooldown: u64, // seconds
-    pub tip_cooldown: u64,     // seconds
+    pub message_cooldown: u64,  // seconds
+    pub tip_cooldown: u64,      // seconds
     pub transfer_cooldown: u64, // seconds
     pub daily_message_limit: u32,
     pub daily_tip_limit: u32,
@@ -29,6 +29,8 @@ pub enum ContractError {
     InsufficientFunds = 13,
     XpCooldownActive = 14,
     XpRateLimited = 15,
+    InvalidRoomType = 16,
+    UserAlreadyInRoom = 17,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -39,7 +41,24 @@ pub enum ActionType {
     Transfer = 2,
 }
 
+#[derive(Clone)]
+#[contracttype]
+pub enum RoomType {
+    Public,
+    TokenGated,
+    InviteOnly,
+}
 
+#[derive(Clone)]
+#[contracttype]
+pub struct Room {
+    pub id: u64,
+    pub creator: Address,
+    pub room_type: RoomType,
+    pub entry_fee: u64, // 0 for non-token-gated
+    pub participants: Vec<Address>,
+    pub created_at: u64,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -75,8 +94,6 @@ pub struct UserProfile {
     pub badges: soroban_sdk::Vec<soroban_sdk::Symbol>,
     pub join_date: u64,
 }
-
-
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]

@@ -1,16 +1,14 @@
 #![no_std]
 
-mod test;
-mod storage;
-mod types;
 mod ratelimit;
+mod storage;
+mod test;
+mod types;
 
-use soroban_sdk::{
-    Address, Env, Symbol, Vec, contract, contractimpl, token,
-};
+use soroban_sdk::{contract, contractimpl, token, Address, Env, Symbol, Vec};
 
-pub use crate::types::*;
 pub use crate::storage::*;
+pub use crate::types::*;
 
 #[contract]
 pub struct BaseContract;
@@ -32,11 +30,11 @@ impl BaseContract {
         admin.require_auth();
 
         let metadata = ContractMetadata { name, version };
-        
+
         // Default Rate Limit Config
         let config = RateLimitConfig {
-            message_cooldown: 60, // 1 minute
-            tip_cooldown: 300,    // 5 minutes
+            message_cooldown: 60,   // 1 minute
+            tip_cooldown: 300,      // 5 minutes
             transfer_cooldown: 600, // 10 minutes
             daily_message_limit: 100,
             daily_tip_limit: 50,
@@ -45,12 +43,18 @@ impl BaseContract {
 
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Metadata, &metadata);
-        env.storage().instance().set(&DataKey::RateLimitConfig, &config);
-        
+        env.storage()
+            .instance()
+            .set(&DataKey::RateLimitConfig, &config);
+
         // Initialize Treasury Keys
         env.storage().instance().set(&DataKey::Treasury, &0i128);
-        env.storage().instance().set(&DataKey::TotalFeesCollected, &0i128);
-        env.storage().instance().set(&DataKey::TotalFeesWithdrawn, &0i128);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFeesCollected, &0i128);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFeesWithdrawn, &0i128);
         Ok(())
     }
 
@@ -72,19 +76,25 @@ impl BaseContract {
     pub fn set_config(env: Env, config: RateLimitConfig) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::RateLimitConfig, &config);
+        env.storage()
+            .instance()
+            .set(&DataKey::RateLimitConfig, &config);
     }
 
     pub fn set_reputation(env: Env, user: Address, reputation: u32) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::UserReputation(user), &reputation);
+        env.storage()
+            .instance()
+            .set(&DataKey::UserReputation(user), &reputation);
     }
 
     pub fn set_override(env: Env, user: Address, is_exempt: bool) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::AdminOverride(user), &is_exempt);
+        env.storage()
+            .instance()
+            .set(&DataKey::AdminOverride(user), &is_exempt);
     }
 
     // User Profile Functions (New)
@@ -311,7 +321,11 @@ impl BaseContract {
             return Err(ContractError::UserAlreadyRegistered);
         }
 
-        if env.storage().instance().has(&DataKey::Username(username.clone())) {
+        if env
+            .storage()
+            .instance()
+            .has(&DataKey::Username(username.clone()))
+        {
             return Err(ContractError::UsernameTaken);
         }
 
@@ -324,8 +338,12 @@ impl BaseContract {
             join_date: env.ledger().timestamp(),
         };
 
-        env.storage().instance().set(&DataKey::User(user.clone()), &profile);
-        env.storage().instance().set(&DataKey::Username(username), &user);
+        env.storage()
+            .instance()
+            .set(&DataKey::User(user.clone()), &profile);
+        env.storage()
+            .instance()
+            .set(&DataKey::Username(username), &user);
 
         Ok(())
     }
@@ -353,8 +371,12 @@ impl BaseContract {
             .get(&DataKey::User(user.clone()))
             .ok_or(ContractError::UserNotFound)?;
 
-        env.storage().instance().remove(&DataKey::Username(profile.username.clone()));
-        env.storage().instance().set(&DataKey::Username(new_username.clone()), &user);
+        env.storage()
+            .instance()
+            .remove(&DataKey::Username(profile.username.clone()));
+        env.storage()
+            .instance()
+            .set(&DataKey::Username(new_username.clone()), &user);
 
         profile.username = new_username;
 
@@ -444,8 +466,9 @@ impl BaseContract {
 
     pub fn reward_message(env: Env, user: Address) -> Result<(), ContractError> {
         ratelimit::check_can_act(&env, &user, ActionType::Message);
-        
-        let (old_level, new_level) = Self::award_xp(&env, user.clone(), XP_MESSAGE, ActionType::Message)?;
+
+        let (old_level, new_level) =
+            Self::award_xp(&env, user.clone(), XP_MESSAGE, ActionType::Message)?;
 
         Self::emit_level_up(&env, user.clone(), old_level, new_level);
         ratelimit::record_action(&env, &user, ActionType::Message);
@@ -479,7 +502,11 @@ impl BaseContract {
 
     /// Initialize platform settings (must be called after init)
     pub fn init_platform_settings(env: Env, fee_percentage: u32, fee_token: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("not initialized");
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
         admin.require_auth();
 
         if fee_percentage > 10000 {
@@ -492,103 +519,341 @@ impl BaseContract {
             fee_token,
         };
 
-        env.storage().instance().set(&DataKey::PlatformSettings, &settings);
+        env.storage()
+            .instance()
+            .set(&DataKey::PlatformSettings, &settings);
     }
 
     pub fn get_platform_settings(env: Env) -> PlatformSettings {
-        env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized")
+        env.storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized")
     }
 
     pub fn update_fee_percentage(env: Env, new_fee_percentage: u32) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("not initialized");
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
         admin.require_auth();
 
         if new_fee_percentage > 10000 {
             panic!("fee percentage cannot exceed 100%");
         }
 
-        let mut settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let mut settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         settings.fee_percentage = new_fee_percentage;
-        env.storage().instance().set(&DataKey::PlatformSettings, &settings);
+        env.storage()
+            .instance()
+            .set(&DataKey::PlatformSettings, &settings);
     }
 
     pub fn collect_fee(env: Env, amount: i128) {
-        let settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         let fee_amount = (amount * settings.fee_percentage as i128) / 10000;
 
-        let mut treasury_balance: i128 = env.storage().instance().get(&DataKey::Treasury).unwrap_or(0);
+        let mut treasury_balance: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0);
         treasury_balance += fee_amount;
-        env.storage().instance().set(&DataKey::Treasury, &treasury_balance);
+        env.storage()
+            .instance()
+            .set(&DataKey::Treasury, &treasury_balance);
 
-        let mut total_collected: i128 = env.storage().instance().get(&DataKey::TotalFeesCollected).unwrap_or(0);
+        let mut total_collected: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalFeesCollected)
+            .unwrap_or(0);
         total_collected += fee_amount;
-        env.storage().instance().set(&DataKey::TotalFeesCollected, &total_collected);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFeesCollected, &total_collected);
     }
 
     pub fn withdraw_fees(env: Env, amount: i128, recipient: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("not initialized");
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
         admin.require_auth();
 
         if amount <= 0 {
             panic!("withdrawal amount must be positive");
         }
 
-        let mut treasury_balance: i128 = env.storage().instance().get(&DataKey::Treasury).unwrap_or(0);
+        let mut treasury_balance: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0);
         if amount > treasury_balance {
             panic!("insufficient treasury balance");
         }
 
-        let settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         let token_client = token::Client::new(&env, &settings.fee_token);
         token_client.transfer(&env.current_contract_address(), &recipient, &amount);
 
         treasury_balance -= amount;
-        env.storage().instance().set(&DataKey::Treasury, &treasury_balance);
+        env.storage()
+            .instance()
+            .set(&DataKey::Treasury, &treasury_balance);
 
-        let mut total_withdrawn: i128 = env.storage().instance().get(&DataKey::TotalFeesWithdrawn).unwrap_or(0);
+        let mut total_withdrawn: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalFeesWithdrawn)
+            .unwrap_or(0);
         total_withdrawn += amount;
-        env.storage().instance().set(&DataKey::TotalFeesWithdrawn, &total_withdrawn);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFeesWithdrawn, &total_withdrawn);
     }
 
     pub fn get_treasury_balance(env: Env) -> i128 {
-        env.storage().instance().get(&DataKey::Treasury).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0)
     }
 
     pub fn get_total_fees_collected(env: Env) -> i128 {
-        env.storage().instance().get(&DataKey::TotalFeesCollected).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::TotalFeesCollected)
+            .unwrap_or(0)
     }
 
     pub fn get_total_fees_withdrawn(env: Env) -> i128 {
-        env.storage().instance().get(&DataKey::TotalFeesWithdrawn).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::TotalFeesWithdrawn)
+            .unwrap_or(0)
     }
 
     pub fn get_treasury_analytics(env: Env) -> TreasuryAnalytics {
-        let settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         TreasuryAnalytics {
-            current_balance: env.storage().instance().get(&DataKey::Treasury).unwrap_or(0),
-            total_collected: env.storage().instance().get(&DataKey::TotalFeesCollected).unwrap_or(0),
-            total_withdrawn: env.storage().instance().get(&DataKey::TotalFeesWithdrawn).unwrap_or(0),
+            current_balance: env
+                .storage()
+                .instance()
+                .get(&DataKey::Treasury)
+                .unwrap_or(0),
+            total_collected: env
+                .storage()
+                .instance()
+                .get(&DataKey::TotalFeesCollected)
+                .unwrap_or(0),
+            total_withdrawn: env
+                .storage()
+                .instance()
+                .get(&DataKey::TotalFeesWithdrawn)
+                .unwrap_or(0),
             fee_percentage: settings.fee_percentage,
         }
     }
 
     pub fn calculate_fee(env: Env, amount: i128) -> i128 {
-        let settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).expect("platform settings not initialized");
+        let settings: PlatformSettings = env
+            .storage()
+            .instance()
+            .get(&DataKey::PlatformSettings)
+            .expect("platform settings not initialized");
         (amount * settings.fee_percentage as i128) / 10000
     }
 
     pub fn update_admin(env: Env, new_admin: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("not initialized");
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
         admin.require_auth();
 
         env.storage().instance().set(&DataKey::Admin, &new_admin);
 
         // Update admin in platform settings if initialized
         if env.storage().instance().has(&DataKey::PlatformSettings) {
-             let mut settings: PlatformSettings = env.storage().instance().get(&DataKey::PlatformSettings).unwrap();
-             settings.admin_address = new_admin;
-             env.storage().instance().set(&DataKey::PlatformSettings, &settings);
+            let mut settings: PlatformSettings = env
+                .storage()
+                .instance()
+                .get(&DataKey::PlatformSettings)
+                .unwrap();
+            settings.admin_address = new_admin;
+            env.storage()
+                .instance()
+                .set(&DataKey::PlatformSettings, &settings);
         }
+    }
+
+    fn next_room_id(env: &Env) -> u64 {
+        let id: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextRoomId)
+            .unwrap_or(1);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::NextRoomId, &(id + 1));
+
+        id
+    }
+
+    pub fn create_room(env: Env, room_type: RoomType) -> Result<u64, ContractError> {
+        let creator = env.invoker();
+        creator.require_auth();
+
+        let room_id = next_room_id(&env);
+
+        let mut participants = Vec::new(&env);
+        participants.push_back(creator.clone());
+
+        let room = Room {
+            id: room_id,
+            creator: creator.clone(),
+            room_type,
+            entry_fee: 0,
+            participants,
+            created_at: env.ledger().timestamp(),
+        };
+
+        env.storage().instance().set(&DataKey::Room(room_id), &room);
+
+        let mut rooms: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomList)
+            .unwrap_or(Vec::new(&env));
+
+        rooms.push_back(room_id);
+
+        env.storage().instance().set(&DataKey::RoomList, &rooms);
+
+        Ok(room_id)
+    }
+
+    pub fn set_entry_fee(env: Env, room_id: u64, fee: u64) -> Result<(), ContractError> {
+        let caller = env.invoker();
+        caller.require_auth();
+
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        if room.creator != caller {
+            return Err(ContractError::Unauthorized);
+        }
+
+        if let RoomType::TokenGated = room.room_type {
+            room.entry_fee = fee;
+        } else {
+            return Err(ContractError::InvalidRoomType);
+        }
+
+        env.storage().instance().set(&DataKey::Room(room_id), &room);
+
+        Ok(())
+    }
+
+    pub fn add_participant(env: Env, room_id: u64, user: Address) -> Result<(), ContractError> {
+        let caller = env.invoker();
+        caller.require_auth();
+
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        match room.room_type {
+            RoomType::Public => {}
+            RoomType::InviteOnly => {
+                if caller != room.creator {
+                    return Err(ContractError::Unauthorized);
+                }
+            }
+            RoomType::TokenGated => {
+                // token payment verification goes here later
+            }
+        }
+
+        if room.participants.contains(&user) {
+            return Err(ContractError::UserAlreadyInRoom);
+        }
+
+        room.participants.push_back(user);
+
+        env.storage().instance().set(&DataKey::Room(room_id), &room);
+
+        Ok(())
+    }
+
+    pub fn remove_participant(env: Env, room_id: u64, user: Address) -> Result<(), ContractError> {
+        let caller = env.invoker();
+        caller.require_auth();
+
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        if caller != room.creator && caller != user {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let mut updated = Vec::new(&env);
+
+        for p in room.participants.iter() {
+            if p != user {
+                updated.push_back(p);
+            }
+        }
+
+        room.participants = updated;
+
+        env.storage().instance().set(&DataKey::Room(room_id), &room);
+
+        Ok(())
+    }
+
+    pub fn list_rooms(env: Env) -> Vec<u64> {
+        env.storage()
+            .instance()
+            .get(&DataKey::RoomList)
+            .unwrap_or(Vec::new(&env))
+    }
+
+    pub fn get_room(env: Env, room_id: u64) -> Result<Room, ContractError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Room(room_id))
+            .ok_or(ContractError::RoomNotFound)
     }
 }
 
