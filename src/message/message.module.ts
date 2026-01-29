@@ -13,9 +13,9 @@ import {
 import { ReactionRepository } from './repositories/reaction.repository';
 import { ReactionService } from './reaction.service';
 import { ReactionController } from './reaction.controller';
-import { ReactionNotificationService } from './reaction-notification.service';
 import { ReactionAnalyticsService } from './reaction-analytics.service';
 import { RedisModule } from '../redis/redis.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { CacheModule } from '../cache/cache.module';
 import { MessagesGateway } from './gateways/messages.gateway';
 import { ProfanityFilterService } from './services/profanity-filter.service';
@@ -26,6 +26,7 @@ import { MessageBroadcastService } from './services/message-broadcast.service';
     TypeOrmModule.forFeature([Message, MessageEditHistory, MessageReaction]),
     RedisModule,
     CacheModule,
+    NotificationsModule,
   ],
   providers: [
     MessageService,
@@ -34,7 +35,6 @@ import { MessageBroadcastService } from './services/message-broadcast.service';
     MessageEditHistoryRepository,
     ReactionRepository,
     ReactionService,
-    ReactionNotificationService,
     ReactionAnalyticsService,
     MessagesGateway,
     ProfanityFilterService,
@@ -47,7 +47,6 @@ import { MessageBroadcastService } from './services/message-broadcast.service';
     MessageEditHistoryRepository,
     ReactionService,
     ReactionRepository,
-    ReactionNotificationService,
     ReactionAnalyticsService,
     MessagesGateway,
     ProfanityFilterService,
