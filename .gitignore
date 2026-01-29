@@ -2,6 +2,10 @@ it# compiled output
 /dist
 /node_modules
 
+# Rust contract artifacts
+/contracts/whsper_stellar/target
+/contracts/whsper_stellar/test_snapshots
+
 # logs
 npm-debug.log*
 yarn-debug.log*
