@@ -77,7 +77,7 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || initiator.role !== MemberRole.ADMIN) {
+    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -108,7 +108,7 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || initiator.role !== MemberRole.ADMIN) {
+    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -140,7 +140,7 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || initiator.role !== MemberRole.ADMIN) {
+    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -177,7 +177,7 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || initiator.role !== MemberRole.ADMIN) {
+    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -231,7 +231,7 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || initiator.role !== MemberRole.ADMIN) {
+    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
