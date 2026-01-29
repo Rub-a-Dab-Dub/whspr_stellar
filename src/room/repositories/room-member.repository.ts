@@ -41,7 +41,9 @@ export class RoomMemberRepository extends Repository<RoomMember> {
   async findAdmins(roomId: string): Promise<RoomMember[]> {
     return await this.createQueryBuilder('rm')
       .where('rm.roomId = :roomId', { roomId })
-      .andWhere('rm.role = :role', { role: MemberRole.ADMIN })
+      .andWhere('rm.role IN (:...roles)', {
+        roles: [MemberRole.ADMIN, MemberRole.OWNER],
+      })
       .andWhere('rm.status = :status', { status: MemberStatus.ACTIVE })
       .leftJoinAndSelect('rm.user', 'user')
       .getMany();

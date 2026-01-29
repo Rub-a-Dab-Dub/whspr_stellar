@@ -24,6 +24,18 @@ export enum MemberPermission {
 }
 
 export const ROLE_PERMISSIONS: Record<MemberRole, MemberPermission[]> = {
+  [MemberRole.OWNER]: [
+    MemberPermission.SEND_MESSAGE,
+    MemberPermission.EDIT_MESSAGE,
+    MemberPermission.DELETE_MESSAGE,
+    MemberPermission.INVITE_MEMBERS,
+    MemberPermission.KICK_MEMBERS,
+    MemberPermission.MANAGE_ROLES,
+    MemberPermission.CHANGE_ROOM_SETTINGS,
+    MemberPermission.VIEW_ANALYTICS,
+    MemberPermission.PIN_MESSAGE,
+    MemberPermission.MANAGE_INVITATIONS,
+  ],
   [MemberRole.ADMIN]: [
     MemberPermission.SEND_MESSAGE,
     MemberPermission.EDIT_MESSAGE,

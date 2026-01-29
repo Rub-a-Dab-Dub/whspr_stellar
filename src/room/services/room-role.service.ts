@@ -61,7 +61,7 @@ export class RoomRoleService {
 
         // Prevent changing owner role
         const room = await this.roomRepository.findOne({ where: { id: roomId } });
-        if (room.ownerId === userId && newRole !== MemberRole.ADMIN) {
+        if (room.ownerId === userId && newRole !== MemberRole.OWNER) {
             throw new ForbiddenException('Cannot change owner role');
         }
 
@@ -71,7 +71,7 @@ export class RoomRoleService {
         });
 
         if (
-            initiatorMember.role !== MemberRole.ADMIN &&
+            ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiatorMember.role) &&
             member.role === MemberRole.ADMIN
         ) {
             throw new ForbiddenException(

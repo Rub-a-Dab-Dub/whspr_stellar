@@ -17,13 +17,17 @@ import { RoomWhitelist } from './entities/room-whitelist.entity';
 import { RoomEmergencyPause } from './entities/room-emergency-pause.entity';
 
 // Controllers
-import { RoomController } from './room.controller';
+import {
+  RoomController,
+  RoomPaymentController,
+  RoomSettingsController,
+} from './room.controller';
 import { RoomMemberController } from './room-member.controller';
 import { RoomInvitationController } from './room-invitation.controller';
 import { RoomRoleController } from './room-role.controller';
 
 // Services
-import { RoomService } from './room.service';
+import { RoomService, RoomSettingsService } from './room.service';
 import { RoomMemberService } from './services/room-member.service';
 import { RoomInvitationService } from './services/room-invitation.service';
 import { MemberPermissionsService } from './services/member-permissions.service';
@@ -36,6 +40,7 @@ import { RoomRoleService } from './services/room-role.service';
 // Repositories
 import { RoomMemberRepository } from './repositories/room-member.repository';
 import { RoomInvitationRepository } from './repositories/room-invitation.repository';
+import { RoomRepository } from './repositories/room.repository';
 
 // Guards
 import { MemberGuard } from './guards/member.guard';
@@ -71,12 +76,15 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
   ],
   controllers: [
     RoomController,
+    RoomSettingsController,
+    RoomPaymentController,
     RoomMemberController,
     RoomInvitationController,
     RoomRoleController,
   ],
   providers: [
     RoomService,
+    RoomSettingsService,
     RoomMemberService,
     RoomInvitationService,
     MemberPermissionsService,
@@ -87,6 +95,7 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     RoomRoleService,
     RoomMemberRepository,
     RoomInvitationRepository,
+    RoomRepository,
     MemberGuard,
     MemberPermissionGuard,
     RoomAdminGuard,
