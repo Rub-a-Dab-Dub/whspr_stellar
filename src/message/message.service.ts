@@ -3,6 +3,8 @@ import {
   ForbiddenException,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +16,7 @@ import { MessageResponseDto } from './dto/message-response.dto';
 import { MessageEditHistoryDto } from './dto/message-edit-history.dto';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageType } from './enums/message-type.enum';
+import { NotificationService } from '../notifications/services/notification.service';
 
 @Injectable()
 export class MessageService {
@@ -27,6 +30,8 @@ export class MessageService {
     @InjectRepository(MessageEditHistory)
     private readonly editHistoryRepository: Repository<MessageEditHistory>,
     private readonly profanityFilterService: ProfanityFilterService,
+    @Inject(forwardRef(() => NotificationService))
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -72,6 +77,21 @@ export class MessageService {
     });
 
     const savedMessage = await this.messageRepository.save(message);
+
+    // Create notifications for mentions and room members
+    try {
+      await this.notificationService.createMessageNotification(
+        savedMessage.id,
+        userId,
+        savedMessage.content,
+        savedMessage.roomId,
+        savedMessage.conversationId,
+      );
+    } catch (error) {
+      // Log error but don't fail message creation
+      console.error('Failed to create message notifications:', error);
+    }
+
     return this.toResponseDto(savedMessage);
   }
 

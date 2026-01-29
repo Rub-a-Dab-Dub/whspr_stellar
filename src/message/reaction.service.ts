@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ConflictException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MessageReaction } from './entities/message-reaction.entity';
@@ -17,6 +19,7 @@ import {
   MessageReactionsAggregateDto,
 } from './dto/reaction.dto';
 import { isValidReactionType } from './constants/reaction-types.constant';
+import { NotificationService } from '../notifications/services/notification.service';
 
 @Injectable()
 export class ReactionService {
@@ -32,6 +35,8 @@ export class ReactionService {
     private readonly messageService: MessageService,
     private readonly redisService: RedisService,
     private readonly cacheService: CacheService,
+    @Inject(forwardRef(() => NotificationService))
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -77,6 +82,20 @@ export class ReactionService {
         isCustom,
       );
 
+      // Create notification for message author
+      try {
+        await this.notificationService.createReactionNotification(
+          messageId,
+          message.authorId,
+          userId,
+          trimmedType,
+          'added',
+        );
+      } catch (error) {
+        // Log error but don't fail reaction creation
+        this.logger.error('Failed to create reaction notification:', error);
+      }
+
       // Invalidate caches
       await this.invalidateReactionCaches(messageId, userId);
 
@@ -115,6 +134,20 @@ export class ReactionService {
 
     if (!removed) {
       throw new NotFoundException('Reaction not found');
+    }
+
+    // Create notification for message author
+    try {
+      await this.notificationService.createReactionNotification(
+        messageId,
+        message.authorId,
+        userId,
+        trimmedType,
+        'removed',
+      );
+    } catch (error) {
+      // Log error but don't fail reaction removal
+      this.logger.error('Failed to create reaction removal notification:', error);
     }
 
     // Invalidate caches

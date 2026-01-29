@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your {{period}} notification digest - Whspr Stellar</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #667eea; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .notification-group { background: white; margin: 15px 0; padding: 15px; border-radius: 5px; }
+        .notification-type { color: #667eea; font-weight: bold; margin-bottom: 10px; }
+        .notification-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+        .notification-item:last-child { border-bottom: none; }
+        .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0; }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+        .stats { background: white; padding: 15px; margin: 15px 0; text-align: center; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Your {{period}} digest</h1>
+            <p>{{totalCount}} notifications from Whspr Stellar</p>
+        </div>
+        
+        <div class="content">
+            <p>Hi {{userName}},</p>
+            
+            <p>Here's what happened while you were away:</p>
+            
+            <div class="stats">
+                <h3>{{totalCount}} total notifications</h3>
+            </div>
+            
+            {{#each groupedNotifications}}
+            <div class="notification-group">
+                <div class="notification-type">{{@key}} ({{this.length}})</div>
+                {{#each this}}
+                <div class="notification-item">
+                    <strong>{{this.title}}</strong><br>
+                    <small>{{this.message}}</small>
+                </div>
+                {{/each}}
+            </div>
+            {{/each}}
+            
+            <a href="{{appUrl}}/notifications" class="button">View All Notifications</a>
+            
+            <p>Don't want to receive digest emails? <a href="{{unsubscribeUrl}}">Update your preferences</a></p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2026 Whspr Stellar. All rights reserved.</p>
+            <p><a href="{{appUrl}}">Visit Whspr Stellar</a></p>
+        </div>
+    </div>
+</body>
+</html>
