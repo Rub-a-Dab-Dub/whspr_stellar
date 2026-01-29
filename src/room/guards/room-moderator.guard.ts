@@ -30,7 +30,7 @@ export class RoomModeratorGuard implements CanActivate {
 
     if (
       !member ||
-      (member.role !== MemberRole.ADMIN && member.role !== MemberRole.MODERATOR)
+      ![MemberRole.ADMIN, MemberRole.MODERATOR, MemberRole.OWNER].includes(member.role)
     ) {
       throw new ForbiddenException(
         'Only room admins and moderators can perform this action',

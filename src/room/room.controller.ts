@@ -8,9 +8,10 @@ import {
   Body,
   UseGuards,
   Query,
-  CurrentUser,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { RoomSettingsService } from './room.service';
+import { RoomSettingsService, RoomService } from './room.service';
 import { UpdateRoomSettingsDto } from './dto/room-settings.dto';
 import { WithdrawFundsDto } from './dto/withdraw-funds.dto';
 import { RoomPaymentService } from './services/room-payment.service';
@@ -20,6 +21,43 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../roles/guards/role.guard';
 import { Roles } from '../roles/decorators/roles.decorator';
 import { RoleType } from '../roles/entities/role.entity';
+import { CreateRoomDto } from './dto/create-room.dto';
+import { UpdateRoomDto } from './dto/update-room.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+
+@Controller('rooms')
+@UseGuards(JwtAuthGuard)
+export class RoomController {
+  constructor(private roomService: RoomService) {}
+
+  @Post()
+  async createRoom(@Body() dto: CreateRoomDto, @CurrentUser() user: any) {
+    return this.roomService.createRoom(user.id, dto);
+  }
+
+  @Get(':id')
+  async getRoom(@Param('id') roomId: string) {
+    return this.roomService.getRoom(roomId);
+  }
+
+  @Patch(':id')
+  async updateRoom(
+    @Param('id') roomId: string,
+    @Body() dto: UpdateRoomDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.roomService.updateRoom(roomId, user.id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteRoom(
+    @Param('id') roomId: string,
+    @CurrentUser() user: any,
+  ) {
+    await this.roomService.softDeleteRoom(roomId, user.id);
+  }
+}
 
 @Controller('rooms/:roomId/settings')
 export class RoomSettingsController {
