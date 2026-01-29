@@ -5,7 +5,8 @@ mod storage;
 mod test;
 mod types;
 
-use soroban_sdk::{contract, contractimpl, token, Address, Env, Symbol, Vec};
+use crate::ratelimit::{check_can_act, record_action};
+use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env, String, Symbol, Vec};
 
 pub use crate::storage::*;
 pub use crate::types::*;
@@ -59,6 +60,8 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::TotalFeesWithdrawn, &0i128);
+
+        Self::init_badge_metadata(&env);
         Ok(())
     }
 
@@ -109,16 +112,37 @@ impl BaseContract {
             .ok_or(ContractError::UserNotFound)
     }
 
-    pub fn get_room(env: Env, room_id: Symbol) -> Result<Room, ContractError> {
+    pub fn get_user_badges(env: Env, user: Address) -> Result<Vec<BadgeMetadata>, ContractError> {
+        let profile: UserProfile = env
+            .storage()
+            .instance()
+            .get(&DataKey::User(user))
+            .ok_or(ContractError::UserNotFound)?;
+        let mut badges = Vec::new(&env);
+
+        for badge in profile.badges.iter() {
+            if let Some(metadata) = env
+                .storage()
+                .instance()
+                .get::<_, BadgeMetadata>(&DataKey::BadgeMetadata(badge))
+            {
+                badges.push_back(metadata);
+            }
+        }
+
+        Ok(badges)
+    }
+
+    pub fn get_paid_room(env: Env, room_id: Symbol) -> Result<PaidRoom, ContractError> {
         env.storage()
             .instance()
-            .get(&DataKey::Room(room_id))
+            .get(&DataKey::PaidRoom(room_id))
             .ok_or(ContractError::RoomNotFound)
     }
 
     pub fn has_access(env: Env, user: Address, room_id: Symbol) -> bool {
-        let key = DataKey::RoomMember(room_id, user);
-        if let Some(member) = env.storage().instance().get::<_, RoomMember>(&key) {
+        let key = DataKey::PaidRoomMember(room_id, user);
+        if let Some(member) = env.storage().instance().get::<_, PaidRoomMember>(&key) {
             member.has_access
         } else {
             false
@@ -132,7 +156,7 @@ impl BaseContract {
             .unwrap_or(0)
     }
 
-    pub fn create_room(
+    pub fn create_paid_room(
         env: Env,
         creator: Address,
         room_id: Symbol,
@@ -143,12 +167,12 @@ impl BaseContract {
         if env
             .storage()
             .instance()
-            .has(&DataKey::Room(room_id.clone()))
+            .has(&DataKey::PaidRoom(room_id.clone()))
         {
             return Err(ContractError::RoomAlreadyExists);
         }
 
-        let room = Room {
+        let room = PaidRoom {
             id: room_id.clone(),
             creator: creator.clone(),
             entry_fee,
@@ -156,17 +180,24 @@ impl BaseContract {
             total_revenue: 0,
         };
 
-        env.storage().instance().set(&DataKey::Room(room_id), &room);
+        env.storage()
+            .instance()
+            .set(&DataKey::PaidRoom(room_id), &room);
+
+        let room_count = Self::increment_room_created_count(&env, creator.clone());
+        if room_count == 1 {
+            let _ = Self::award_badge(&env, creator, Badge::RoomCreator)?;
+        }
         Ok(())
     }
 
     pub fn pay_entry_fee(env: Env, user: Address, room_id: Symbol) -> Result<(), ContractError> {
         user.require_auth();
 
-        let mut room: Room = env
+        let mut room: PaidRoom = env
             .storage()
             .instance()
-            .get(&DataKey::Room(room_id.clone()))
+            .get(&DataKey::PaidRoom(room_id.clone()))
             .ok_or(ContractError::RoomNotFound)?;
 
         if room.is_cancelled {
@@ -221,27 +252,31 @@ impl BaseContract {
         room.total_revenue += total_fee;
         env.storage()
             .instance()
-            .set(&DataKey::Room(room_id.clone()), &room);
+            .set(&DataKey::PaidRoom(room_id.clone()), &room);
 
         // Grant access
-        let member = RoomMember {
+        let member = PaidRoomMember {
             has_access: true,
             joined_at: env.ledger().timestamp(),
         };
         env.storage()
             .instance()
-            .set(&DataKey::RoomMember(room_id, user), &member);
+            .set(&DataKey::PaidRoomMember(room_id, user), &member);
 
         Ok(())
     }
 
-    pub fn cancel_room(env: Env, creator: Address, room_id: Symbol) -> Result<(), ContractError> {
+    pub fn cancel_paid_room(
+        env: Env,
+        creator: Address,
+        room_id: Symbol,
+    ) -> Result<(), ContractError> {
         creator.require_auth();
 
-        let mut room: Room = env
+        let mut room: PaidRoom = env
             .storage()
             .instance()
-            .get(&DataKey::Room(room_id.clone()))
+            .get(&DataKey::PaidRoom(room_id.clone()))
             .ok_or(ContractError::RoomNotFound)?;
 
         if room.creator != creator {
@@ -249,17 +284,19 @@ impl BaseContract {
         }
 
         room.is_cancelled = true;
-        env.storage().instance().set(&DataKey::Room(room_id), &room);
+        env.storage()
+            .instance()
+            .set(&DataKey::PaidRoom(room_id), &room);
         Ok(())
     }
 
     pub fn refund_entry_fee(env: Env, user: Address, room_id: Symbol) -> Result<(), ContractError> {
         user.require_auth();
 
-        let room: Room = env
+        let room: PaidRoom = env
             .storage()
             .instance()
-            .get(&DataKey::Room(room_id.clone()))
+            .get(&DataKey::PaidRoom(room_id.clone()))
             .ok_or(ContractError::RoomNotFound)?;
 
         if !room.is_cancelled {
@@ -267,8 +304,8 @@ impl BaseContract {
             return Err(ContractError::Unauthorized);
         }
 
-        let key = DataKey::RoomMember(room_id.clone(), user.clone());
-        let mut member: RoomMember = env
+        let key = DataKey::PaidRoomMember(room_id.clone(), user.clone());
+        let mut member: PaidRoomMember = env
             .storage()
             .instance()
             .get(&key)
@@ -319,7 +356,7 @@ impl BaseContract {
     pub fn register_user(env: Env, user: Address, username: Symbol) -> Result<(), ContractError> {
         user.require_auth();
 
-        validate_username(username.clone())?;
+        validate_username(&env, username.clone())?;
 
         if env.storage().instance().has(&DataKey::User(user.clone())) {
             return Err(ContractError::UserAlreadyRegistered);
@@ -359,7 +396,7 @@ impl BaseContract {
     ) -> Result<(), ContractError> {
         user.require_auth();
 
-        validate_username(new_username.clone())?;
+        validate_username(&env, new_username.clone())?;
 
         if env
             .storage()
@@ -420,15 +457,6 @@ impl BaseContract {
     ) -> Result<(u32, u32), ContractError> {
         let now = env.ledger().timestamp();
 
-        if let Some(last_ts) = env
-            .storage()
-            .instance()
-            .get::<_, u64>(&DataKey::UserLastAction(user.clone(), action))
-        {
-            if now < last_ts + XP_COOLDOWN_SECONDS {
-                return Err(ContractError::XpCooldownActive);
-            }
-        }
         let hour_bucket = now / 3600;
 
         let current_hour_xp: u64 = env
@@ -481,10 +509,130 @@ impl BaseContract {
         }
     }
 
-    pub fn send_message(env: Env, user: Address) -> Result<(), ContractError> {
-        user.require_auth();
-        check_can_act(&env, &user, ActionType::Message);
-        record_action(&env, &user, ActionType::Message);
+    fn init_badge_metadata(env: &Env) {
+        Self::set_badge_metadata(
+            env,
+            Badge::FirstMessage,
+            "First Message",
+            "Sent your first message",
+            "ipfs://badge-first-message",
+            BadgeRarity::Common,
+        );
+        Self::set_badge_metadata(
+            env,
+            Badge::Tipper100,
+            "Tipper 100",
+            "Received 100 tips",
+            "ipfs://badge-tipper-100",
+            BadgeRarity::Rare,
+        );
+        Self::set_badge_metadata(
+            env,
+            Badge::Level10,
+            "Level 10",
+            "Reached level 10",
+            "ipfs://badge-level-10",
+            BadgeRarity::Epic,
+        );
+        Self::set_badge_metadata(
+            env,
+            Badge::RoomCreator,
+            "Room Creator",
+            "Created your first room",
+            "ipfs://badge-room-creator",
+            BadgeRarity::Uncommon,
+        );
+    }
+
+    fn set_badge_metadata(
+        env: &Env,
+        badge: Badge,
+        name: &str,
+        description: &str,
+        icon_url: &str,
+        rarity: BadgeRarity,
+    ) {
+        let key = DataKey::BadgeMetadata(badge);
+        if env.storage().instance().has(&key) {
+            return;
+        }
+
+        let metadata = BadgeMetadata {
+            badge,
+            name: String::from_str(env, name),
+            description: String::from_str(env, description),
+            icon_url: String::from_str(env, icon_url),
+            rarity,
+        };
+
+        env.storage().instance().set(&key, &metadata);
+    }
+
+    fn award_badge(env: &Env, user: Address, badge: Badge) -> Result<bool, ContractError> {
+        let mut profile: UserProfile = env
+            .storage()
+            .instance()
+            .get(&DataKey::User(user.clone()))
+            .unwrap_or(UserProfile {
+                address: user.clone(),
+                username: Symbol::new(env, "anonymous"),
+                xp: 0,
+                level: 1,
+                badges: Vec::new(env),
+                join_date: env.ledger().timestamp(),
+            });
+
+        for existing in profile.badges.iter() {
+            if existing == badge {
+                return Ok(false);
+            }
+        }
+
+        profile.badges.push_back(badge);
+        env.storage().instance().set(&DataKey::User(user), &profile);
+
+        Ok(true)
+    }
+
+    fn check_level_badges(
+        env: &Env,
+        user: Address,
+        old_level: u32,
+        new_level: u32,
+    ) -> Result<(), ContractError> {
+        if old_level < 10 && new_level >= 10 {
+            let _ = Self::award_badge(env, user, Badge::Level10)?;
+        }
+        Ok(())
+    }
+
+    fn increment_message_count(env: &Env, user: Address) -> u32 {
+        Self::increment_counter(env, DataKey::UserMessageCount(user))
+    }
+
+    fn increment_tip_received_count(env: &Env, user: Address) -> u32 {
+        Self::increment_counter(env, DataKey::UserTipReceivedCount(user))
+    }
+
+    fn increment_room_created_count(env: &Env, user: Address) -> u32 {
+        Self::increment_counter(env, DataKey::UserRoomsCreated(user))
+    }
+
+    fn increment_counter(env: &Env, key: DataKey) -> u32 {
+        let mut count: u32 = env.storage().instance().get(&key).unwrap_or(0);
+        count = count.saturating_add(1);
+        env.storage().instance().set(&key, &count);
+        count
+    }
+
+    fn record_message_action(env: &Env, user: Address) -> Result<(), ContractError> {
+        check_can_act(env, &user, ActionType::Message);
+        record_action(env, &user, ActionType::Message);
+
+        let message_count = Self::increment_message_count(env, user.clone());
+        if message_count == 1 {
+            let _ = Self::award_badge(env, user, Badge::FirstMessage)?;
+        }
         Ok(())
     }
 
@@ -493,6 +641,10 @@ impl BaseContract {
 
         let (old_level, new_level) =
             Self::award_xp(&env, user.clone(), XP_MESSAGE, ActionType::Message)?;
+
+        record_action(&env, &user, ActionType::Message);
+
+        Self::check_level_badges(&env, user.clone(), old_level, new_level)?;
 
         Self::emit_level_up(&env, user, old_level, new_level);
 
@@ -503,6 +655,13 @@ impl BaseContract {
         require_admin(&env)?;
         let (old_level, new_level) =
             Self::award_xp(&env, user.clone(), XP_TIP_RECEIVED, ActionType::TipReceived)?;
+
+        let tip_count = Self::increment_tip_received_count(&env, user.clone());
+        if tip_count >= 100 {
+            let _ = Self::award_badge(&env, user.clone(), Badge::Tipper100)?;
+        }
+
+        Self::check_level_badges(&env, user.clone(), old_level, new_level)?;
 
         Self::emit_level_up(&env, user, old_level, new_level);
 
@@ -765,11 +924,14 @@ impl BaseContract {
         id
     }
 
-    pub fn create_room(env: Env, room_type: RoomType) -> Result<u64, ContractError> {
-        let creator = env.invoker();
+    pub fn create_room(
+        env: Env,
+        creator: Address,
+        room_type: RoomType,
+    ) -> Result<u64, ContractError> {
         creator.require_auth();
 
-        let room_id = next_room_id(&env);
+        let room_id = Self::next_room_id(&env);
 
         let mut participants = Vec::new(&env);
         participants.push_back(creator.clone());
@@ -783,7 +945,9 @@ impl BaseContract {
             created_at: env.ledger().timestamp(),
         };
 
-        env.storage().instance().set(&DataKey::Room(room_id), &room);
+        env.storage()
+            .instance()
+            .set(&DataKey::RoomById(room_id), &room);
 
         let mut rooms: Vec<u64> = env
             .storage()
@@ -795,17 +959,26 @@ impl BaseContract {
 
         env.storage().instance().set(&DataKey::RoomList, &rooms);
 
+        let room_count = Self::increment_room_created_count(&env, creator.clone());
+        if room_count == 1 {
+            let _ = Self::award_badge(&env, creator, Badge::RoomCreator)?;
+        }
+
         Ok(room_id)
     }
 
-    pub fn set_entry_fee(env: Env, room_id: u64, fee: u64) -> Result<(), ContractError> {
-        let caller = env.invoker();
+    pub fn set_entry_fee(
+        env: Env,
+        caller: Address,
+        room_id: u64,
+        fee: u64,
+    ) -> Result<(), ContractError> {
         caller.require_auth();
 
         let mut room: Room = env
             .storage()
             .instance()
-            .get(&DataKey::Room(room_id))
+            .get(&DataKey::RoomById(room_id))
             .ok_or(ContractError::RoomNotFound)?;
 
         if room.creator != caller {
@@ -818,19 +991,25 @@ impl BaseContract {
             return Err(ContractError::InvalidRoomType);
         }
 
-        env.storage().instance().set(&DataKey::Room(room_id), &room);
+        env.storage()
+            .instance()
+            .set(&DataKey::RoomById(room_id), &room);
 
         Ok(())
     }
 
-    pub fn add_participant(env: Env, room_id: u64, user: Address) -> Result<(), ContractError> {
-        let caller = env.invoker();
+    pub fn add_participant(
+        env: Env,
+        caller: Address,
+        room_id: u64,
+        user: Address,
+    ) -> Result<(), ContractError> {
         caller.require_auth();
 
         let mut room: Room = env
             .storage()
             .instance()
-            .get(&DataKey::Room(room_id))
+            .get(&DataKey::RoomById(room_id))
             .ok_or(ContractError::RoomNotFound)?;
 
         match room.room_type {
@@ -851,19 +1030,25 @@ impl BaseContract {
 
         room.participants.push_back(user);
 
-        env.storage().instance().set(&DataKey::Room(room_id), &room);
+        env.storage()
+            .instance()
+            .set(&DataKey::RoomById(room_id), &room);
 
         Ok(())
     }
 
-    pub fn remove_participant(env: Env, room_id: u64, user: Address) -> Result<(), ContractError> {
-        let caller = env.invoker();
+    pub fn remove_participant(
+        env: Env,
+        caller: Address,
+        room_id: u64,
+        user: Address,
+    ) -> Result<(), ContractError> {
         caller.require_auth();
 
         let mut room: Room = env
             .storage()
             .instance()
-            .get(&DataKey::Room(room_id))
+            .get(&DataKey::RoomById(room_id))
             .ok_or(ContractError::RoomNotFound)?;
 
         if caller != room.creator && caller != user {
@@ -880,7 +1065,9 @@ impl BaseContract {
 
         room.participants = updated;
 
-        env.storage().instance().set(&DataKey::Room(room_id), &room);
+        env.storage()
+            .instance()
+            .set(&DataKey::RoomById(room_id), &room);
 
         Ok(())
     }
@@ -895,7 +1082,7 @@ impl BaseContract {
     pub fn get_room(env: Env, room_id: u64) -> Result<Room, ContractError> {
         env.storage()
             .instance()
-            .get(&DataKey::Room(room_id))
+            .get(&DataKey::RoomById(room_id))
             .ok_or(ContractError::RoomNotFound)
     }
 
@@ -915,11 +1102,11 @@ impl BaseContract {
 
     pub fn send_message(
         env: Env,
+        sender: Address,
         room_id: u64,
         content_hash: BytesN<32>,
         tip_amount: u64,
     ) -> Result<u64, ContractError> {
-        let sender = env.invoker();
         sender.require_auth();
 
         verify_content_hash(&content_hash)?;
@@ -927,7 +1114,7 @@ impl BaseContract {
         let mut room: Room = env
             .storage()
             .instance()
-            .get(&DataKey::Room(room_id))
+            .get(&DataKey::RoomById(room_id))
             .ok_or(ContractError::RoomNotFound)?;
 
         // Ensure sender is participant
@@ -945,7 +1132,9 @@ impl BaseContract {
             return Err(ContractError::RoomMessageLimitReached);
         }
 
-        let message_id = next_message_id(&env, room_id);
+        let message_id = Self::next_message_id(&env, room_id);
+
+        Self::record_message_action(&env, sender.clone())?;
 
         let message = Message {
             id: message_id,
@@ -966,9 +1155,9 @@ impl BaseContract {
 
         // XP reward (already spam-protected)
         let (old_level, new_level) =
-            award_xp(&env, sender.clone(), XP_MESSAGE_SENT, ActionType::Message)?;
+            Self::award_xp(&env, sender.clone(), XP_MESSAGE_SENT, ActionType::Message)?;
 
-        emit_level_up(&env, sender, old_level, new_level);
+        Self::emit_level_up(&env, sender, old_level, new_level);
 
         Ok(message_id)
     }
@@ -1029,20 +1218,14 @@ fn require_admin(env: &Env) -> Result<Address, ContractError> {
     Ok(admin)
 }
 
-fn validate_username(username: Symbol) -> Result<(), ContractError> {
-    // Basic validation relying on Symbol's inherent limits (max 32 chars).
-    if username.len() == 0 {
+fn validate_username(env: &Env, username: Symbol) -> Result<(), ContractError> {
+    if username == Symbol::new(env, "") {
         return Err(ContractError::InvalidUsername);
     }
     Ok(())
 }
 
 fn calculate_level(xp: u64) -> u32 {
-    match xp {
-        0..=99 => 1,
-        100..=299 => 2,
-        300..=599 => 3,
-        600..=999 => 4,
-        _ => 5,
-    }
+    let level = (xp / 100).saturating_add(1);
+    level as u32
 }

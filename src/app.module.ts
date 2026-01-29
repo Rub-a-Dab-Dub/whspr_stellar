@@ -27,6 +27,7 @@ import { MessageModule } from './message/message.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { ChainModule } from './chain/chain.module';
 import { TransferModule } from './transfer/transfer.module';
+import { RoomModule } from './room/room.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { TransferModule } from './transfer/transfer.module';
     RewardsModule,
     ChainModule,
     TransferModule,
+    RoomModule,
   ],
   controllers: [AppController],
   providers: [
