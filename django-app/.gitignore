@@ -8,6 +8,8 @@ __pycache__/
 *.egg
 build/
 dist/
+*$py.class
+*.so
 
 # Testing & Coverage
 .pytest_cache/
@@ -15,6 +17,8 @@ dist/
 htmlcov/
 .tox/
 .hypothesis/
+.cache
+
 
 # IDE & Editor
 .vscode/
@@ -48,4 +52,19 @@ Thumbs.db
 
 # Django
 *.pot
+*.log
 local_settings.py
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Distribution / packaging
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
