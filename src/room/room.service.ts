@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +12,14 @@ import {
 } from './entities/room-setting.entity';
 import { PinnedMessage } from './entities/pinned-message.entity';
 import { UpdateRoomSettingsDto } from './dto/room-settings.dto';
+import { RoomRepository } from './repositories/room.repository';
+import { Room } from './entities/room.entity';
+import { RoomMemberRepository } from './repositories/room-member.repository';
+import { CreateRoomDto } from './dto/create-room.dto';
+import { UpdateRoomDto } from './dto/update-room.dto';
+import { MemberRole, MemberStatus, RoomMember } from './entities/room-member.entity';
+import { ROLE_PERMISSIONS, ROOM_MEMBER_CONSTANTS } from './constants/room-member.constants';
+import { RoomType } from './entities/room.entity';
 
 @Injectable()
 export class RoomSettingsService {
@@ -117,5 +126,220 @@ export class RoomSettingsService {
       relations: ['message'],
       order: { pinnedAt: 'DESC' },
     });
+  }
+}
+
+@Injectable()
+export class RoomService {
+  constructor(
+    private roomRepository: RoomRepository,
+    private roomMemberRepository: RoomMemberRepository,
+  ) {}
+
+  async createRoom(userId: string, dto: CreateRoomDto): Promise<Room> {
+    const trimmedName = dto.name.trim();
+    const roomType = this.resolveRoomType(dto);
+    const { expiryTimestamp, durationMinutes } = this.resolveTiming(
+      roomType,
+      dto,
+      true,
+    );
+
+    const room = this.roomRepository.create({
+      name: trimmedName,
+      description: dto.description?.trim(),
+      ownerId: userId,
+      creatorId: userId,
+      roomType,
+      isPrivate: this.resolveIsPrivate(roomType, dto.isPrivate),
+      isTokenGated: dto.isTokenGated ?? roomType === RoomType.TOKEN_GATED,
+      icon: dto.icon,
+      maxMembers: dto.maxMembers ?? ROOM_MEMBER_CONSTANTS.DEFAULT_MAX_MEMBERS,
+      isActive: dto.isActive ?? true,
+      memberCount: 0,
+      entryFee: dto.entryFee ?? '0',
+      tokenAddress: dto.tokenAddress,
+      paymentRequired: dto.paymentRequired ?? false,
+      freeTrialEnabled: dto.freeTrialEnabled ?? false,
+      freeTrialDurationHours: dto.freeTrialDurationHours ?? 24,
+      accessDurationDays: dto.accessDurationDays,
+      expiryTimestamp,
+      durationMinutes,
+      isExpired: false,
+      warningNotificationSent: false,
+      extensionCount: 0,
+      isDeleted: false,
+      deletedAt: undefined,
+    });
+
+    const saved = await this.roomRepository.save(room);
+
+    const ownerMember = this.roomMemberRepository.create({
+      roomId: saved.id,
+      userId,
+      role: MemberRole.OWNER,
+      status: MemberStatus.ACTIVE,
+      inviteStatus: 'ACCEPTED',
+      permissions: ROLE_PERMISSIONS[MemberRole.OWNER],
+      joinedAt: new Date(),
+    } as RoomMember);
+
+    await this.roomMemberRepository.save(ownerMember);
+    return saved;
+  }
+
+  async getRoom(roomId: string): Promise<Room> {
+    const room = await this.roomRepository.findActiveById(roomId);
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    return room;
+  }
+
+  async updateRoom(
+    roomId: string,
+    userId: string,
+    dto: UpdateRoomDto,
+  ): Promise<Room> {
+    const room = await this.roomRepository.findActiveWithOwner(roomId);
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    this.ensureOwner(room, userId);
+
+    if (dto.name !== undefined) {
+      room.name = dto.name.trim();
+    }
+    if (dto.description !== undefined) {
+      room.description = dto.description?.trim();
+    }
+    if (dto.roomType) {
+      room.roomType = dto.roomType;
+      room.isPrivate = this.resolveIsPrivate(dto.roomType, dto.isPrivate);
+      room.isTokenGated = dto.isTokenGated ?? dto.roomType === RoomType.TOKEN_GATED;
+    }
+    if (dto.isPrivate !== undefined && !dto.roomType) {
+      room.isPrivate = dto.isPrivate;
+    }
+    if (dto.isTokenGated !== undefined && !dto.roomType) {
+      room.isTokenGated = dto.isTokenGated;
+    }
+    if (dto.icon !== undefined) {
+      room.icon = dto.icon;
+    }
+    if (dto.maxMembers !== undefined) {
+      room.maxMembers = dto.maxMembers;
+    }
+    if (dto.isActive !== undefined) {
+      room.isActive = dto.isActive;
+    }
+    if (dto.entryFee !== undefined) {
+      room.entryFee = dto.entryFee;
+    }
+    if (dto.tokenAddress !== undefined) {
+      room.tokenAddress = dto.tokenAddress;
+    }
+    if (dto.paymentRequired !== undefined) {
+      room.paymentRequired = dto.paymentRequired;
+    }
+    if (dto.freeTrialEnabled !== undefined) {
+      room.freeTrialEnabled = dto.freeTrialEnabled;
+    }
+    if (dto.freeTrialDurationHours !== undefined) {
+      room.freeTrialDurationHours = dto.freeTrialDurationHours;
+    }
+    if (dto.accessDurationDays !== undefined) {
+      room.accessDurationDays = dto.accessDurationDays;
+    }
+
+    const timing = this.resolveTiming(
+      room.roomType,
+      dto,
+      dto.roomType === RoomType.TIMED,
+    );
+    if (timing.expiryTimestamp !== undefined) {
+      room.expiryTimestamp = timing.expiryTimestamp;
+      room.durationMinutes = timing.durationMinutes ?? room.durationMinutes;
+      room.isExpired = false;
+      room.warningNotificationSent = false;
+    }
+
+    return this.roomRepository.save(room);
+  }
+
+  async softDeleteRoom(roomId: string, userId: string): Promise<void> {
+    const room = await this.roomRepository.findActiveWithOwner(roomId);
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    this.ensureOwner(room, userId);
+    await this.roomRepository.softDeleteRoom(roomId);
+  }
+
+  private resolveRoomType(dto: CreateRoomDto | UpdateRoomDto): RoomType {
+    if (dto.roomType) {
+      return dto.roomType;
+    }
+    if (dto.isPrivate) {
+      return RoomType.PRIVATE;
+    }
+
+    return RoomType.PUBLIC;
+  }
+
+  private resolveIsPrivate(
+    roomType: RoomType,
+    isPrivate?: boolean,
+  ): boolean {
+    if (roomType === RoomType.PRIVATE || roomType === RoomType.TOKEN_GATED) {
+      return true;
+    }
+    if (roomType === RoomType.PUBLIC || roomType === RoomType.TIMED) {
+      return false;
+    }
+
+    return !!isPrivate;
+  }
+
+  private resolveTiming(
+    roomType: RoomType,
+    dto: CreateRoomDto | UpdateRoomDto,
+    requireForTimed: boolean,
+  ): { expiryTimestamp?: number | null; durationMinutes?: number | null } {
+    if (roomType !== RoomType.TIMED) {
+      return {
+        expiryTimestamp: dto.expiresAt ? new Date(dto.expiresAt).getTime() : undefined,
+        durationMinutes: dto.durationMinutes,
+      };
+    }
+
+    if (!requireForTimed && !dto.expiresAt && !dto.durationMinutes) {
+      return { expiryTimestamp: undefined, durationMinutes: undefined };
+    }
+
+    if (dto.expiresAt) {
+      return {
+        expiryTimestamp: new Date(dto.expiresAt).getTime(),
+        durationMinutes: dto.durationMinutes,
+      };
+    }
+
+    if (dto.durationMinutes) {
+      return {
+        expiryTimestamp: Date.now() + dto.durationMinutes * 60 * 1000,
+        durationMinutes: dto.durationMinutes,
+      };
+    }
+
+    throw new BadRequestException('Timed rooms require expiresAt or durationMinutes');
+  }
+
+  private ensureOwner(room: Room, userId: string): void {
+    if (!room.ownerId || room.ownerId !== userId) {
+      throw new ForbiddenException('Only room owner can update this room');
+    }
   }
 }
