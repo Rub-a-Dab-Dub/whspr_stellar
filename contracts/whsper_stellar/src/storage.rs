@@ -53,5 +53,10 @@ pub struct Tip {
     pub TransactionsByUser: Address,
     pub TransactionsByType: Symbol,
     pub TransactionsByStatus: Symbol,
+    pub AnalyticsDashboard : u64,
+    pub UserActivity : Address,
+    pub MessageVolume : Symbol, // room ID or global
+    pub TipRevenue : Symbol,    // optional per room
+    pub Custom : String, 
 }
 
