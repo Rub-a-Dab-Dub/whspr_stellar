@@ -101,7 +101,7 @@ export class CreateMessageReactionsTable1674432000000 implements MigrationInterf
     );
 
     // Unique constraint: User can only have one reaction of each type per message
-    await queryRunner.createUnique(
+    await queryRunner.createUniqueConstraint(
       'message_reactions',
       new TableUnique({
         name: 'uq_message_reactions_message_user_type',
