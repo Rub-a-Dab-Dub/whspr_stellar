@@ -366,4 +366,14 @@ fn test_tip_xp_award() {
         assert_eq!(tx.status, Symbol::new(&env, "failed"));
         assert_eq!(tx.amount.unwrap(), 20);
     }
- 
+      #[test]
+    fn test_user_activity_tracking() {
+        let env = Env::default();
+        let user = Address::random(&env);
+
+        BaseContract::record_user_activity(env.clone(), user.clone(), true);
+
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_users, 1);
+        assert_eq!(analytics.active_users_daily, 1);
+    }
