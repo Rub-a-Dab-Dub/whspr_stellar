@@ -3,8 +3,7 @@ import { Filter } from 'bad-words';
 
 @Injectable()
 export class ProfanityFilterService {
-
-  constructor(private readonly filter: Filter = new Filter()) {}
+  private readonly filter = new Filter();
 
   /**
    * Check if content contains profanity
