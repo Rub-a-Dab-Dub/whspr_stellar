@@ -240,3 +240,13 @@ fn test_tip_message_success() {
     assert_eq!(tip.amount, 100);
     assert_eq!(tip.fee, 2); // 2%
 }
+
+#[test]
+fn test_tip_invalid_amount() {
+    let env = Env::default();
+    let sender = Address::random(&env);
+    let receiver = Address::random(&env);
+
+    let result = BaseContract::tip_message(env.clone(), sender.clone(), 1, receiver.clone(), 0);
+    assert!(matches!(result, Err(ContractError::InvalidAmount)));
+}
