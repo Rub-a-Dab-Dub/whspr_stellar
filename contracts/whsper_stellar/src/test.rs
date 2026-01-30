@@ -389,4 +389,12 @@ fn test_tip_xp_award() {
         assert_eq!(analytics.total_messages, 1);
     }
 
-  
+    #[test]
+    fn test_tip_revenue_tracking() {
+        let env = Env::default();
+        BaseContract::record_tip(env.clone(), 100, 2);
+
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_tips, 1);
+        assert_eq!(analytics.total_tip_revenue, 2);
+    }
