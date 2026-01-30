@@ -261,4 +261,40 @@ fn test_tip_xp_award() {
     let profile: UserProfile = env.storage().instance().get(&DataKey::User(sender.clone())).unwrap();
     assert!(profile.xp >= 20);
 }
- 
+  #[test]
+    fn test_record_transaction_success() {
+        let env = Env::default();
+        let sender = Address::random(&env);
+        let receiver = Address::random(&env);
+
+        // Example tx hash
+        let tx_hash = BytesN::from_array(&env, &[0u8; 32]);
+
+        // Record transaction
+        let tx_id = BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            Some(receiver.clone()),
+            Some(100),
+        )
+        .unwrap();
+
+        // Fetch transaction back
+        let stored_tx: Transaction = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionById(tx_id))
+            .unwrap();
+
+        assert_eq!(stored_tx.id, tx_id);
+        assert_eq!(stored_tx.tx_hash, tx_hash);
+        assert_eq!(stored_tx.tx_type, Symbol::new(&env, "tip"));
+        assert_eq!(stored_tx.status, Symbol::new(&env, "success"));
+        assert_eq!(stored_tx.sender, sender);
+        assert_eq!(stored_tx.receiver.unwrap(), receiver);
+        assert_eq!(stored_tx.amount.unwrap(), 100);
+    }
+
