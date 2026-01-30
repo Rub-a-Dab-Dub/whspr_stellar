@@ -220,3 +220,23 @@ fn test_transfer_tokens() {
     let res = client.try_transfer_tokens(&user1, &user2, &token_id, &10);
     assert!(res.is_err());
 }
+
+#[test]
+fn test_tip_message_success() {
+    let env = Env::default();
+    let sender = Address::random(&env);
+    let receiver = Address::random(&env);
+
+    // Initialize token and balances
+    let token = Address::random(&env);
+    // Mint 1000 tokens to sender (pseudo code)
+    // token_client.mint(&sender, 1000);
+
+    let tip_id = BaseContract::tip_message(env.clone(), sender.clone(), 1, receiver.clone(), 100).unwrap();
+    let tip: Tip = env.storage().instance().get(&DataKey::TipById(tip_id)).unwrap();
+
+    assert_eq!(tip.sender, sender);
+    assert_eq!(tip.receiver, receiver);
+    assert_eq!(tip.amount, 100);
+    assert_eq!(tip.fee, 2); // 2%
+}
