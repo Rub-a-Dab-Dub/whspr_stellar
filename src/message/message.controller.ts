@@ -18,6 +18,7 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageOwnershipGuard } from './guards/message-ownership.guard';
 import { MessageResponseDto } from './dto/message-response.dto';
 import { MessageEditHistoryDto } from './dto/message-edit-history.dto';
+import { GetMessagesDto } from './dto/get-messages.dto';
 import { MessagesGateway } from './gateways/messages.gateway';
 
 @Controller('messages')
@@ -86,14 +87,12 @@ export class MessageController {
   @Get('rooms/:roomId')
   async getRoomMessages(
     @Param('roomId') roomId: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 50,
+    @Query() query: GetMessagesDto,
   ): Promise<{
     messages: MessageResponseDto[];
-    total: number;
-    page: number;
+    nextCursor: string | null;
   }> {
-    return this.messageService.getRoomMessages(roomId, page, limit);
+    return this.messageService.getRoomMessages(roomId, query);
   }
 
   @Get(':id')
