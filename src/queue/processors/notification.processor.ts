@@ -2,6 +2,12 @@ import { Processor, Process } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bull';
 import { QUEUE_NAMES } from '../queue.constants';
+import { PushNotificationService } from '../../notifications/services/push-notification.service';
+import { EmailNotificationService } from '../../notifications/services/email-notification.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Notification } from '../../notifications/entities/notification.entity';
+import { User } from '../../user/entities/user.entity';
 
 export enum NotificationType {
   EMAIL = 'email',
@@ -20,25 +26,34 @@ export enum NotificationType {
 export class NotificationProcessor {
   private readonly logger = new Logger(NotificationProcessor.name);
 
+  constructor(
+    private readonly pushService: PushNotificationService,
+    private readonly emailService: EmailNotificationService,
+    @InjectRepository(Notification)
+    private readonly notificationRepository: Repository<Notification>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
+
   @Process()
   async handleNotification(job: Job) {
     this.logger.log(`Processing notification job ${job.id}`);
     this.logger.debug(`Job data: ${JSON.stringify(job.data)}`);
 
     try {
-      const { type, recipient, message, metadata } = job.data;
+      const { type, notificationId, recipientId, title, message, data } = job.data;
 
       await job.progress(20);
 
       switch (type) {
-        case NotificationType.EMAIL:
-          await this.sendEmail(recipient, message, metadata);
+        case 'email':
+          await this.handleEmailNotification(notificationId, recipientId);
           break;
-        case NotificationType.PUSH:
-          await this.sendPushNotification(recipient, message, metadata);
+        case 'push':
+          await this.handlePushNotification(recipientId, title, message, data);
           break;
-        case NotificationType.SMS:
-          await this.sendSMS(recipient, message, metadata);
+        case 'sms':
+          await this.handleSMSNotification(recipientId, message);
           break;
         case NotificationType.LEVEL_UP:
           await this.handleLevelUp(job.data);
@@ -61,7 +76,7 @@ export class NotificationProcessor {
       return {
         success: true,
         type,
-        recipient,
+        recipientId,
         sentAt: new Date().toISOString(),
       };
     } catch (error) {
@@ -70,14 +85,49 @@ export class NotificationProcessor {
     }
   }
 
-  private async sendEmail(recipient: string, message: string, metadata: any) {
-    this.logger.log(`Sending email to ${recipient}`);
-    // TODO: Implement actual email sending logic (e.g., using SendGrid, AWS SES, etc.)
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    this.logger.log(`Email sent to ${recipient}`);
+  private async handleEmailNotification(notificationId: string, recipientId: string) {
+    try {
+      const notification = await this.notificationRepository.findOne({
+        where: { id: notificationId },
+        relations: ['sender'],
+      });
+
+      if (!notification) {
+        throw new Error(`Notification ${notificationId} not found`);
+      }
+
+      const user = await this.userRepository.findOne({
+        where: { id: recipientId },
+      });
+
+      if (!user) {
+        throw new Error(`User ${recipientId} not found`);
+      }
+
+      await this.emailService.sendEmailNotification(notification, user.email);
+      this.logger.log(`Email notification sent to ${user.email}`);
+    } catch (error) {
+      this.logger.error('Failed to send email notification:', error);
+      throw error;
+    }
   }
 
-  private async sendPushNotification(recipient: string, message: string, metadata: any) {
+  private async handlePushNotification(recipientId: string, title: string, message: string, data: any) {
+    try {
+      const result = await this.pushService.sendPushNotification(recipientId, {
+        title,
+        body: message,
+        data,
+      });
+
+      this.logger.log(`Push notification sent to user ${recipientId}: ${result.sent} sent, ${result.failed} failed`);
+    } catch (error) {
+      this.logger.error('Failed to send push notification:', error);
+      throw error;
+    }
+  }
+
+  private async handleSMSNotification(recipientId: string, message: string) {
     this.logger.log(`Sending push notification to ${recipient}`);
     // TODO: Implement actual push notification logic (e.g., using Firebase, OneSignal, etc.)
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -119,5 +169,22 @@ export class NotificationProcessor {
     
     await new Promise((resolve) => setTimeout(resolve, 500));
     this.logger.log(`Reward notification ${type} processed for user ${userId}`);
+  }
+}
+    this.logger.log(`SMS notification would be sent to user ${recipientId}: ${message}`);
+    // TODO: Implement SMS sending logic (e.g., using Twilio, AWS SNS, etc.)
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+
+  private async handleLevelUp(data: any) {
+    this.logger.log(`Handling level up notification: ${JSON.stringify(data)}`);
+    // TODO: Implement level up notification logic
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  private async handleRewardNotification(data: any) {
+    this.logger.log(`Handling reward notification: ${JSON.stringify(data)}`);
+    // TODO: Implement reward notification logic
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 }

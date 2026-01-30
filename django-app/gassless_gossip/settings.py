@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     # Local apps
     'apps.users',
     'apps.messaging',
+    'apps.predictive_text',
 ]
 
 MIDDLEWARE = [

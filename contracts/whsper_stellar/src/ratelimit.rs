@@ -39,7 +39,7 @@ pub fn check_can_act(env: &Env, user: &Address, action: ActionType) {
     // 4. Calculate Scaled Limits (Reputation 0-100 scales cooldown down and limits up)
     let (base_cooldown, base_daily_limit) = match action {
         ActionType::Message => (config.message_cooldown, config.daily_message_limit),
-        ActionType::TipReceived => (config.tip_cooldown, config.daily_tip_limit),
+        ActionType::Tip => (config.tip_cooldown, config.daily_tip_limit),
         ActionType::Transfer => (config.transfer_cooldown, config.daily_transfer_limit),
         ActionType::TipReceived => (0, u32::MAX), // No rate limit for receiving tips logic here
     };
@@ -81,7 +81,7 @@ pub fn check_can_act(env: &Env, user: &Address, action: ActionType) {
 
     let current_count = match action {
         ActionType::Message => daily_stats.message_count,
-        ActionType::TipReceived => daily_stats.tip_count,
+        ActionType::Tip => daily_stats.tip_count,
         ActionType::Transfer => daily_stats.transfer_count,
         ActionType::TipReceived => 0, // Not tracked in daily stats this way
     };
@@ -121,7 +121,7 @@ pub fn record_action(env: &Env, user: &Address, action: ActionType) {
 
     match action {
         ActionType::Message => daily_stats.message_count += 1,
-        ActionType::TipReceived => daily_stats.tip_count += 1,
+        ActionType::Tip => daily_stats.tip_count += 1,
         ActionType::Transfer => daily_stats.transfer_count += 1,
         ActionType::TipReceived => {} // Do not count towards daily limits
     }

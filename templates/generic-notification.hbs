@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{notificationTitle}} - Whspr Stellar</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #667eea; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .message-box { background: white; padding: 15px; border-left: 4px solid #667eea; margin: 15px 0; }
+        .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0; }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{notificationTitle}}</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hi {{userName}},</p>
+            
+            <div class="message-box">
+                <p>{{notificationMessage}}</p>
+            </div>
+            
+            {{#if actionUrl}}
+            <a href="{{actionUrl}}" class="button">Take Action</a>
+            {{/if}}
+            
+            <p>Don't want to receive these notifications? <a href="{{unsubscribeUrl}}">Update your preferences</a></p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2026 Whspr Stellar. All rights reserved.</p>
+            <p><a href="{{appUrl}}">Visit Whspr Stellar</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MessageService } from './message.service';
 import { MessageController } from './message.controller';
@@ -21,6 +21,7 @@ import { MessagesGateway } from './gateways/messages.gateway';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageBroadcastService } from './services/message-broadcast.service';
 import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UsersModule } from '../users/users.module';
     RedisModule,
     CacheModule,
     UsersModule,
+    forwardRef(() => NotificationsModule),
   ],
   providers: [
     MessageService,
