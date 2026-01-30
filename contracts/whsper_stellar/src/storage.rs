@@ -43,11 +43,10 @@ pub struct Tip {
     pub message_id: u64,
     pub timestamp: u64,
     pub TipById:u64,
-    TipCount,
-    TipsSentByUser(Address),
-    TipsReceivedByUser(Address),
-    TotalTippedByUser(Address),
-    TopTippers,
+    pub TipCount: u64,
+    pub TipsSentByUser: Address,
+    pub TipsReceivedByUser: Address,
+    pub TotalTippedByUser: Address,
+    pub TopTippers: Vec<Address>,
 }
-
 
