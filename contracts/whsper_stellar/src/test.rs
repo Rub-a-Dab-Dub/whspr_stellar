@@ -377,3 +377,16 @@ fn test_tip_xp_award() {
         assert_eq!(analytics.total_users, 1);
         assert_eq!(analytics.active_users_daily, 1);
     }
+
+    #[test]
+    fn test_message_volume_tracking() {
+        let env = Env::default();
+        let room = Symbol::new(&env, "general");
+
+        BaseContract::record_message(env.clone(), room.clone());
+
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_messages, 1);
+    }
+
+  
