@@ -261,3 +261,4 @@ fn test_tip_xp_award() {
     let profile: UserProfile = env.storage().instance().get(&DataKey::User(sender.clone())).unwrap();
     assert!(profile.xp >= 20);
 }
+ 
