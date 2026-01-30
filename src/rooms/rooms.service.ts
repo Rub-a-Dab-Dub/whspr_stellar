@@ -4,6 +4,7 @@ import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Room } from './entities/room.entity';
 import { CreateTimedRoomDto, ExtendRoomDto } from './dto/create-timed-room.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { UserStatsService } from '../users/services/user-stats.service';
 
 @Injectable()
 export class RoomsService {
@@ -13,6 +14,7 @@ export class RoomsService {
     @InjectRepository(Room)
     private roomsRepository: Repository<Room>,
     private eventEmitter: EventEmitter2,
+    private userStatsService: UserStatsService,
   ) {}
 
   async createTimedRoom(
@@ -31,6 +33,8 @@ export class RoomsService {
     });
 
     const savedRoom = await this.roomsRepository.save(room);
+
+    await this.userStatsService.recordRoomCreated(creatorId);
     
     this.logger.log(`Timed room created: ${savedRoom.id}, expires at ${new Date(expiryTimestamp)}`);
     

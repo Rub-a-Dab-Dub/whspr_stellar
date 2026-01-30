@@ -14,6 +14,7 @@ import { MessageResponseDto } from './dto/message-response.dto';
 import { MessageEditHistoryDto } from './dto/message-edit-history.dto';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageType } from './enums/message-type.enum';
+import { UserStatsService } from '../users/services/user-stats.service';
 
 @Injectable()
 export class MessageService {
@@ -27,6 +28,7 @@ export class MessageService {
     @InjectRepository(MessageEditHistory)
     private readonly editHistoryRepository: Repository<MessageEditHistory>,
     private readonly profanityFilterService: ProfanityFilterService,
+    private readonly userStatsService: UserStatsService,
   ) {}
 
   /**
@@ -72,6 +74,13 @@ export class MessageService {
     });
 
     const savedMessage = await this.messageRepository.save(message);
+
+    await this.userStatsService.recordMessageSent(userId, {
+      isTip: savedMessage.type === MessageType.TIP,
+      tipRecipientId: createMessageDto.tipRecipientId,
+      tipAmount: createMessageDto.tipAmount,
+    });
+
     return this.toResponseDto(savedMessage);
   }
 

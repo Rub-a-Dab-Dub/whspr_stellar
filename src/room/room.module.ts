@@ -5,6 +5,7 @@ import { RedisModule } from '../redis/redis.module';
 import { QueueModule } from '../queue/queue.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ChainModule } from '../chain/chain.module';
+import { UsersModule } from '../users/users.module';
 
 // Entities
 import { Room } from './entities/room.entity';
@@ -68,6 +69,7 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     RedisModule,
     QueueModule,
     ScheduleModule.forRoot(),
+    UsersModule,
   ],
   controllers: [
     RoomController,

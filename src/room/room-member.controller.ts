@@ -28,6 +28,7 @@ import { RequirePermission } from './decorators/require-permission.decorator';
 import { CurrentRoomMember } from './decorators/room-member.decorator';
 import { MemberPermission } from './constants/room-member.constants';
 import { RoomMember } from './entities/room-member.entity';
+import { UserStatsService } from '../users/services/user-stats.service';
 
 @Controller('rooms')
 @UseGuards(JwtAuthGuard)
@@ -36,6 +37,7 @@ export class RoomMemberController {
     private memberService: RoomMemberService,
     private permissionsService: MemberPermissionsService,
     private activityService: MemberActivityService,
+    private userStatsService: UserStatsService,
   ) {}
 
   @Post(':id/join')
@@ -46,6 +48,7 @@ export class RoomMemberController {
     @CurrentUser() user: any,
   ): Promise<RoomMember> {
     const member = await this.memberService.joinRoom(user.id, roomId, dto.inviteToken);
+    await this.userStatsService.recordRoomJoined(user.id);
     return member;
   }
 

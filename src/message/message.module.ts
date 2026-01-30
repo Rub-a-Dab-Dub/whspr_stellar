@@ -20,12 +20,14 @@ import { CacheModule } from '../cache/cache.module';
 import { MessagesGateway } from './gateways/messages.gateway';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageBroadcastService } from './services/message-broadcast.service';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Message, MessageEditHistory, MessageReaction]),
     RedisModule,
     CacheModule,
+    UsersModule,
   ],
   providers: [
     MessageService,
