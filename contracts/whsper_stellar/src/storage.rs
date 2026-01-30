@@ -32,3 +32,22 @@ pub enum DataKey {
     NextMessageId(u64),
     MessageCount(u64),
 }
+
+#[contracttype]
+pub struct Tip {
+    pub id: u64,
+    pub sender: Address,
+    pub receiver: Address,
+    pub amount: i128,
+    pub fee: i128,
+    pub message_id: u64,
+    pub timestamp: u64,
+        TipById(u64),
+    TipCount,
+    TipsSentByUser(Address),
+    TipsReceivedByUser(Address),
+    TotalTippedByUser(Address),
+    TopTippers,
+}
+
+
