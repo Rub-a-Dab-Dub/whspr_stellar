@@ -175,3 +175,14 @@ pub struct PaidRoomMember {
     pub has_access: bool,
     pub joined_at: u64,
 }
+#[contracttype]
+pub struct Transaction {
+    pub id: u64,
+    pub tx_hash: BytesN<32>,
+    pub tx_type: Symbol,     // e.g., "tip", "message", "transfer"
+    pub status: Symbol,      // e.g., "pending", "success", "failed"
+    pub sender: Address,
+    pub receiver: Option<Address>,
+    pub amount: Option<i128>,
+    pub timestamp: u64,
+}
