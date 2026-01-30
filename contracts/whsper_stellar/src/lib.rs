@@ -1336,6 +1336,41 @@ pub fn tip_message(
         Ok(tx_count)
     }
 
+      pub fn record_user_activity(env: Env, user: Address, active: bool) {
+        // Increment active counters
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        if active {
+            analytics.total_users += 1; // Increment total if new
+            analytics.active_users_daily += 1;
+            analytics.active_users_weekly += 1;
+            analytics.active_users_monthly += 1;
+        }
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_message(env: Env, room: Symbol) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_messages += 1;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_tip(env: Env, amount: u64, fee: u64) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_tips += 1;
+        analytics.total_tip_revenue += fee;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_room_fee(env: Env, amount: u64) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_room_fees += amount;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn get_dashboard(env: Env) -> Analytics {
+        env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default()
+    }
+
 fn verify_content_hash(hash: &BytesN<32>) -> Result<(), ContractError> {
     if hash.to_array() == [0u8; 32] {
         return Err(ContractError::InvalidContentHash);
