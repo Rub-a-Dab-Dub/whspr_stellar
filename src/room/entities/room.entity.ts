@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { RoomPayment } from './room-payment.entity';
 import { RoomMember } from './room-member.entity';
+import { RoomInvitation } from './room-invitation.entity';
 import { ROOM_MEMBER_CONSTANTS } from '../constants/room-member.constants';
 
 export enum RoomType {
@@ -114,6 +115,9 @@ export class Room {
 
   @OneToMany(() => RoomMember, (member) => member.room)
   members!: RoomMember[];
+
+  @OneToMany(() => RoomInvitation, (invitation) => invitation.room)
+  invitations: RoomInvitation[];
 
   @CreateDateColumn()
   createdAt!: Date;
