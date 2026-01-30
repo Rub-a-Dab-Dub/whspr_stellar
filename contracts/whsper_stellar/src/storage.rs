@@ -42,7 +42,7 @@ pub struct Tip {
     pub fee: i128,
     pub message_id: u64,
     pub timestamp: u64,
-        TipById(u64),
+    pub TipById:u64,
     TipCount,
     TipsSentByUser(Address),
     TipsReceivedByUser(Address),
