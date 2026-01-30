@@ -58,7 +58,7 @@ export class VirusScanService {
           this.logger.error('Virus scan failed', error);
           // Fail safe: if scan errors, do we block or allow?
           // Usually block if security is high priority.
-          return true; // mocked to allow for now as local env likely lacks daemon
+          return true; // mocked to allow for now as local env lacks daemon
       }
   }
 
