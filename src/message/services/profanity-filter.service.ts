@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import Filter from 'bad-words';
+import { Filter } from 'bad-words';
 
 @Injectable()
 export class ProfanityFilterService {
