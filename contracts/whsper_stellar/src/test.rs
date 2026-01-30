@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{ActionType, RateLimitConfig};
+use crate::types::{ActionType, InvitationStatus, RateLimitConfig, RoomType};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     Address, Env, Symbol, Vec,
@@ -220,3 +220,201 @@ fn test_transfer_tokens() {
     let res = client.try_transfer_tokens(&user1, &user2, &token_id, &10);
     assert!(res.is_err());
 }
+
+#[test]
+fn test_create_invitation() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let invitee = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Create a room
+    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+
+    // Create invitation
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+    let expires_at = 2000;
+    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &expires_at, &None);
+
+    assert_eq!(invitation_id, 1);
+
+    // Verify invitation stored
+    let invitations = client.get_user_invitations(&invitee);
+    assert_eq!(invitations.len(), 1);
+    assert_eq!(invitations.get(0).unwrap().invitee, invitee);
+}
+
+#[test]
+fn test_accept_invitation() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let invitee = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &None);
+
+    // Accept invitation
+    client.accept_invitation(&invitee, &invitation_id);
+
+    // Verify user added to room
+    let room = client.get_room(&room_id);
+    assert!(room.participants.contains(&invitee));
+
+    // Verify use count incremented
+    let invitations = client.get_user_invitations(&invitee);
+    assert_eq!(invitations.get(0).unwrap().use_count, 1);
+}
+
+#[test]
+fn test_expired_invitation() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let invitee = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &None);
+
+    // Advance time past expiration
+    env.ledger().with_mut(|li| li.timestamp = 2001);
+
+    // Should fail
+    let res = client.try_accept_invitation(&invitee, &invitation_id);
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_max_uses_invitation() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let invitee = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+    let max_uses = Some(1);
+    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &max_uses);
+
+    // First accept should succeed
+    client.accept_invitation(&invitee, &invitation_id);
+
+    // Second accept should fail
+    let res = client.try_accept_invitation(&invitee, &invitation_id);
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_revoke_invitation() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let invitee = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &None);
+
+    // Revoke invitation
+    client.revoke_invitation(&creator, &invitation_id);
+
+    // Accept should fail
+    let res = client.try_accept_invitation(&invitee, &invitation_id);
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_get_room_invitations() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let invitee1 = Address::generate(&env);
+    let invitee2 = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+    client.create_invitation(&creator, &room_id, &invitee1, &2000, &None);
+    client.create_invitation(&creator, &room_id, &invitee2, &2000, &None);
+
+    let invitations = client.get_room_invitations(&room_id);
+    assert_eq!(invitations.len(), 2);
+}
+
+#[test]
+fn test_invitation_status() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let invitee = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &None);
+
+    // Should be pending
+    let status = client.get_invitation_status(&invitation_id);
+    assert_eq!(status, InvitationStatus::Pending);
+
+    // Accept
+    client.accept_invitation(&invitee, &invitation_id);
+    let status = client.get_invitation_status(&invitation_id);
+    assert_eq!(status, InvitationStatus::Accepted);
+}
+

@@ -2,6 +2,7 @@
 
 mod ratelimit;
 mod storage;
+#[cfg(test)]
 mod test;
 mod types;
 
@@ -1198,6 +1199,242 @@ impl BaseContract {
         }
 
         Ok(messages)
+    }
+
+    fn next_invitation_id(env: &Env) -> u64 {
+        let id: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextInvitationId)
+            .unwrap_or(1);
+        env.storage()
+            .instance()
+            .set(&DataKey::NextInvitationId, &(id + 1));
+        id
+    }
+
+    pub fn create_invitation(
+        env: Env,
+        caller: Address,
+        room_id: u64,
+        invitee: Address,
+        expires_at: u64,
+        max_uses: Option<u32>,
+    ) -> Result<u64, ContractError> {
+        caller.require_auth();
+
+        let room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomById(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        // Verify caller is creator or admin (participant with invite permission)
+        if room.creator != caller && !room.participants.contains(&caller) {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let invitation_id = Self::next_invitation_id(&env);
+        let now = env.ledger().timestamp();
+
+        if expires_at <= now {
+            return Err(ContractError::InvitationExpired);
+        }
+
+        let invitation = Invitation {
+            id: invitation_id,
+            room_id,
+            inviter: caller,
+            invitee: invitee.clone(),
+            created_at: now,
+            expires_at,
+            max_uses,
+            use_count: 0,
+            is_revoked: false,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Invitation(invitation_id), &invitation);
+
+        // Add to user's invitations list
+        let mut user_invites: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserInvitations(invitee.clone()))
+            .unwrap_or(Vec::new(&env));
+        user_invites.push_back(invitation_id);
+        env.storage()
+            .instance()
+            .set(&DataKey::UserInvitations(invitee.clone()), &user_invites);
+
+        // Add to room's invitations list
+        let mut room_invites: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomInvitations(room_id))
+            .unwrap_or(Vec::new(&env));
+        room_invites.push_back(invitation_id);
+        env.storage()
+            .instance()
+            .set(&DataKey::RoomInvitations(room_id), &room_invites);
+
+        env.events().publish(
+            (Symbol::new(&env, "invite_created"), invitation_id),
+            (room_id, invitee),
+        );
+
+        Ok(invitation_id)
+    }
+
+    pub fn accept_invitation(env: Env, caller: Address, invitation_id: u64) -> Result<(), ContractError> {
+        caller.require_auth();
+
+        let mut invitation: Invitation = env
+            .storage()
+            .instance()
+            .get(&DataKey::Invitation(invitation_id))
+            .ok_or(ContractError::InvitationNotFound)?;
+
+        if invitation.invitee != caller {
+            return Err(ContractError::Unauthorized);
+        }
+
+        if invitation.is_revoked {
+            return Err(ContractError::InvitationRevoked);
+        }
+
+        let now = env.ledger().timestamp();
+        if now > invitation.expires_at {
+            return Err(ContractError::InvitationExpired);
+        }
+
+        if let Some(max) = invitation.max_uses {
+            if invitation.use_count >= max {
+                return Err(ContractError::InvitationMaxUsesReached);
+            }
+        }
+
+        // Add user to room
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomById(invitation.room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        if !room.participants.contains(&caller) {
+            room.participants.push_back(caller.clone());
+            env.storage()
+                .instance()
+                .set(&DataKey::RoomById(invitation.room_id), &room);
+        }
+
+        // Increment use count
+        invitation.use_count += 1;
+        env.storage()
+            .instance()
+            .set(&DataKey::Invitation(invitation_id), &invitation);
+
+        env.events().publish(
+            (Symbol::new(&env, "invite_accepted"), invitation_id),
+            (invitation.room_id, caller),
+        );
+
+        Ok(())
+    }
+
+    pub fn revoke_invitation(env: Env, caller: Address, invitation_id: u64) -> Result<(), ContractError> {
+        caller.require_auth();
+
+        let mut invitation: Invitation = env
+            .storage()
+            .instance()
+            .get(&DataKey::Invitation(invitation_id))
+            .ok_or(ContractError::InvitationNotFound)?;
+
+        let room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomById(invitation.room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        // Verify caller is inviter or room creator
+        if caller != invitation.inviter && caller != room.creator {
+            return Err(ContractError::NotInviter);
+        }
+
+        invitation.is_revoked = true;
+        env.storage()
+            .instance()
+            .set(&DataKey::Invitation(invitation_id), &invitation);
+
+        env.events().publish(
+            (Symbol::new(&env, "invite_revoked"), invitation_id),
+            invitation.room_id,
+        );
+
+        Ok(())
+    }
+
+    pub fn get_user_invitations(env: Env, user: Address) -> Vec<Invitation> {
+        let invite_ids: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserInvitations(user))
+            .unwrap_or(Vec::new(&env));
+
+        let mut invitations = Vec::new(&env);
+        for id in invite_ids.iter() {
+            if let Some(invite) = env.storage().instance().get(&DataKey::Invitation(id)) {
+                invitations.push_back(invite);
+            }
+        }
+        invitations
+    }
+
+    pub fn get_room_invitations(env: Env, room_id: u64) -> Vec<Invitation> {
+        let invite_ids: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomInvitations(room_id))
+            .unwrap_or(Vec::new(&env));
+
+        let mut invitations = Vec::new(&env);
+        for id in invite_ids.iter() {
+            if let Some(invite) = env.storage().instance().get(&DataKey::Invitation(id)) {
+                invitations.push_back(invite);
+            }
+        }
+        invitations
+    }
+
+    pub fn get_invitation_status(env: Env, invitation_id: u64) -> Result<InvitationStatus, ContractError> {
+        let invitation: Invitation = env
+            .storage()
+            .instance()
+            .get(&DataKey::Invitation(invitation_id))
+            .ok_or(ContractError::InvitationNotFound)?;
+
+        if invitation.is_revoked {
+            return Ok(InvitationStatus::Revoked);
+        }
+
+        let now = env.ledger().timestamp();
+        if now > invitation.expires_at {
+            return Ok(InvitationStatus::Expired);
+        }
+
+        if let Some(max) = invitation.max_uses {
+            if invitation.use_count >= max {
+                return Ok(InvitationStatus::Accepted);
+            }
+        }
+
+        if invitation.use_count > 0 {
+            Ok(InvitationStatus::Accepted)
+        } else {
+            Ok(InvitationStatus::Pending)
+        }
     }
 }
 

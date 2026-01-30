@@ -83,6 +83,11 @@ pub enum ContractError {
     InvalidContentHash = 18,
     RoomMessageLimitReached = 19,
     InvalidAmount = 20,
+    InvitationNotFound = 21,
+    InvitationExpired = 22,
+    InvitationRevoked = 23,
+    InvitationMaxUsesReached = 24,
+    NotInviter = 25,
 }
 
 #[derive(Clone)]
@@ -174,4 +179,27 @@ pub struct PaidRoom {
 pub struct PaidRoomMember {
     pub has_access: bool,
     pub joined_at: u64,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct Invitation {
+    pub id: u64,
+    pub room_id: u64,
+    pub inviter: Address,
+    pub invitee: Address,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub max_uses: Option<u32>,
+    pub use_count: u32,
+    pub is_revoked: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum InvitationStatus {
+    Pending = 0,
+    Accepted = 1,
+    Expired = 2,
+    Revoked = 3,
 }
