@@ -298,3 +298,44 @@ fn test_tip_xp_award() {
         assert_eq!(stored_tx.amount.unwrap(), 100);
     }
 
+    #[test]
+    fn test_transaction_indexing_by_user() {
+        let env = Env::default();
+        let sender = Address::random(&env);
+
+        let tx_hash = BytesN::from_array(&env, &[1u8; 32]);
+
+        // Record multiple transactions
+        BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "message"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            None,
+            None,
+        )
+        .unwrap();
+
+        BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            None,
+            Some(50),
+        )
+        .unwrap();
+
+        // Fetch user transactions
+        let user_txs: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionsByUser(sender.clone()))
+            .unwrap();
+
+        assert_eq!(user_txs.len(), 2);
+    }
+
+ 
