@@ -756,12 +756,39 @@ impl BaseContract {
             .set(&DataKey::PlatformSettings, &settings);
     }
 
-    pub fn collect_fee(env: Env, amount: i128) {
+    pub fn collect_fee(env: Env, caller: Address, amount: i128) -> Result<(), ContractError> {
+        // Authorization: Only the contract itself or admin can call this function
+        let contract_address = env.current_contract_address();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::NotInitialized)?;
+        
+        // Require auth from either the contract itself or the admin
+        if caller != contract_address && caller != admin {
+            caller.require_auth();
+            if caller != admin {
+                return Err(ContractError::Unauthorized);
+            }
+        }
+
+        // Validate amount
+        if amount <= 0 {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        Self::internal_collect_fee(&env, amount)
+    }
+
+    /// Internal helper function for collecting fees - used by contract functions
+    fn internal_collect_fee(env: &Env, amount: i128) -> Result<(), ContractError> {
         let settings: PlatformSettings = env
             .storage()
             .instance()
             .get(&DataKey::PlatformSettings)
-            .expect("platform settings not initialized");
+            .ok_or(ContractError::NotInitialized)?;
+        
         let fee_amount = (amount * settings.fee_percentage as i128) / 10000;
 
         let mut treasury_balance: i128 = env
@@ -783,6 +810,8 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::TotalFeesCollected, &total_collected);
+
+        Ok(())
     }
 
     pub fn withdraw_fees(env: Env, amount: i128, recipient: Address) {
