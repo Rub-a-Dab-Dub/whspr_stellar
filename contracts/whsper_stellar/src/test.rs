@@ -366,3 +366,4 @@ fn test_tip_xp_award() {
         assert_eq!(tx.status, Symbol::new(&env, "failed"));
         assert_eq!(tx.amount.unwrap(), 20);
     }
+ 
