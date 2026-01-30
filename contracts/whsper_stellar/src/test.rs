@@ -338,4 +338,31 @@ fn test_tip_xp_award() {
         assert_eq!(user_txs.len(), 2);
     }
 
- 
+    #[test]
+    fn test_transaction_optional_fields() {
+        let env = Env::default();
+        let sender = Address::random(&env);
+
+        let tx_hash = BytesN::from_array(&env, &[2u8; 32]);
+
+        let tx_id = BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "transfer"),
+            Symbol::new(&env, "pending"),
+            sender.clone(),
+            None, // No receiver
+            None, // No amount
+        )
+        .unwrap();
+
+        let tx: Transaction = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionById(tx_id))
+            .unwrap();
+
+        assert!(tx.receiver.is_none());
+        assert!(tx.amount.is_none());
+        assert_eq!(tx.status, Symbol::new(&env, "pending"));
+    }
