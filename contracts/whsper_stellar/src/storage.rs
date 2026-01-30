@@ -48,5 +48,10 @@ pub struct Tip {
     pub TipsReceivedByUser: Address,
     pub TotalTippedByUser: Address,
     pub TopTippers: Vec<Address>,
+    pub TransactionById: u64,
+    pub TransactionCount: u64,
+    pub TransactionsByUser: Address,
+    pub TransactionsByType: Symbol,
+    pub TransactionsByStatus: Symbol,
 }
 
