@@ -186,3 +186,18 @@ pub struct Transaction {
     pub amount: Option<i128>,
     pub timestamp: u64,
 }
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Analytics {
+    pub total_users: u64,
+    pub active_users_daily: u64,
+    pub active_users_weekly: u64,
+    pub active_users_monthly: u64,
+    pub total_messages: u64,
+    pub total_tips: u64,
+    pub total_tip_revenue: u64,
+    pub total_room_fees: u64,
+    pub retention_rate: u32, // as percentage
+    pub churn_rate: u32,     // as percentage
+}
