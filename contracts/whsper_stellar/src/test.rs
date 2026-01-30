@@ -366,3 +366,31 @@ fn test_tip_xp_award() {
         assert!(tx.amount.is_none());
         assert_eq!(tx.status, Symbol::new(&env, "pending"));
     }
+
+    #[test]
+    fn test_failed_transaction_logging() {
+        let env = Env::default();
+        let sender = Address::random(&env);
+
+        let tx_hash = BytesN::from_array(&env, &[3u8; 32]);
+
+        let tx_id = BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "failed"), // Mark as failed
+            sender.clone(),
+            None,
+            Some(20),
+        )
+        .unwrap();
+
+        let tx: Transaction = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionById(tx_id))
+            .unwrap();
+
+        assert_eq!(tx.status, Symbol::new(&env, "failed"));
+        assert_eq!(tx.amount.unwrap(), 20);
+    }
