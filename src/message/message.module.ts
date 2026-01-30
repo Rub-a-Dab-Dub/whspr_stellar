@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MessageService } from './message.service';
 import { MessageController } from './message.controller';
@@ -20,12 +20,14 @@ import { CacheModule } from '../cache/cache.module';
 import { MessagesGateway } from './gateways/messages.gateway';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageBroadcastService } from './services/message-broadcast.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Message, MessageEditHistory, MessageReaction]),
     RedisModule,
     CacheModule,
+    forwardRef(() => NotificationsModule),
   ],
   providers: [
     MessageService,

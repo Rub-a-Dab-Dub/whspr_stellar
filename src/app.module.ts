@@ -27,6 +27,8 @@ import { MessageModule } from './message/message.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { ChainModule } from './chain/chain.module';
 import { RoomModule } from './room/room.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -48,37 +50,43 @@ import { RoomModule } from './room/room.module';
         limit: 10, // 10 requests
       },
     ]),
-    MailerModule.forRoot({
-      transport: {
-        host: process.env.MAIL_HOST,
-        port: parseInt(process.env.MAIL_PORT || ''),
-        secure: false,
-        auth: {
-          user: process.env.MAIL_USER,
-          pass: process.env.MAIL_PASSWORD,
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        transport: {
+          host: configService.get('MAIL_HOST'),
+          port: configService.get('MAIL_PORT'),
+          secure: false,
+          auth: {
+            user: configService.get('MAIL_USER'),
+            pass: configService.get('MAIL_PASSWORD'),
+          },
         },
-      },
-      defaults: {
-        from: process.env.MAIL_FROM,
-      },
-      template: {
-        dir: process.cwd() + '/templates',
-        adapter: new HandlebarsAdapter(),
-        options: {
-          strict: true,
+        defaults: {
+          from: `"No Reply" <${configService.get('MAIL_FROM')}>`,
         },
-      },
+        template: {
+          dir: process.cwd() + '/templates/',
+          adapter: new HandlebarsAdapter(),
+          options: {
+            strict: true,
+          },
+        },
+      }),
+      inject: [ConfigService],
     }),
     HealthModule,
-    UsersModule,
-    AuthModule,
     RedisModule,
+    QueueModule,
+    AuthModule,
+    UsersModule,
     RolesModule,
     SessionsModule,
     MessageModule,
     RewardsModule,
     ChainModule,
     RoomModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
