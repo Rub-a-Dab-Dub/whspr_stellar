@@ -398,3 +398,12 @@ fn test_tip_xp_award() {
         assert_eq!(analytics.total_tips, 1);
         assert_eq!(analytics.total_tip_revenue, 2);
     }
+
+    #[test]
+    fn test_room_fee_tracking() {
+        let env = Env::default();
+        BaseContract::record_room_fee(env.clone(), 50);
+
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_room_fees, 50);
+    }
