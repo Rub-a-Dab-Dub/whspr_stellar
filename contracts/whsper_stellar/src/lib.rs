@@ -1287,7 +1287,54 @@ pub fn tip_message(
 
     Ok(tip_id)
 }
+ pub fn record_transaction(
+        env: Env,
+        tx_hash: BytesN<32>,
+        tx_type: Symbol,
+        status: Symbol,
+        sender: Address,
+        receiver: Option<Address>,
+        amount: Option<i128>,
+    ) -> Result<u64, ContractError> {
+        // Increment total transaction count
+        let mut tx_count: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionCount)
+            .unwrap_or(0);
+        tx_count += 1;
+        env.storage().instance().set(&DataKey::TransactionCount, &tx_count);
 
+        // Create transaction struct
+        let tx = Transaction {
+            id: tx_count,
+            tx_hash,
+            tx_type: tx_type.clone(),
+            status: status.clone(),
+            sender: sender.clone(),
+            receiver,
+            amount,
+            timestamp: env.ledger().timestamp(),
+        };
+
+        // Save transaction
+        env.storage()
+            .instance()
+            .set(&DataKey::TransactionById(tx_count), &tx);
+
+        // Index by user
+        let mut user_txs: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionsByUser(sender.clone()))
+            .unwrap_or(Vec::new(&env));
+        user_txs.push_back(tx_count);
+        env.storage()
+            .instance()
+            .set(&DataKey::TransactionsByUser(sender), &user_txs);
+
+        Ok(tx_count)
+    }
 
 fn verify_content_hash(hash: &BytesN<32>) -> Result<(), ContractError> {
     if hash.to_array() == [0u8; 32] {
