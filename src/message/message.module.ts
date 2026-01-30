@@ -5,6 +5,7 @@ import { MessageController } from './message.controller';
 import { Message } from './entities/message.entity';
 import { MessageEditHistory } from './entities/message-edit-history.entity';
 import { MessageReaction } from './entities/message-reaction.entity';
+import { Attachment } from './entities/attachment.entity';
 import { MessageOwnershipGuard } from './guards/message-ownership.guard';
 import {
   MessageRepository,
@@ -22,9 +23,12 @@ import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageBroadcastService } from './services/message-broadcast.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
+import { StorageModule } from '../storage/storage.module';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Message, MessageEditHistory, MessageReaction]),
+    TypeOrmModule.forFeature([Message, MessageEditHistory, MessageReaction, Attachment]),
+    StorageModule,
     RedisModule,
     CacheModule,
     forwardRef(() => NotificationsModule),
