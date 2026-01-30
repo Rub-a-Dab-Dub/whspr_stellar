@@ -26,6 +26,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { MessageModule } from './message/message.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { ChainModule } from './chain/chain.module';
+import { TransferModule } from './transfer/transfer.module';
 import { RoomModule } from './room/room.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { QueueModule } from './queue/queue.module';
@@ -85,6 +86,7 @@ import { QueueModule } from './queue/queue.module';
     MessageModule,
     RewardsModule,
     ChainModule,
+    TransferModule,
     RoomModule,
     NotificationsModule,
   ],
