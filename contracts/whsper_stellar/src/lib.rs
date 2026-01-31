@@ -1201,6 +1201,176 @@ impl BaseContract {
     }
 }
 
+pub fn tip_message(
+    env: Env,
+    sender: Address,
+    message_id: u64,
+    receiver: Address,
+    amount: i128,
+) -> Result<u64, ContractError> {
+    sender.require_auth();
+
+    // min tip: 1, max tip: 1000000
+    if amount < 1 || amount > 1_000_000 {
+        return Err(ContractError::InvalidAmount);
+    }
+
+    // Calculate platform fee (2%)
+    let fee = (amount * 2) / 100;
+    let net = amount - fee;
+
+    // Transfer net to receiver
+    let settings = Self::get_platform_settings(env.clone());
+    let token_client = token::Client::new(&env, &settings.fee_token);
+    token_client.transfer(&sender, &receiver, &net);
+
+    // Transfer fee to treasury
+    token_client.transfer(&sender, &env.current_contract_address(), &fee);
+
+    // Record tip
+    let tip_id: u64 = env
+        .storage()
+        .instance()
+        .get(&DataKey::TipCount)
+        .unwrap_or(1);
+    env.storage().instance().set(&DataKey::TipCount, &(tip_id + 1));
+
+    let tip = Tip {
+        id: tip_id,
+        sender: sender.clone(),
+        receiver: receiver.clone(),
+        amount,
+        fee,
+        message_id,
+        timestamp: env.ledger().timestamp(),
+    };
+
+    env.storage().instance().set(&DataKey::TipById(tip_id), &tip);
+
+    // Update user histories
+    let mut sent: Vec<u64> = env
+        .storage()
+        .instance()
+        .get(&DataKey::TipsSentByUser(sender.clone()))
+        .unwrap_or(Vec::new(&env));
+    sent.push_back(tip_id);
+    env.storage().instance().set(&DataKey::TipsSentByUser(sender.clone()), &sent);
+
+    let mut received: Vec<u64> = env
+        .storage()
+        .instance()
+        .get(&DataKey::TipsReceivedByUser(receiver.clone()))
+        .unwrap_or(Vec::new(&env));
+    received.push_back(tip_id);
+    env.storage()
+        .instance()
+        .set(&DataKey::TipsReceivedByUser(receiver.clone()), &received);
+
+    // Update total tipped
+    let total: i128 = env
+        .storage()
+        .instance()
+        .get(&DataKey::TotalTippedByUser(sender.clone()))
+        .unwrap_or(0);
+    env.storage()
+        .instance()
+        .set(&DataKey::TotalTippedByUser(sender.clone()), &(total + amount));
+
+    // Award XP for tipping (+20)
+    let _ = Self::award_xp(&env, sender.clone(), 20, ActionType::Tip)?;
+
+    // Emit event
+    env.events().publish(
+        (Symbol::new(&env, "tip"),),
+        (tip_id, sender, receiver, amount, fee, message_id),
+    );
+
+    Ok(tip_id)
+}
+ pub fn record_transaction(
+        env: Env,
+        tx_hash: BytesN<32>,
+        tx_type: Symbol,
+        status: Symbol,
+        sender: Address,
+        receiver: Option<Address>,
+        amount: Option<i128>,
+    ) -> Result<u64, ContractError> {
+        // Increment total transaction count
+        let mut tx_count: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionCount)
+            .unwrap_or(0);
+        tx_count += 1;
+        env.storage().instance().set(&DataKey::TransactionCount, &tx_count);
+
+        // Create transaction struct
+        let tx = Transaction {
+            id: tx_count,
+            tx_hash,
+            tx_type: tx_type.clone(),
+            status: status.clone(),
+            sender: sender.clone(),
+            receiver,
+            amount,
+            timestamp: env.ledger().timestamp(),
+        };
+
+        // Save transaction
+        env.storage()
+            .instance()
+            .set(&DataKey::TransactionById(tx_count), &tx);
+
+        // Index by user
+        let mut user_txs: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionsByUser(sender.clone()))
+            .unwrap_or(Vec::new(&env));
+        user_txs.push_back(tx_count);
+        env.storage()
+            .instance()
+            .set(&DataKey::TransactionsByUser(sender), &user_txs);
+
+        Ok(tx_count)
+    }
+
+      pub fn record_user_activity(env: Env, user: Address, active: bool) {
+        // Increment active counters
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        if active {
+            analytics.total_users += 1; // Increment total if new
+            analytics.active_users_daily += 1;
+            analytics.active_users_weekly += 1;
+            analytics.active_users_monthly += 1;
+        }
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_message(env: Env, room: Symbol) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_messages += 1;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_tip(env: Env, amount: u64, fee: u64) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_tips += 1;
+        analytics.total_tip_revenue += fee;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_room_fee(env: Env, amount: u64) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_room_fees += amount;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn get_dashboard(env: Env) -> Analytics {
+        env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default()
+    }
+
 fn verify_content_hash(hash: &BytesN<32>) -> Result<(), ContractError> {
     if hash.to_array() == [0u8; 32] {
         return Err(ContractError::InvalidContentHash);
