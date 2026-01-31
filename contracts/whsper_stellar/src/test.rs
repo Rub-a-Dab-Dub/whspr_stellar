@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{ActionType, RateLimitConfig};
+use crate::types::{ActionType, InvitationStatus, RateLimitConfig, RoomType};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     Address, Env, Symbol, Vec,

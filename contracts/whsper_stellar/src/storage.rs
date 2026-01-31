@@ -31,6 +31,10 @@ pub enum DataKey {
     Message(u64, u64),
     NextMessageId(u64),
     MessageCount(u64),
+    NextInvitationId,
+    Invitation(u64),
+    UserInvitations(Address),
+    RoomInvitations(u64),
 }
 
 #[contracttype]

@@ -83,6 +83,11 @@ pub enum ContractError {
     InvalidContentHash = 18,
     RoomMessageLimitReached = 19,
     InvalidAmount = 20,
+    InvitationNotFound = 21,
+    InvitationExpired = 22,
+    InvitationRevoked = 23,
+    InvitationMaxUsesReached = 24,
+    NotInviter = 25,
 }
 
 #[derive(Clone)]
