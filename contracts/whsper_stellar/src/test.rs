@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{ActionType, RateLimitConfig};
+use crate::types::{ActionType, InvitationStatus, RateLimitConfig, RoomType};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     Address, Env, Symbol, Vec,
@@ -220,3 +220,190 @@ fn test_transfer_tokens() {
     let res = client.try_transfer_tokens(&user1, &user2, &token_id, &10);
     assert!(res.is_err());
 }
+
+#[test]
+fn test_tip_message_success() {
+    let env = Env::default();
+    let sender = Address::random(&env);
+    let receiver = Address::random(&env);
+
+    // Initialize token and balances
+    let token = Address::random(&env);
+    // Mint 1000 tokens to sender (pseudo code)
+    // token_client.mint(&sender, 1000);
+
+    let tip_id = BaseContract::tip_message(env.clone(), sender.clone(), 1, receiver.clone(), 100).unwrap();
+    let tip: Tip = env.storage().instance().get(&DataKey::TipById(tip_id)).unwrap();
+
+    assert_eq!(tip.sender, sender);
+    assert_eq!(tip.receiver, receiver);
+    assert_eq!(tip.amount, 100);
+    assert_eq!(tip.fee, 2); // 2%
+}
+
+#[test]
+fn test_tip_invalid_amount() {
+    let env = Env::default();
+    let sender = Address::random(&env);
+    let receiver = Address::random(&env);
+
+    let result = BaseContract::tip_message(env.clone(), sender.clone(), 1, receiver.clone(), 0);
+    assert!(matches!(result, Err(ContractError::InvalidAmount)));
+}
+
+#[test]
+fn test_tip_xp_award() {
+    let env = Env::default();
+    let sender = Address::random(&env);
+    let receiver = Address::random(&env);
+
+    let _ = BaseContract::tip_message(env.clone(), sender.clone(), 1, receiver.clone(), 50).unwrap();
+    let profile: UserProfile = env.storage().instance().get(&DataKey::User(sender.clone())).unwrap();
+    assert!(profile.xp >= 20);
+}
+  #[test]
+    fn test_record_transaction_success() {
+        let env = Env::default();
+        let sender = Address::random(&env);
+        let receiver = Address::random(&env);
+
+        // Example tx hash
+        let tx_hash = BytesN::from_array(&env, &[0u8; 32]);
+
+        // Record transaction
+        let tx_id = BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            Some(receiver.clone()),
+            Some(100),
+        )
+        .unwrap();
+
+        // Fetch transaction back
+        let stored_tx: Transaction = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionById(tx_id))
+            .unwrap();
+
+        assert_eq!(stored_tx.id, tx_id);
+        assert_eq!(stored_tx.tx_hash, tx_hash);
+        assert_eq!(stored_tx.tx_type, Symbol::new(&env, "tip"));
+        assert_eq!(stored_tx.status, Symbol::new(&env, "success"));
+        assert_eq!(stored_tx.sender, sender);
+        assert_eq!(stored_tx.receiver.unwrap(), receiver);
+        assert_eq!(stored_tx.amount.unwrap(), 100);
+    }
+
+    #[test]
+    fn test_transaction_indexing_by_user() {
+        let env = Env::default();
+        let sender = Address::random(&env);
+
+        let tx_hash = BytesN::from_array(&env, &[1u8; 32]);
+
+        // Record multiple transactions
+        BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "message"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            None,
+            None,
+        )
+        .unwrap();
+
+        BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            None,
+            Some(50),
+        )
+        .unwrap();
+
+        // Fetch user transactions
+        let user_txs: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionsByUser(sender.clone()))
+            .unwrap();
+
+        assert_eq!(user_txs.len(), 2);
+    }
+
+ 
+    #[test]
+    fn test_failed_transaction_logging() {
+        let env = Env::default();
+        let sender = Address::random(&env);
+
+        let tx_hash = BytesN::from_array(&env, &[3u8; 32]);
+
+        let tx_id = BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "failed"), // Mark as failed
+            sender.clone(),
+            None,
+            Some(20),
+        )
+        .unwrap();
+
+        let tx: Transaction = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionById(tx_id))
+            .unwrap();
+
+        assert_eq!(tx.status, Symbol::new(&env, "failed"));
+        assert_eq!(tx.amount.unwrap(), 20);
+    }
+      #[test]
+    fn test_user_activity_tracking() {
+        let env = Env::default();
+        let user = Address::random(&env);
+
+        BaseContract::record_user_activity(env.clone(), user.clone(), true);
+
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_users, 1);
+        assert_eq!(analytics.active_users_daily, 1);
+    }
+
+    #[test]
+    fn test_message_volume_tracking() {
+        let env = Env::default();
+        let room = Symbol::new(&env, "general");
+
+        BaseContract::record_message(env.clone(), room.clone());
+
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_messages, 1);
+    }
+
+    #[test]
+    fn test_tip_revenue_tracking() {
+        let env = Env::default();
+        BaseContract::record_tip(env.clone(), 100, 2);
+
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_tips, 1);
+        assert_eq!(analytics.total_tip_revenue, 2);
+    }
+
+    #[test]
+    fn test_room_fee_tracking() {
+        let env = Env::default();
+        BaseContract::record_room_fee(env.clone(), 50);
+
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_room_fees, 50);
+    }

@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn, Index, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { LeaderboardCategory, LeaderboardTimeframe } from '../interfaces/leaderboard.interface';
+import { LeaderboardCategory, LeaderboardTimeframe } from '../leaderboard.interface';
 
 @Entity('leaderboard_entries')
 @Index(['category', 'timeframe', 'roomId', 'score']) // Composite index for efficient queries

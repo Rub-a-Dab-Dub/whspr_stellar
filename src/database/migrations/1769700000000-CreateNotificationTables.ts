@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, Index, ForeignKey } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey } from 'typeorm';
 
 export class CreateNotificationTables1769700000000 implements MigrationInterface {
   name = 'CreateNotificationTables1769700000000';
@@ -293,34 +293,51 @@ export class CreateNotificationTables1769700000000 implements MigrationInterface
     // Create indexes for notifications table
     await queryRunner.createIndex(
       'notifications',
-      new Index('IDX_notifications_recipient_read_created', ['recipientId', 'isRead', 'createdAt']),
+      new TableIndex({
+        name: 'IDX_notifications_recipient_read_created',
+        columnNames: ['recipientId', 'isRead', 'createdAt'],
+      }),
     );
 
     await queryRunner.createIndex(
       'notifications',
-      new Index('IDX_notifications_type_recipient', ['type', 'recipientId']),
+      new TableIndex({
+        name: 'IDX_notifications_type_recipient',
+        columnNames: ['type', 'recipientId'],
+      }),
     );
 
     await queryRunner.createIndex(
       'notifications',
-      new Index('IDX_notifications_read_created', ['isRead', 'createdAt']),
+      new TableIndex({
+        name: 'IDX_notifications_read_created',
+        columnNames: ['isRead', 'createdAt'],
+      }),
     );
 
     await queryRunner.createIndex(
       'notifications',
-      new Index('IDX_notifications_expires_at', ['expiresAt']),
+      new TableIndex({
+        name: 'IDX_notifications_expires_at',
+        columnNames: ['expiresAt'],
+      }),
     );
 
     // Create indexes for notification_preferences table
     await queryRunner.createIndex(
       'notification_preferences',
-      new Index('IDX_notification_preferences_user_type', ['userId', 'type']),
+      new TableIndex({
+        name: 'IDX_notification_preferences_user_type',
+        columnNames: ['userId', 'type'],
+      }),
     );
 
     // Create unique constraint for notification_preferences
     await queryRunner.createIndex(
       'notification_preferences',
-      new Index('UQ_notification_preferences_user_type_channel', ['userId', 'type', 'channel'], {
+      new TableIndex({
+        name: 'UQ_notification_preferences_user_type_channel',
+        columnNames: ['userId', 'type', 'channel'],
         isUnique: true,
       }),
     );
@@ -328,13 +345,16 @@ export class CreateNotificationTables1769700000000 implements MigrationInterface
     // Create indexes for push_subscriptions table
     await queryRunner.createIndex(
       'push_subscriptions',
-      new Index('IDX_push_subscriptions_user_active', ['userId', 'isActive']),
+      new TableIndex({
+        name: 'IDX_push_subscriptions_user_active',
+        columnNames: ['userId', 'isActive'],
+      }),
     );
 
     // Create foreign keys
     await queryRunner.createForeignKey(
       'notifications',
-      new ForeignKey({
+      new TableForeignKey({
         columnNames: ['recipientId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'users',
@@ -344,7 +364,7 @@ export class CreateNotificationTables1769700000000 implements MigrationInterface
 
     await queryRunner.createForeignKey(
       'notifications',
-      new ForeignKey({
+      new TableForeignKey({
         columnNames: ['senderId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'users',
@@ -354,7 +374,7 @@ export class CreateNotificationTables1769700000000 implements MigrationInterface
 
     await queryRunner.createForeignKey(
       'notification_preferences',
-      new ForeignKey({
+      new TableForeignKey({
         columnNames: ['userId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'users',
@@ -364,7 +384,7 @@ export class CreateNotificationTables1769700000000 implements MigrationInterface
 
     await queryRunner.createForeignKey(
       'push_subscriptions',
-      new ForeignKey({
+      new TableForeignKey({
         columnNames: ['userId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'users',

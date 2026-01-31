@@ -7,15 +7,19 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Message } from './entities/message.entity';
 import { MessageEditHistory } from './entities/message-edit-history.entity';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
 import { MessageEditHistoryDto } from './dto/message-edit-history.dto';
+import { GetMessagesDto } from './dto/get-messages.dto';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageType } from './enums/message-type.enum';
+import { UserStatsService } from '../users/services/user-stats.service';
 import { NotificationService } from '../notifications/services/notification.service';
 
 @Injectable()
@@ -30,8 +34,10 @@ export class MessageService {
     @InjectRepository(MessageEditHistory)
     private readonly editHistoryRepository: Repository<MessageEditHistory>,
     private readonly profanityFilterService: ProfanityFilterService,
+    private readonly userStatsService: UserStatsService,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   /**
@@ -78,6 +84,11 @@ export class MessageService {
 
     const savedMessage = await this.messageRepository.save(message);
 
+    await this.userStatsService.recordMessageSent(userId, {
+      isTip: savedMessage.type === MessageType.TIP,
+      tipRecipientId: createMessageDto.tipRecipientId,
+      tipAmount: createMessageDto.tipAmount,
+    });
     // Create notifications for mentions and room members
     try {
       await this.notificationService.createMessageNotification(
@@ -135,30 +146,118 @@ export class MessageService {
   }
 
   /**
-   * Get messages for a room
+   * Get messages for a room with cursor-based pagination
    */
   async getRoomMessages(
     roomId: string,
-    page: number = 1,
-    limit: number = 50,
-  ): Promise<{ messages: MessageResponseDto[]; total: number; page: number }> {
-    const skip = (page - 1) * limit;
-    const [messages, total] = await this.messageRepository.findAndCount({
-      where: {
-        roomId,
-        isDeleted: false,
-      },
-      relations: ['author', 'editHistory', 'reactions'],
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    query: GetMessagesDto,
+  ): Promise<{
+    messages: MessageResponseDto[];
+    nextCursor: string | null;
+  }> {
+    const { limit = 50, cursor, search, type, from, to, parentId } = query;
+    const cacheKey = `room_messages:${roomId}:first_page`;
 
-    return {
+    // Try cache for first page with no filters
+    if (!cursor && !search && !type && !from && !to && !parentId) {
+      const cached = await this.cacheManager.get(cacheKey);
+      if (cached) {
+        return cached as any;
+      }
+    }
+
+    const queryBuilder = this.messageRepository.createQueryBuilder('message');
+
+    queryBuilder
+      .leftJoinAndSelect('message.author', 'author')
+      .leftJoinAndSelect('message.editHistory', 'editHistory')
+      .leftJoinAndSelect('message.reactions', 'reactions')
+      .where('message.roomId = :roomId', { roomId })
+      .andWhere('message.isDeleted = :isDeleted', { isDeleted: false });
+
+    if (parentId) {
+      queryBuilder.andWhere('message.parentId = :parentId', { parentId });
+    } else {
+      // By default, only show top-level messages unless searching
+      if (!search) {
+        queryBuilder.andWhere('message.parentId IS NULL');
+      }
+    }
+
+    if (search) {
+      queryBuilder.andWhere('message.content ILIKE :search', {
+        search: `%${search}%`,
+      });
+    }
+
+    if (type) {
+      queryBuilder.andWhere('message.type = :type', { type });
+    }
+
+    if (from) {
+      queryBuilder.andWhere('message.createdAt >= :from', { from });
+    }
+
+    if (to) {
+      queryBuilder.andWhere('message.createdAt <= :to', { to });
+    }
+
+    if (cursor) {
+      const decoded = this.decodeCursor(cursor);
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          qb.where('message.createdAt < :date', {
+            date: decoded.createdAt,
+          }).orWhere(
+            'message.createdAt = :date AND message.id < :id',
+            { date: decoded.createdAt, id: decoded.id },
+          );
+        }),
+      );
+    }
+
+    queryBuilder
+      .orderBy('message.createdAt', 'DESC')
+      .addOrderBy('message.id', 'DESC')
+      .take(limit + 1);
+
+    const messages = await queryBuilder.getMany();
+    let nextCursor = null;
+
+    if (messages.length > limit) {
+      const nextItem = messages.pop();
+      nextCursor = this.encodeCursor(nextItem!);
+    }
+
+    const result = {
       messages: messages.map((msg) => this.toResponseDto(msg)),
-      total,
-      page,
+      nextCursor,
     };
+
+    // Cache first page result
+    if (!cursor && !search && !type && !from && !to && !parentId) {
+      await this.cacheManager.set(cacheKey, result, 300000); // 5 minutes
+    }
+
+    return result;
+  }
+
+  private encodeCursor(message: Message): string {
+    const payload = `${message.createdAt.getTime()}_${message.id}`;
+    return Buffer.from(payload).toString('base64');
+  }
+
+  private decodeCursor(cursor: string): { createdAt: Date; id: string } {
+    const payload = Buffer.from(cursor, 'base64').toString('utf-8');
+    const [timestamp, id] = payload.split('_');
+    return {
+      createdAt: new Date(parseInt(timestamp, 10)),
+      id,
+    };
+  }
+
+  private async invalidateRoomCache(roomId: string): Promise<void> {
+    await this.cacheManager.del(`room_messages:${roomId}:first_page`);
   }
 
   async editMessage(
@@ -217,6 +316,10 @@ export class MessageService {
     message.editedAt = new Date();
 
     const updatedMessage = await this.messageRepository.save(message);
+
+    // Invalidate cache
+    await this.invalidateRoomCache(message.roomId);
+
     return this.toResponseDto(updatedMessage);
   }
 
@@ -251,6 +354,10 @@ export class MessageService {
     message.deletedBy = userId;
 
     const deletedMessage = await this.messageRepository.save(message);
+
+    // Invalidate cache
+    await this.invalidateRoomCache(message.roomId);
+
     return this.toResponseDto(deletedMessage, true);
   }
 
@@ -268,6 +375,9 @@ export class MessageService {
 
     await this.messageRepository.save(message);
     await this.messageRepository.delete(messageId);
+
+    // Invalidate cache
+    await this.invalidateRoomCache(message.roomId);
   }
 
   async cascadeDeleteReactions(messageId: string): Promise<void> {
@@ -307,6 +417,10 @@ export class MessageService {
     message.deletedBy = null;
 
     const restoredMessage = await this.messageRepository.save(message);
+
+    // Invalidate cache
+    await this.invalidateRoomCache(message.roomId);
+
     return this.toResponseDto(restoredMessage);
   }
 
@@ -333,6 +447,7 @@ export class MessageService {
       isEdited: message.isEdited,
       editedAt: message.editedAt,
       isDeleted: message.isDeleted,
+      deletedAt: message.deletedAt,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       reactionsCount: message.reactions ? message.reactions.length : 0,

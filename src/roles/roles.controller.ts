@@ -7,12 +7,15 @@ import {
   Body,
   Param,
   UseGuards,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Roles } from './decorators/roles.decorator';
 import { RoleType } from './entities/role.entity';
 import { RoleGuard } from './guards/role.guard';
 import { RolesService } from './services/roles.service';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 class AssignRoleDto {
   userId!: string;
@@ -26,14 +29,32 @@ export class RolesController {
 
   @Post('assign')
   @Roles(RoleType.ADMIN)
-  async assignRole(@Body() dto: AssignRoleDto) {
-    return this.rolesService.assignRoleToUser(dto.userId, dto.roleName);
+  async assignRole(
+    @Body() dto: AssignRoleDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return this.rolesService.assignRoleToUser(
+      dto.userId,
+      dto.roleName,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Delete('revoke')
   @Roles(RoleType.ADMIN)
-  async revokeRole(@Body() dto: AssignRoleDto) {
-    return this.rolesService.revokeRoleFromUser(dto.userId, dto.roleName);
+  async revokeRole(
+    @Body() dto: AssignRoleDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return this.rolesService.revokeRoleFromUser(
+      dto.userId,
+      dto.roleName,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Get('user/:userId')

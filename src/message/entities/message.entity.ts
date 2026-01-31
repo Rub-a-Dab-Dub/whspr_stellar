@@ -89,4 +89,16 @@ export class Message {
     eager: false,
   })
   reactions: MessageReaction[];
+
+  @Column({ nullable: true })
+  parentId: string | null;
+
+  @ManyToOne(() => Message, (message) => message.replies, {
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
+  parent: Message;
+
+  @OneToMany(() => Message, (message) => message.parent)
+  replies: Message[];
 }

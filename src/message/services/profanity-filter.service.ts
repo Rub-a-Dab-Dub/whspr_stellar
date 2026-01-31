@@ -1,13 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import Filter from 'bad-words';
+import { Filter } from 'bad-words';
 
 @Injectable()
 export class ProfanityFilterService {
-  private filter: Filter;
-
-  constructor() {
-    this.filter = new Filter();
-  }
+  private readonly filter = new Filter();
 
   /**
    * Check if content contains profanity

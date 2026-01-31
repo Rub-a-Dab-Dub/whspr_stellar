@@ -213,7 +213,7 @@ export class MessagesGateway
   broadcastToRoom(
     roomId: string,
     event: string,
-    data: Record<string, unknown>,
+    data: any,
   ): void {
     this.server.to(`room:${roomId}`).emit(event, data);
   }
@@ -221,7 +221,7 @@ export class MessagesGateway
   broadcastToUser(
     userId: string,
     event: string,
-    data: Record<string, unknown>,
+    data: any,
   ): void {
     const userSockets = this.userSockets.get(userId);
     if (userSockets) {

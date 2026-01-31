@@ -8,11 +8,17 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ProfanityFilterService } from './services/profanity-filter.service';
+import { NotificationService } from '../notifications/services/notification.service';
 
 describe('MessageService', () => {
   let service: MessageService;
   let mockMessageRepo: any;
   let mockEditHistoryRepo: any;
+  let mockProfanityFilterService: any;
+  let mockNotificationService: any;
+  let mockCacheManager: any;
 
   beforeEach(async () => {
     mockMessageRepo = {
@@ -30,6 +36,20 @@ describe('MessageService', () => {
       delete: jest.fn(),
     };
 
+    mockProfanityFilterService = {
+      containsProfanity: jest.fn().mockReturnValue(false),
+    };
+
+    mockNotificationService = {
+      createMessageNotification: jest.fn(),
+    };
+
+    mockCacheManager = {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessageService,
@@ -40,6 +60,18 @@ describe('MessageService', () => {
         {
           provide: getRepositoryToken(MessageEditHistory),
           useValue: mockEditHistoryRepo,
+        },
+        {
+          provide: ProfanityFilterService,
+          useValue: mockProfanityFilterService,
+        },
+        {
+          provide: NotificationService,
+          useValue: mockNotificationService,
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: mockCacheManager,
         },
       ],
     }).compile();
@@ -56,6 +88,7 @@ describe('MessageService', () => {
       const userId = 'test-user-id';
       const createDto = {
         conversationId: 'conv-id',
+        roomId: 'room-id',
         content: 'Test message',
       };
 
@@ -74,10 +107,14 @@ describe('MessageService', () => {
 
       expect(mockMessageRepo.create).toHaveBeenCalledWith({
         conversationId: createDto.conversationId,
+        roomId: createDto.roomId,
         authorId: userId,
         content: createDto.content,
         originalContent: null,
         isEdited: false,
+        type: 'text',
+        mediaUrl: null,
+        fileName: null,
       });
 
       expect(result.content).toBe(createDto.content);

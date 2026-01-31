@@ -95,3 +95,4 @@ export class QuestController {
     return await this.questService.claimQuestReward(userId, questId);
   }
 }
+
