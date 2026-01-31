@@ -385,7 +385,13 @@ impl BaseContract {
             .set(&DataKey::User(user.clone()), &profile);
         env.storage()
             .instance()
-            .set(&DataKey::Username(username), &user);
+            .set(&DataKey::Username(username.clone()), &user);
+
+        // Emit user registration event
+        env.events().publish(
+            (Symbol::new(&env, "user_registered"), user),
+            (username, env.ledger().timestamp()),
+        );
 
         Ok(())
     }
@@ -413,6 +419,8 @@ impl BaseContract {
             .get(&DataKey::User(user.clone()))
             .ok_or(ContractError::UserNotFound)?;
 
+        let old_username = profile.username.clone();
+
         env.storage()
             .instance()
             .remove(&DataKey::Username(profile.username.clone()));
@@ -420,9 +428,15 @@ impl BaseContract {
             .instance()
             .set(&DataKey::Username(new_username.clone()), &user);
 
-        profile.username = new_username;
+        profile.username = new_username.clone();
 
-        env.storage().instance().set(&DataKey::User(user), &profile);
+        env.storage().instance().set(&DataKey::User(user.clone()), &profile);
+
+        // Emit username update event
+        env.events().publish(
+            (Symbol::new(&env, "username_updated"), user),
+            (old_username, new_username),
+        );
 
         Ok(())
     }
@@ -442,10 +456,27 @@ impl BaseContract {
             .get(&DataKey::User(user.clone()))
             .ok_or(ContractError::UserNotFound)?;
 
+        let old_xp = profile.xp;
+        let old_level = profile.level;
+
         profile.xp += xp_amount;
         profile.level = calculate_level(profile.xp);
 
-        env.storage().instance().set(&DataKey::User(user), &profile);
+        env.storage().instance().set(&DataKey::User(user.clone()), &profile);
+
+        // Emit XP change event
+        env.events().publish(
+            (Symbol::new(&env, "xp_changed"), user.clone()),
+            (old_xp, profile.xp, xp_amount),
+        );
+
+        // Emit level up event if level changed
+        if profile.level > old_level {
+            env.events().publish(
+                (Symbol::new(&env, "level_up"), user),
+                (old_level, profile.level),
+            );
+        }
 
         Ok(())
     }
@@ -484,6 +515,7 @@ impl BaseContract {
             });
 
         let old_level = profile.level;
+        let old_xp = profile.xp;
 
         profile.xp += xp_amount;
         profile.level = calculate_level(profile.xp);
@@ -498,6 +530,12 @@ impl BaseContract {
         env.storage().instance().set(
             &DataKey::HourlyXp(user.clone(), hour_bucket),
             &(current_hour_xp + xp_amount),
+        );
+
+        // Emit XP change event
+        env.events().publish(
+            (Symbol::new(env, "xp_changed"), user.clone()),
+            (old_xp, profile.xp, xp_amount),
         );
 
         Ok((old_level, profile.level))
@@ -751,10 +789,19 @@ impl BaseContract {
             .instance()
             .get(&DataKey::PlatformSettings)
             .expect("platform settings not initialized");
+        
+        let old_fee_percentage = settings.fee_percentage;
         settings.fee_percentage = new_fee_percentage;
+        
         env.storage()
             .instance()
             .set(&DataKey::PlatformSettings, &settings);
+
+        // Emit fee percentage update event
+        env.events().publish(
+            (Symbol::new(&env, "fee_percentage_updated"), admin),
+            (old_fee_percentage, new_fee_percentage, env.ledger().timestamp()),
+        );
     }
 
     pub fn collect_fee(env: Env, amount: i128) {
@@ -784,6 +831,12 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::TotalFeesCollected, &total_collected);
+
+        // Emit fee collection event
+        env.events().publish(
+            (Symbol::new(&env, "fee_collected"),),
+            (fee_amount, treasury_balance, env.ledger().timestamp()),
+        );
     }
 
     pub fn withdraw_fees(env: Env, amount: i128, recipient: Address) {
@@ -829,6 +882,12 @@ impl BaseContract {
         env.storage()
             .instance()
             .set(&DataKey::TotalFeesWithdrawn, &total_withdrawn);
+
+        // Emit treasury withdrawal event
+        env.events().publish(
+            (Symbol::new(&env, "treasury_withdrawal"), admin, recipient),
+            (amount, treasury_balance, env.ledger().timestamp()),
+        );
     }
 
     pub fn get_treasury_balance(env: Env) -> i128 {
@@ -895,6 +954,8 @@ impl BaseContract {
             .expect("not initialized");
         admin.require_auth();
 
+        let old_admin = admin.clone();
+
         env.storage().instance().set(&DataKey::Admin, &new_admin);
 
         // Update admin in platform settings if initialized
@@ -904,11 +965,17 @@ impl BaseContract {
                 .instance()
                 .get(&DataKey::PlatformSettings)
                 .unwrap();
-            settings.admin_address = new_admin;
+            settings.admin_address = new_admin.clone();
             env.storage()
                 .instance()
                 .set(&DataKey::PlatformSettings, &settings);
         }
+
+        // Emit admin change event
+        env.events().publish(
+            (Symbol::new(&env, "admin_changed"),),
+            (old_admin, new_admin, env.ledger().timestamp()),
+        );
     }
 
     fn next_room_id(env: &Env) -> u64 {
