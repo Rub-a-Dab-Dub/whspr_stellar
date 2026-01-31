@@ -1,30 +1,44 @@
-// src/users/entities/user.entity.ts
 import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   ManyToMany,
   JoinTable,
+  Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { Role } from '../../roles/entities/role.entity';
+import { UserProfile } from './user-profile.entity';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string | undefined;
 
-  @Column({ unique: true })
-  email!: string;
+  @Column({ unique: true, nullable: true })
+  @Index()
+  username: string | undefined;
 
-  @Column()
+  @Column({ unique: true, nullable: true })
+  @Index()
+  email: string | undefined;
+
+  @Column({ unique: true, nullable: true })
+  @Index()
+  walletAddress: string | undefined;
+
+  @Column({ nullable: true })
   @Exclude()
-  password!: string;
+  password: string | undefined;
+
+  @Column(() => UserProfile)
+  profile: UserProfile | undefined;
 
   @Column({ default: false })
-  isEmailVerified!: boolean;
+  isEmailVerified: boolean = false;
 
   @Column({ nullable: true })
   @Exclude()
@@ -42,9 +56,20 @@ export class User {
   @Exclude()
   passwordResetExpires: Date | undefined;
 
+  // Stats
+  @Column({ default: 0 })
+  currentXp: number = 0;
+
+  @Column({ default: 1 })
+  level: number = 1;
+
+  @Column({ default: 0 })
+  totalTips: number = 0;
+
+  // Security & Moderation
   @Column({ default: 0 })
   @Exclude()
-  loginAttempts: number | undefined;
+  loginAttempts: number = 0;
 
   @Column({ nullable: true })
   @Exclude()
@@ -55,7 +80,7 @@ export class User {
   refreshToken: string | undefined;
 
   @Column({ default: false })
-  isBanned!: boolean;
+  isBanned: boolean = false;
 
   @Column({ type: 'timestamp', nullable: true })
   bannedAt: Date | undefined;
@@ -69,24 +94,17 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | undefined;
 
-  @Column({ type: 'timestamp', nullable: true })
-  suspendedAt: Date | undefined;
+  // Timestamps
+  @CreateDateColumn()
+  createdAt: Date | undefined;
 
-  @Column({ type: 'uuid', nullable: true })
-  suspendedBy: string | undefined;
+  @UpdateDateColumn()
+  updatedAt: Date | undefined;
 
-  @Column({ type: 'text', nullable: true })
-  suspensionReason: string | undefined;
+  @DeleteDateColumn()
+  deletedAt: Date | undefined;
 
-  @Column({ default: false })
-  isVerified!: boolean;
-
-  @Column({ type: 'timestamp', nullable: true })
-  verifiedAt: Date | undefined;
-
-  @Column({ type: 'uuid', nullable: true })
-  verifiedBy: string | undefined;
-
+  // Relations
   @ManyToMany(() => Role, (role) => role.users, {
     eager: true,
     cascade: true,
@@ -98,12 +116,7 @@ export class User {
   })
   roles: Role[] | undefined;
 
-  @CreateDateColumn()
-  createdAt: Date | undefined;
-
-  @UpdateDateColumn()
-  updatedAt: Date | undefined;
-
+  // Helpers
   get isLocked(): boolean {
     return !!(this.lockoutUntil && this.lockoutUntil > new Date());
   }
