@@ -1,4 +1,5 @@
 import { Module, OnModuleInit } from '@nestjs/common';
+import { RedisThrottlerStorage } from '@nestjs-redis/throttler-storage';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -18,11 +19,13 @@ import { RolesModule } from './roles/roles.module';
 import { RedisModule } from './redis/redis.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
+
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesSeederService } from './database/seeders/roles.seeder';
-import { SessionsModule } from './sessions/sessions.module';
+import { SessionModule } from './sessions/sessions.module';
 import { MessageModule } from './message/message.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { ChainModule } from './chain/chain.module';
@@ -47,12 +50,24 @@ import { AdminModule } from './admin/admin.module';
       }),
       inject: [ConfigService],
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000, // 1 minute
-        limit: 10, // 10 requests
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: 60000,
+            limit: 10,
+          },
+        ],
+        storage: new RedisThrottlerStorage({
+          host: config.get('REDIS_HOST'),
+          port: config.get('REDIS_PORT'),
+          password: config.get('REDIS_PASSWORD'),
+          db: parseInt(config.get('REDIS_DB'), 10) || 0,
+        }),
+      }),
+    }),
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -103,8 +118,9 @@ import { AdminModule } from './admin/admin.module';
     },
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard, // Apply rate limiting globally
+      useClass: UserThrottlerGuard, // Apply rate limiting globally (User + IP)
     },
+
   ],
 })
 export class AppModule implements OnModuleInit {
