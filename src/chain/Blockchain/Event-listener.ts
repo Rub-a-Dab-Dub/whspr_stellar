@@ -1,4 +1,5 @@
 
+
 // ============================================================================
 // ENTITIES
 // ============================================================================
@@ -12,6 +13,7 @@ import {
   Index,
 } from 'typeorm';
 
+import { Between, MoreThanOrEqual } from 'typeorm';
 export enum EventType {
   TRANSFER = 'Transfer',
   TIP = 'Tip',
@@ -429,7 +431,7 @@ import { Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 
-@InjectableDecorator()
+@Injectable()
 export class EventListenerService implements OnModuleInit {
   private readonly logger = new Logger(EventListenerService.name);
   private contracts: Map<string, ethers.Contract> = new Map();
@@ -934,7 +936,7 @@ export class EventProcessingService {
 // DATABASE SYNC SERVICE
 // ============================================================================
 
-@InjectableDecorator()
+@Injectable()
 export class DatabaseSyncService {
   private readonly logger = new Logger(DatabaseSyncService.name);
 
@@ -1014,7 +1016,7 @@ export class DatabaseSyncService {
 // WEBHOOK SERVICE
 // ============================================================================
 
-@InjectableDecorator()
+@Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
 
@@ -1217,7 +1219,7 @@ export class WebhookDeliveryService {
 // ANALYTICS SERVICE
 // ============================================================================
 
-@InjectableDecorator()
+@Injectable()
 export class EventAnalyticsService {
   private readonly logger = new Logger(EventAnalyticsService.name);
 
@@ -1540,7 +1542,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { MoreThanOrEqual, Between } from 'typeorm';
 
 @Module({
   imports: [
@@ -1583,3 +1584,68 @@ import { MoreThanOrEqual, Between } from 'typeorm';
   exports: [EventListenerService, DatabaseSyncService],
 })
 export class BlockchainEventsModule {}
+
+// ============================================================================
+// ENVIRONMENT VARIABLES
+// ============================================================================
+
+/**
+ * Required environment variables:
+ * 
+ * BLOCKCHAIN_WS_URL=wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID
+ * MAIN_CONTRACT_ADDRESS=0x...
+ * START_BLOCK=12345678
+ * 
+ * REDIS_HOST=localhost
+ * REDIS_PORT=6379
+ * 
+ * DATABASE_HOST=localhost
+ * DATABASE_PORT=5432
+ * DATABASE_NAME=your_db
+ * DATABASE_USER=your_user
+ * DATABASE_PASSWORD=your_password
+ */
+
+// ============================================================================
+// USAGE EXAMPLES
+// ============================================================================
+
+/**
+ * EXAMPLE 1: Get events
+ * GET /events?eventType=Transfer&status=confirmed&page=1&limit=50
+ * GET /events?contractAddress=0x...&fromBlock=12345&toBlock=12350
+ */
+
+/**
+ * EXAMPLE 2: Get dashboard stats
+ * GET /events/dashboard
+ */
+
+/**
+ * EXAMPLE 3: Create webhook
+ * POST /webhooks
+ * {
+ *   "name": "Transfer Notifications",
+ *   "url": "https://myapp.com/webhook",
+ *   "secret": "my-secret-key",
+ *   "eventTypes": ["Transfer", "Tip"],
+ *   "filters": {
+ *     "contractAddresses": ["0x..."],
+ *     "minAmount": "1000000000000000000"
+ *   }
+ * }
+ */
+
+/**
+ * EXAMPLE 4: Webhook signature verification (in your webhook receiver)
+ * 
+ * import * as crypto from 'crypto';
+ * 
+ * function verifyWebhookSignature(payload, signature, secret) {
+ *   const hmac = crypto.createHmac('sha256', secret);
+ *   hmac.update(JSON.stringify(payload));
+ *   const expectedSignature = hmac.digest('hex');
+ *   return signature === expectedSignature;
+ * }
+ */
+
