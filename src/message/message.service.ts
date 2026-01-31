@@ -21,6 +21,11 @@ import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageType } from './enums/message-type.enum';
 import { UserStatsService } from '../users/services/user-stats.service';
 import { NotificationService } from '../notifications/services/notification.service';
+import { Attachment } from './entities/attachment.entity';
+import { IpfsStorageService } from '../storage/services/ipfs-storage.service';
+import { ArweaveStorageService } from '../storage/services/arweave-storage.service';
+import { VirusScanService } from '../storage/services/virus-scan.service';
+import { ThumbnailService } from '../storage/services/thumbnail.service';
 
 @Injectable()
 export class MessageService {
@@ -33,11 +38,17 @@ export class MessageService {
     private readonly messageRepository: Repository<Message>,
     @InjectRepository(MessageEditHistory)
     private readonly editHistoryRepository: Repository<MessageEditHistory>,
+    @InjectRepository(Attachment)
+    private readonly attachmentRepository: Repository<Attachment>,
     private readonly profanityFilterService: ProfanityFilterService,
     private readonly userStatsService: UserStatsService,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly ipfsService: IpfsStorageService,
+    private readonly arweaveService: ArweaveStorageService,
+    private readonly virusScanService: VirusScanService,
+    private readonly thumbnailService: ThumbnailService,
   ) {}
 
   /**
@@ -470,5 +481,76 @@ export class MessageService {
       newContent: history.newContent,
       editedAt: history.editedAt,
     };
+    }
+
+  async uploadFile(
+    messageId: string,
+    file: Express.Multer.File,
+    userId: string,
+    storage: 'IPFS' | 'ARWEAVE' = 'IPFS',
+  ): Promise<Attachment> {
+    const message = await this.findByIdOrFail(messageId);
+
+    if (message.authorId !== userId) {
+      throw new ForbiddenException('You can only attach files to your own messages');
+    }
+
+    // 1. Virus Scan
+    const isClean = await this.virusScanService.scanBuffer(file.buffer);
+    if (!isClean) {
+      throw new BadRequestException('File is infected with malware');
+    }
+
+    // 2. Generate Thumbnail (if image)
+    let thumbnailUrl: string | undefined;
+    if (file.mimetype.startsWith('image/')) {
+        try {
+            const thumbBuffer = await this.thumbnailService.generateThumbnail(file.buffer, file.mimetype);
+            // Upload thumbnail to IPFS always for speed? Or same provider?
+            // Let's stick effectively to same provider logic or just IPFS for thumbnails usually.
+            // For simplicity, we upload thumbnail to IPFS.
+            const thumbUpload = await this.ipfsService.upload(thumbBuffer);
+            thumbnailUrl = this.ipfsService.getGatewayUrl(thumbUpload.path);
+        } catch (e) {
+            console.error('Thumbnail generation failed', e);
+        }
+    }
+
+    // 3. Upload File
+    let storageHash: string;
+    let url: string;
+
+    if (storage === 'ARWEAVE') {
+        const result = await this.arweaveService.upload(file.buffer, file.mimetype);
+        storageHash = result.id;
+        url = this.arweaveService.getGatewayUrl(result.id);
+    } else {
+        const result = await this.ipfsService.upload(file.buffer);
+        storageHash = result.path;
+        url = this.ipfsService.getGatewayUrl(result.path);
+    }
+
+    // 4. Create Attachment
+    const attachment = this.attachmentRepository.create({
+      message,
+      filename: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      storageProvider: storage,
+      storageHash,
+      url,
+      thumbnailUrl,
+      isScanned: true,
+    });
+
+    return this.attachmentRepository.save(attachment);
+  }
+
+  async getAttachmentUrl(attachmentId: string): Promise<string> {
+    const attachment = await this.attachmentRepository.findOne({ where: { id: attachmentId } });
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+    return attachment.url;
   }
 }

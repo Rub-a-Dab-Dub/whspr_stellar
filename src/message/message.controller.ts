@@ -11,7 +11,11 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
@@ -198,5 +202,27 @@ export class MessageController {
     this.messagesGateway.broadcastToRoom(message.roomId, 'message-restored', restoredMessage);
 
     return restoredMessage;
+  }
+
+
+  @Post(':id/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.CREATED)
+  async uploadFile(
+    @Param('id') messageId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req,
+    @Query('storage') storage: 'IPFS' | 'ARWEAVE' = 'IPFS',
+  ) {
+    if (!file) {
+      throw new Error('No file provided');
+    }
+    return this.messageService.uploadFile(messageId, file, req.user.id, storage);
+  }
+
+  @Get('attachments/:id')
+  async getAttachment(@Param('id') id: string, @Res() res) {
+    const url = await this.messageService.getAttachmentUrl(id);
+    return res.redirect(url);
   }
 }
