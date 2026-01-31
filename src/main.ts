@@ -14,6 +14,16 @@ async function bootstrap() {
   );
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   app.useGlobalInterceptors(new LoggingInterceptor());
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  app.use(require('helmet')());
+
+  // CORS
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
