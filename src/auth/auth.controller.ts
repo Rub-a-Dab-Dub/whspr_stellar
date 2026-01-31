@@ -8,7 +8,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 // import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -40,8 +42,8 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute
-  async login(@Body() loginDto: LoginDto) {
-    return await this.authService.login(loginDto.email, loginDto.password);
+  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    return await this.authService.login(loginDto.email, loginDto.password, req);
   }
 
   @Public()
@@ -54,32 +56,41 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@CurrentUser() user: any, @Body('jti') jti: string) {
-    return await this.authService.logout(user.userId, jti);
+  async logout(
+    @CurrentUser() user: any,
+    @Body('jti') jti: string,
+    @Body('sessionToken') sessionToken: string,
+    @Req() req: Request,
+  ) {
+    return await this.authService.logout(user.userId, jti, sessionToken, req);
   }
 
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return await this.authService.forgotPassword(forgotPasswordDto.email);
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+    @Req() req: Request,
+  ) {
+    return await this.authService.forgotPassword(forgotPasswordDto.email, req);
   }
 
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto, @Req() req: Request) {
     return await this.authService.resetPassword(
       resetPasswordDto.token || '',
       resetPasswordDto.newPassword || '',
+      req,
     );
   }
 
   @Public()
   @Get('verify-email')
-  async verifyEmail(@Query('token') token: string) {
-    return await this.authService.verifyEmail(token);
+  async verifyEmail(@Query('token') token: string, @Req() req: Request) {
+    return await this.authService.verifyEmail(token, req);
   }
 
   @UseGuards(JwtAuthGuard)

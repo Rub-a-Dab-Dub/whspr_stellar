@@ -2,6 +2,7 @@
 
 mod ratelimit;
 mod storage;
+#[cfg(test)]
 mod test;
 mod types;
 
@@ -1199,7 +1200,413 @@ impl BaseContract {
 
         Ok(messages)
     }
+
+    fn next_invitation_id(env: &Env) -> u64 {
+        let id: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextInvitationId)
+            .unwrap_or(1);
+        env.storage()
+            .instance()
+            .set(&DataKey::NextInvitationId, &(id + 1));
+        id
+    }
+
+    pub fn create_invitation(
+        env: Env,
+        caller: Address,
+        room_id: u64,
+        invitee: Address,
+        expires_at: u64,
+        max_uses: Option<u32>,
+    ) -> Result<u64, ContractError> {
+        caller.require_auth();
+
+        let room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomById(room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        // Verify caller is creator or admin (participant with invite permission)
+        if room.creator != caller && !room.participants.contains(&caller) {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let invitation_id = Self::next_invitation_id(&env);
+        let now = env.ledger().timestamp();
+
+        if expires_at <= now {
+            return Err(ContractError::InvitationExpired);
+        }
+
+        let invitation = Invitation {
+            id: invitation_id,
+            room_id,
+            inviter: caller,
+            invitee: invitee.clone(),
+            created_at: now,
+            expires_at,
+            max_uses,
+            use_count: 0,
+            is_revoked: false,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Invitation(invitation_id), &invitation);
+
+        // Add to user's invitations list
+        let mut user_invites: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserInvitations(invitee.clone()))
+            .unwrap_or(Vec::new(&env));
+        user_invites.push_back(invitation_id);
+        env.storage()
+            .instance()
+            .set(&DataKey::UserInvitations(invitee.clone()), &user_invites);
+
+        // Add to room's invitations list
+        let mut room_invites: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomInvitations(room_id))
+            .unwrap_or(Vec::new(&env));
+        room_invites.push_back(invitation_id);
+        env.storage()
+            .instance()
+            .set(&DataKey::RoomInvitations(room_id), &room_invites);
+
+        env.events().publish(
+            (Symbol::new(&env, "invite_created"), invitation_id),
+            (room_id, invitee),
+        );
+
+        Ok(invitation_id)
+    }
+
+    pub fn accept_invitation(env: Env, caller: Address, invitation_id: u64) -> Result<(), ContractError> {
+        caller.require_auth();
+
+        let mut invitation: Invitation = env
+            .storage()
+            .instance()
+            .get(&DataKey::Invitation(invitation_id))
+            .ok_or(ContractError::InvitationNotFound)?;
+
+        if invitation.invitee != caller {
+            return Err(ContractError::Unauthorized);
+        }
+
+        if invitation.is_revoked {
+            return Err(ContractError::InvitationRevoked);
+        }
+
+        let now = env.ledger().timestamp();
+        if now > invitation.expires_at {
+            return Err(ContractError::InvitationExpired);
+        }
+
+        if let Some(max) = invitation.max_uses {
+            if invitation.use_count >= max {
+                return Err(ContractError::InvitationMaxUsesReached);
+            }
+        }
+
+        // Add user to room
+        let mut room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomById(invitation.room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        if !room.participants.contains(&caller) {
+            room.participants.push_back(caller.clone());
+            env.storage()
+                .instance()
+                .set(&DataKey::RoomById(invitation.room_id), &room);
+        }
+
+        // Increment use count
+        invitation.use_count += 1;
+        env.storage()
+            .instance()
+            .set(&DataKey::Invitation(invitation_id), &invitation);
+
+        env.events().publish(
+            (Symbol::new(&env, "invite_accepted"), invitation_id),
+            (invitation.room_id, caller),
+        );
+
+        Ok(())
+    }
+
+    pub fn revoke_invitation(env: Env, caller: Address, invitation_id: u64) -> Result<(), ContractError> {
+        caller.require_auth();
+
+        let mut invitation: Invitation = env
+            .storage()
+            .instance()
+            .get(&DataKey::Invitation(invitation_id))
+            .ok_or(ContractError::InvitationNotFound)?;
+
+        let room: Room = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomById(invitation.room_id))
+            .ok_or(ContractError::RoomNotFound)?;
+
+        // Verify caller is inviter or room creator
+        if caller != invitation.inviter && caller != room.creator {
+            return Err(ContractError::NotInviter);
+        }
+
+        invitation.is_revoked = true;
+        env.storage()
+            .instance()
+            .set(&DataKey::Invitation(invitation_id), &invitation);
+
+        env.events().publish(
+            (Symbol::new(&env, "invite_revoked"), invitation_id),
+            invitation.room_id,
+        );
+
+        Ok(())
+    }
+
+    pub fn get_user_invitations(env: Env, user: Address) -> Vec<Invitation> {
+        let invite_ids: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserInvitations(user))
+            .unwrap_or(Vec::new(&env));
+
+        let mut invitations = Vec::new(&env);
+        for id in invite_ids.iter() {
+            if let Some(invite) = env.storage().instance().get(&DataKey::Invitation(id)) {
+                invitations.push_back(invite);
+            }
+        }
+        invitations
+    }
+
+    pub fn get_room_invitations(env: Env, room_id: u64) -> Vec<Invitation> {
+        let invite_ids: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomInvitations(room_id))
+            .unwrap_or(Vec::new(&env));
+
+        let mut invitations = Vec::new(&env);
+        for id in invite_ids.iter() {
+            if let Some(invite) = env.storage().instance().get(&DataKey::Invitation(id)) {
+                invitations.push_back(invite);
+            }
+        }
+        invitations
+    }
+
+    pub fn get_invitation_status(env: Env, invitation_id: u64) -> Result<InvitationStatus, ContractError> {
+        let invitation: Invitation = env
+            .storage()
+            .instance()
+            .get(&DataKey::Invitation(invitation_id))
+            .ok_or(ContractError::InvitationNotFound)?;
+
+        if invitation.is_revoked {
+            return Ok(InvitationStatus::Revoked);
+        }
+
+        let now = env.ledger().timestamp();
+        if now > invitation.expires_at {
+            return Ok(InvitationStatus::Expired);
+        }
+
+        if let Some(max) = invitation.max_uses {
+            if invitation.use_count >= max {
+                return Ok(InvitationStatus::Accepted);
+            }
+        }
+
+        if invitation.use_count > 0 {
+            Ok(InvitationStatus::Accepted)
+        } else {
+            Ok(InvitationStatus::Pending)
+        }
+    }
 }
+
+pub fn tip_message(
+    env: Env,
+    sender: Address,
+    message_id: u64,
+    receiver: Address,
+    amount: i128,
+) -> Result<u64, ContractError> {
+    sender.require_auth();
+
+    // min tip: 1, max tip: 1000000
+    if amount < 1 || amount > 1_000_000 {
+        return Err(ContractError::InvalidAmount);
+    }
+
+    // Calculate platform fee (2%)
+    let fee = (amount * 2) / 100;
+    let net = amount - fee;
+
+    // Transfer net to receiver
+    let settings = Self::get_platform_settings(env.clone());
+    let token_client = token::Client::new(&env, &settings.fee_token);
+    token_client.transfer(&sender, &receiver, &net);
+
+    // Transfer fee to treasury
+    token_client.transfer(&sender, &env.current_contract_address(), &fee);
+
+    // Record tip
+    let tip_id: u64 = env
+        .storage()
+        .instance()
+        .get(&DataKey::TipCount)
+        .unwrap_or(1);
+    env.storage().instance().set(&DataKey::TipCount, &(tip_id + 1));
+
+    let tip = Tip {
+        id: tip_id,
+        sender: sender.clone(),
+        receiver: receiver.clone(),
+        amount,
+        fee,
+        message_id,
+        timestamp: env.ledger().timestamp(),
+    };
+
+    env.storage().instance().set(&DataKey::TipById(tip_id), &tip);
+
+    // Update user histories
+    let mut sent: Vec<u64> = env
+        .storage()
+        .instance()
+        .get(&DataKey::TipsSentByUser(sender.clone()))
+        .unwrap_or(Vec::new(&env));
+    sent.push_back(tip_id);
+    env.storage().instance().set(&DataKey::TipsSentByUser(sender.clone()), &sent);
+
+    let mut received: Vec<u64> = env
+        .storage()
+        .instance()
+        .get(&DataKey::TipsReceivedByUser(receiver.clone()))
+        .unwrap_or(Vec::new(&env));
+    received.push_back(tip_id);
+    env.storage()
+        .instance()
+        .set(&DataKey::TipsReceivedByUser(receiver.clone()), &received);
+
+    // Update total tipped
+    let total: i128 = env
+        .storage()
+        .instance()
+        .get(&DataKey::TotalTippedByUser(sender.clone()))
+        .unwrap_or(0);
+    env.storage()
+        .instance()
+        .set(&DataKey::TotalTippedByUser(sender.clone()), &(total + amount));
+
+    // Award XP for tipping (+20)
+    let _ = Self::award_xp(&env, sender.clone(), 20, ActionType::Tip)?;
+
+    // Emit event
+    env.events().publish(
+        (Symbol::new(&env, "tip"),),
+        (tip_id, sender, receiver, amount, fee, message_id),
+    );
+
+    Ok(tip_id)
+}
+ pub fn record_transaction(
+        env: Env,
+        tx_hash: BytesN<32>,
+        tx_type: Symbol,
+        status: Symbol,
+        sender: Address,
+        receiver: Option<Address>,
+        amount: Option<i128>,
+    ) -> Result<u64, ContractError> {
+        // Increment total transaction count
+        let mut tx_count: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionCount)
+            .unwrap_or(0);
+        tx_count += 1;
+        env.storage().instance().set(&DataKey::TransactionCount, &tx_count);
+
+        // Create transaction struct
+        let tx = Transaction {
+            id: tx_count,
+            tx_hash,
+            tx_type: tx_type.clone(),
+            status: status.clone(),
+            sender: sender.clone(),
+            receiver,
+            amount,
+            timestamp: env.ledger().timestamp(),
+        };
+
+        // Save transaction
+        env.storage()
+            .instance()
+            .set(&DataKey::TransactionById(tx_count), &tx);
+
+        // Index by user
+        let mut user_txs: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionsByUser(sender.clone()))
+            .unwrap_or(Vec::new(&env));
+        user_txs.push_back(tx_count);
+        env.storage()
+            .instance()
+            .set(&DataKey::TransactionsByUser(sender), &user_txs);
+
+        Ok(tx_count)
+    }
+
+      pub fn record_user_activity(env: Env, user: Address, active: bool) {
+        // Increment active counters
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        if active {
+            analytics.total_users += 1; // Increment total if new
+            analytics.active_users_daily += 1;
+            analytics.active_users_weekly += 1;
+            analytics.active_users_monthly += 1;
+        }
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_message(env: Env, room: Symbol) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_messages += 1;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_tip(env: Env, amount: u64, fee: u64) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_tips += 1;
+        analytics.total_tip_revenue += fee;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn record_room_fee(env: Env, amount: u64) {
+        let mut analytics: Analytics = env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default();
+        analytics.total_room_fees += amount;
+        env.storage().set(&DataKey::AnalyticsDashboard, &analytics);
+    }
+
+    pub fn get_dashboard(env: Env) -> Analytics {
+        env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default()
+    }
 
 fn verify_content_hash(hash: &BytesN<32>) -> Result<(), ContractError> {
     if hash.to_array() == [0u8; 32] {

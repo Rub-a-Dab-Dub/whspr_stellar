@@ -11,8 +11,9 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../roles/guards/role.guard';
 import { PermissionGuard } from '../roles/guards/permission.guard';
@@ -26,6 +27,7 @@ import { BanUserDto } from './dto/ban-user.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { BulkActionDto } from './dto/bulk-action.dto';
 import { ImpersonateUserDto } from './dto/impersonate-user.dto';
+import { GetAuditLogsDto } from './dto/get-audit-logs.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RoleGuard, PermissionGuard)
@@ -125,28 +127,98 @@ export class AdminController {
   }
 
   @Get('users/:id/activity')
-  async getUserActivity(@Param('id') userId: string) {
-    return await this.adminService.getUserActivity(userId);
+  async getUserActivity(
+    @Param('id') userId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.getUserActivity(userId, currentUser.userId, req);
   }
 
   @Get('statistics')
-  async getStatistics() {
-    return await this.adminService.getUserStatistics();
+  async getStatistics(@CurrentUser() currentUser: any, @Req() req: Request) {
+    return await this.adminService.getUserStatistics(currentUser.userId, req);
   }
 
   @Get('audit-logs')
   async getAuditLogs(
-    @Query('page') page: string,
-    @Query('limit') limit: string,
+    @Query() query: GetAuditLogsDto,
     @Query('adminId') adminId: string,
-    @Query('targetUserId') targetUserId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
   ) {
+    const actions = query.actions
+      ? query.actions.split(',').map((action) => action.trim())
+      : undefined;
+
+    const actorUserId = query.actorUserId || adminId;
+
     return await this.adminService.getAuditLogs(
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 50,
-      adminId,
-      targetUserId,
+      {
+        ...query,
+        actorUserId,
+        actions,
+      },
+      currentUser.userId,
+      req,
     );
+  }
+
+  @Get('audit-logs/export')
+  async exportAuditLogs(
+    @Query() query: GetAuditLogsDto,
+    @Query('format') format: 'csv' | 'json' = 'csv',
+    @Query('adminId') adminId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const actions = query.actions
+      ? query.actions.split(',').map((action) => action.trim())
+      : undefined;
+
+    const actorUserId = query.actorUserId || adminId;
+
+    const exportResult = await this.adminService.exportAuditLogs(
+      {
+        ...query,
+        actorUserId,
+        actions,
+      },
+      format,
+      currentUser.userId,
+      req,
+    );
+
+    res.setHeader('Content-Type', exportResult.contentType);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="audit-logs.${format}"`,
+    );
+
+    return exportResult.data;
+  }
+
+  @Get('users/:id/gdpr-export')
+  async exportGdprData(
+    @Param('id') userId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const data = await this.adminService.exportUserData(
+      userId,
+      currentUser.userId,
+      req,
+    );
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="gdpr-export-${userId}.json"`,
+    );
+
+    return data;
   }
 
   @Post('impersonate')
@@ -164,6 +236,12 @@ export class AdminController {
     const targetUser = await this.adminService.getUserDetail(
       impersonateDto.userId,
       currentUser.userId,
+      req,
+    );
+
+    await this.adminService.logImpersonationStart(
+      currentUser.userId,
+      targetUser.id,
       req,
     );
 

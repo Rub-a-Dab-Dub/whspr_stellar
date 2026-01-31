@@ -29,6 +29,9 @@ import { StreakService } from './services/streak.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/guards/jwt-refresh-auth.guard';
 import { UpdateChainPreferenceDto } from '../chain/dto/update-chain-preference.dto';
+import { UserStatsService } from './services/user-stats.service';
+import { UserStatsQueryDto } from './dto/user-stats-query.dto';
+import { UserStatsExportQueryDto } from './dto/user-stats-export-query.dto';
 
 @Controller('users')
 export class UsersController {
@@ -36,6 +39,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly xpService: XpService,
     private readonly streakService: StreakService,
+    private readonly userStatsService: UserStatsService,
   ) { }
 
   @Post()
@@ -47,6 +51,33 @@ export class UsersController {
   @Get('search')
   search(@Query() searchDto: SearchUsersDto) {
     return this.usersService.findAll(searchDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/stats')
+  getMyStats(@CurrentUser() user: any, @Query() query: UserStatsQueryDto) {
+    const includeComparison = query.includeComparison !== 'false';
+    return this.userStatsService.getStatsForUser(user.userId, includeComparison);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/stats/export')
+  exportMyStats(
+    @CurrentUser() user: any,
+    @Query() query: UserStatsExportQueryDto,
+  ) {
+    return this.userStatsService.exportStats(user.userId, query.format || 'json');
+  }
+
+  @Get(':id/stats')
+  getUserStats(@Param('id') id: string, @Query() query: UserStatsQueryDto) {
+    const includeComparison = query.includeComparison !== 'false';
+    return this.userStatsService.getStatsForUser(id, includeComparison);
+  }
+
+  @Get(':id/stats/export')
+  exportUserStats(@Param('id') id: string, @Query() query: UserStatsExportQueryDto) {
+    return this.userStatsService.exportStats(id, query.format || 'json');
   }
 
   @Get(':id')
