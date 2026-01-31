@@ -11,9 +11,10 @@ import { RoleGuard } from './guards/role.guard';
 import { PermissionGuard } from './guards/permission.guard';
 import { RolesController } from './roles.controller';
 import { RolesSeederService } from 'src/database/seeders/roles.seeder';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Role, Permission, User])],
+  imports: [TypeOrmModule.forFeature([Role, Permission, User]), AdminModule],
   providers: [
     RolesService,
     PermissionService,

@@ -222,199 +222,188 @@ fn test_transfer_tokens() {
 }
 
 #[test]
-fn test_create_invitation() {
+fn test_tip_message_success() {
     let env = Env::default();
-    env.mock_all_auths();
+    let sender = Address::random(&env);
+    let receiver = Address::random(&env);
 
-    let admin = Address::generate(&env);
-    let creator = Address::generate(&env);
-    let invitee = Address::generate(&env);
+    // Initialize token and balances
+    let token = Address::random(&env);
+    // Mint 1000 tokens to sender (pseudo code)
+    // token_client.mint(&sender, 1000);
 
-    let contract_id = env.register_contract(None, BaseContract);
-    let client = BaseContractClient::new(&env, &contract_id);
+    let tip_id = BaseContract::tip_message(env.clone(), sender.clone(), 1, receiver.clone(), 100).unwrap();
+    let tip: Tip = env.storage().instance().get(&DataKey::TipById(tip_id)).unwrap();
 
-    client.init(&admin, &Symbol::new(&env, "Test"), &1);
-
-    // Create a room
-    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
-
-    // Create invitation
-    env.ledger().with_mut(|li| li.timestamp = 1000);
-    let expires_at = 2000;
-    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &expires_at, &None);
-
-    assert_eq!(invitation_id, 1);
-
-    // Verify invitation stored
-    let invitations = client.get_user_invitations(&invitee);
-    assert_eq!(invitations.len(), 1);
-    assert_eq!(invitations.get(0).unwrap().invitee, invitee);
+    assert_eq!(tip.sender, sender);
+    assert_eq!(tip.receiver, receiver);
+    assert_eq!(tip.amount, 100);
+    assert_eq!(tip.fee, 2); // 2%
 }
 
 #[test]
-fn test_accept_invitation() {
+fn test_tip_invalid_amount() {
     let env = Env::default();
-    env.mock_all_auths();
+    let sender = Address::random(&env);
+    let receiver = Address::random(&env);
 
-    let admin = Address::generate(&env);
-    let creator = Address::generate(&env);
-    let invitee = Address::generate(&env);
-
-    let contract_id = env.register_contract(None, BaseContract);
-    let client = BaseContractClient::new(&env, &contract_id);
-
-    client.init(&admin, &Symbol::new(&env, "Test"), &1);
-
-    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
-
-    env.ledger().with_mut(|li| li.timestamp = 1000);
-    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &None);
-
-    // Accept invitation
-    client.accept_invitation(&invitee, &invitation_id);
-
-    // Verify user added to room
-    let room = client.get_room(&room_id);
-    assert!(room.participants.contains(&invitee));
-
-    // Verify use count incremented
-    let invitations = client.get_user_invitations(&invitee);
-    assert_eq!(invitations.get(0).unwrap().use_count, 1);
+    let result = BaseContract::tip_message(env.clone(), sender.clone(), 1, receiver.clone(), 0);
+    assert!(matches!(result, Err(ContractError::InvalidAmount)));
 }
 
 #[test]
-fn test_expired_invitation() {
+fn test_tip_xp_award() {
     let env = Env::default();
-    env.mock_all_auths();
+    let sender = Address::random(&env);
+    let receiver = Address::random(&env);
 
-    let admin = Address::generate(&env);
-    let creator = Address::generate(&env);
-    let invitee = Address::generate(&env);
-
-    let contract_id = env.register_contract(None, BaseContract);
-    let client = BaseContractClient::new(&env, &contract_id);
-
-    client.init(&admin, &Symbol::new(&env, "Test"), &1);
-
-    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
-
-    env.ledger().with_mut(|li| li.timestamp = 1000);
-    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &None);
-
-    // Advance time past expiration
-    env.ledger().with_mut(|li| li.timestamp = 2001);
-
-    // Should fail
-    let res = client.try_accept_invitation(&invitee, &invitation_id);
-    assert!(res.is_err());
+    let _ = BaseContract::tip_message(env.clone(), sender.clone(), 1, receiver.clone(), 50).unwrap();
+    let profile: UserProfile = env.storage().instance().get(&DataKey::User(sender.clone())).unwrap();
+    assert!(profile.xp >= 20);
 }
+  #[test]
+    fn test_record_transaction_success() {
+        let env = Env::default();
+        let sender = Address::random(&env);
+        let receiver = Address::random(&env);
 
-#[test]
-fn test_max_uses_invitation() {
-    let env = Env::default();
-    env.mock_all_auths();
+        // Example tx hash
+        let tx_hash = BytesN::from_array(&env, &[0u8; 32]);
 
-    let admin = Address::generate(&env);
-    let creator = Address::generate(&env);
-    let invitee = Address::generate(&env);
+        // Record transaction
+        let tx_id = BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            Some(receiver.clone()),
+            Some(100),
+        )
+        .unwrap();
 
-    let contract_id = env.register_contract(None, BaseContract);
-    let client = BaseContractClient::new(&env, &contract_id);
+        // Fetch transaction back
+        let stored_tx: Transaction = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionById(tx_id))
+            .unwrap();
 
-    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+        assert_eq!(stored_tx.id, tx_id);
+        assert_eq!(stored_tx.tx_hash, tx_hash);
+        assert_eq!(stored_tx.tx_type, Symbol::new(&env, "tip"));
+        assert_eq!(stored_tx.status, Symbol::new(&env, "success"));
+        assert_eq!(stored_tx.sender, sender);
+        assert_eq!(stored_tx.receiver.unwrap(), receiver);
+        assert_eq!(stored_tx.amount.unwrap(), 100);
+    }
 
-    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+    #[test]
+    fn test_transaction_indexing_by_user() {
+        let env = Env::default();
+        let sender = Address::random(&env);
 
-    env.ledger().with_mut(|li| li.timestamp = 1000);
-    let max_uses = Some(1);
-    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &max_uses);
+        let tx_hash = BytesN::from_array(&env, &[1u8; 32]);
 
-    // First accept should succeed
-    client.accept_invitation(&invitee, &invitation_id);
+        // Record multiple transactions
+        BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "message"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            None,
+            None,
+        )
+        .unwrap();
 
-    // Second accept should fail
-    let res = client.try_accept_invitation(&invitee, &invitation_id);
-    assert!(res.is_err());
-}
+        BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "success"),
+            sender.clone(),
+            None,
+            Some(50),
+        )
+        .unwrap();
 
-#[test]
-fn test_revoke_invitation() {
-    let env = Env::default();
-    env.mock_all_auths();
+        // Fetch user transactions
+        let user_txs: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionsByUser(sender.clone()))
+            .unwrap();
 
-    let admin = Address::generate(&env);
-    let creator = Address::generate(&env);
-    let invitee = Address::generate(&env);
+        assert_eq!(user_txs.len(), 2);
+    }
 
-    let contract_id = env.register_contract(None, BaseContract);
-    let client = BaseContractClient::new(&env, &contract_id);
+ 
+    #[test]
+    fn test_failed_transaction_logging() {
+        let env = Env::default();
+        let sender = Address::random(&env);
 
-    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+        let tx_hash = BytesN::from_array(&env, &[3u8; 32]);
 
-    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+        let tx_id = BaseContract::record_transaction(
+            env.clone(),
+            tx_hash.clone(),
+            Symbol::new(&env, "tip"),
+            Symbol::new(&env, "failed"), // Mark as failed
+            sender.clone(),
+            None,
+            Some(20),
+        )
+        .unwrap();
 
-    env.ledger().with_mut(|li| li.timestamp = 1000);
-    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &None);
+        let tx: Transaction = env
+            .storage()
+            .instance()
+            .get(&DataKey::TransactionById(tx_id))
+            .unwrap();
 
-    // Revoke invitation
-    client.revoke_invitation(&creator, &invitation_id);
+        assert_eq!(tx.status, Symbol::new(&env, "failed"));
+        assert_eq!(tx.amount.unwrap(), 20);
+    }
+      #[test]
+    fn test_user_activity_tracking() {
+        let env = Env::default();
+        let user = Address::random(&env);
 
-    // Accept should fail
-    let res = client.try_accept_invitation(&invitee, &invitation_id);
-    assert!(res.is_err());
-}
+        BaseContract::record_user_activity(env.clone(), user.clone(), true);
 
-#[test]
-fn test_get_room_invitations() {
-    let env = Env::default();
-    env.mock_all_auths();
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_users, 1);
+        assert_eq!(analytics.active_users_daily, 1);
+    }
 
-    let admin = Address::generate(&env);
-    let creator = Address::generate(&env);
-    let invitee1 = Address::generate(&env);
-    let invitee2 = Address::generate(&env);
+    #[test]
+    fn test_message_volume_tracking() {
+        let env = Env::default();
+        let room = Symbol::new(&env, "general");
 
-    let contract_id = env.register_contract(None, BaseContract);
-    let client = BaseContractClient::new(&env, &contract_id);
+        BaseContract::record_message(env.clone(), room.clone());
 
-    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_messages, 1);
+    }
 
-    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
+    #[test]
+    fn test_tip_revenue_tracking() {
+        let env = Env::default();
+        BaseContract::record_tip(env.clone(), 100, 2);
 
-    env.ledger().with_mut(|li| li.timestamp = 1000);
-    client.create_invitation(&creator, &room_id, &invitee1, &2000, &None);
-    client.create_invitation(&creator, &room_id, &invitee2, &2000, &None);
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_tips, 1);
+        assert_eq!(analytics.total_tip_revenue, 2);
+    }
 
-    let invitations = client.get_room_invitations(&room_id);
-    assert_eq!(invitations.len(), 2);
-}
+    #[test]
+    fn test_room_fee_tracking() {
+        let env = Env::default();
+        BaseContract::record_room_fee(env.clone(), 50);
 
-#[test]
-fn test_invitation_status() {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let admin = Address::generate(&env);
-    let creator = Address::generate(&env);
-    let invitee = Address::generate(&env);
-
-    let contract_id = env.register_contract(None, BaseContract);
-    let client = BaseContractClient::new(&env, &contract_id);
-
-    client.init(&admin, &Symbol::new(&env, "Test"), &1);
-
-    let room_id = client.create_room(&creator, &RoomType::InviteOnly);
-
-    env.ledger().with_mut(|li| li.timestamp = 1000);
-    let invitation_id = client.create_invitation(&creator, &room_id, &invitee, &2000, &None);
-
-    // Should be pending
-    let status = client.get_invitation_status(&invitation_id);
-    assert_eq!(status, InvitationStatus::Pending);
-
-    // Accept
-    client.accept_invitation(&invitee, &invitation_id);
-    let status = client.get_invitation_status(&invitation_id);
-    assert_eq!(status, InvitationStatus::Accepted);
-}
-
+        let analytics = BaseContract::get_dashboard(env.clone());
+        assert_eq!(analytics.total_room_fees, 50);
+    }

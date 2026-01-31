@@ -1,4 +1,16 @@
-import { IsString, IsNotEmpty, MinLength, MaxLength, IsEnum, IsOptional, IsUrl } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  MaxLength,
+  IsEnum,
+  IsOptional,
+  IsUrl,
+  IsUUID,
+  IsNumber,
+  Min,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { MessageType } from '../enums/message-type.enum';
 
 export class CreateMessageDto {
@@ -27,4 +39,14 @@ export class CreateMessageDto {
   @IsString()
   @IsOptional()
   fileName?: string;
+
+  @IsUUID()
+  @IsOptional()
+  tipRecipientId?: string;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  tipAmount?: number;
 }

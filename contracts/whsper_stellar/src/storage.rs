@@ -36,3 +36,31 @@ pub enum DataKey {
     UserInvitations(Address),
     RoomInvitations(u64),
 }
+
+#[contracttype]
+pub struct Tip {
+    pub id: u64,
+    pub sender: Address,
+    pub receiver: Address,
+    pub amount: i128,
+    pub fee: i128,
+    pub message_id: u64,
+    pub timestamp: u64,
+    pub TipById:u64,
+    pub TipCount: u64,
+    pub TipsSentByUser: Address,
+    pub TipsReceivedByUser: Address,
+    pub TotalTippedByUser: Address,
+    pub TopTippers: Vec<Address>,
+    pub TransactionById: u64,
+    pub TransactionCount: u64,
+    pub TransactionsByUser: Address,
+    pub TransactionsByType: Symbol,
+    pub TransactionsByStatus: Symbol,
+    pub AnalyticsDashboard : u64,
+    pub UserActivity : Address,
+    pub MessageVolume : Symbol, // room ID or global
+    pub TipRevenue : Symbol,    // optional per room
+    pub Custom : String, 
+}
+

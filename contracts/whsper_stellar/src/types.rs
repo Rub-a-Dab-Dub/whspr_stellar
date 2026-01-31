@@ -180,26 +180,29 @@ pub struct PaidRoomMember {
     pub has_access: bool,
     pub joined_at: u64,
 }
-
-#[derive(Clone)]
 #[contracttype]
-pub struct Invitation {
+pub struct Transaction {
     pub id: u64,
-    pub room_id: u64,
-    pub inviter: Address,
-    pub invitee: Address,
-    pub created_at: u64,
-    pub expires_at: u64,
-    pub max_uses: Option<u32>,
-    pub use_count: u32,
-    pub is_revoked: bool,
+    pub tx_hash: BytesN<32>,
+    pub tx_type: Symbol,     // e.g., "tip", "message", "transfer"
+    pub status: Symbol,      // e.g., "pending", "success", "failed"
+    pub sender: Address,
+    pub receiver: Option<Address>,
+    pub amount: Option<i128>,
+    pub timestamp: u64,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
-pub enum InvitationStatus {
-    Pending = 0,
-    Accepted = 1,
-    Expired = 2,
-    Revoked = 3,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Analytics {
+    pub total_users: u64,
+    pub active_users_daily: u64,
+    pub active_users_weekly: u64,
+    pub active_users_monthly: u64,
+    pub total_messages: u64,
+    pub total_tips: u64,
+    pub total_tip_revenue: u64,
+    pub total_room_fees: u64,
+    pub retention_rate: u32, // as percentage
+    pub churn_rate: u32,     // as percentage
 }

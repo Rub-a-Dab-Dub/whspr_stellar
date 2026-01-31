@@ -10,6 +10,7 @@ import { PaymentStatusDto } from '../dto/payment-status.dto';
 import { RefundPaymentDto } from '../dto/refund-payment.dto';
 import { WithdrawFundsDto } from '../dto/withdraw-funds.dto';
 import { SupportedChain } from '../../chain/enums/supported-chain.enum';
+import { UserStatsService } from '../../users/services/user-stats.service';
 
 @Injectable()
 export class RoomPaymentService {
@@ -23,6 +24,7 @@ export class RoomPaymentService {
     @InjectRepository(Room)
     private roomRepository: Repository<Room>,
     private paymentVerificationService: PaymentVerificationService,
+    private userStatsService: UserStatsService,
   ) {}
 
   async payRoomEntry(
@@ -95,6 +97,12 @@ export class RoomPaymentService {
     });
 
     const savedPayment = await this.paymentRepository.save(payment);
+
+    const amount = Number.parseFloat(savedPayment.amount) || 0;
+    await this.userStatsService.recordTokensTransferred(userId, amount, true);
+    if (room.creator?.id && room.creator.id !== userId) {
+      await this.userStatsService.recordTokensTransferred(room.creator.id, amount, false);
+    }
 
     // Grant access
     await this.grantAccess(userId, roomId, savedPayment.id, savedPayment.accessExpiresAt);
