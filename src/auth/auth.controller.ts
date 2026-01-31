@@ -8,7 +8,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 // import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -69,17 +71,18 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto, @Req() req: Request) {
     return await this.authService.resetPassword(
       resetPasswordDto.token || '',
       resetPasswordDto.newPassword || '',
+      req,
     );
   }
 
   @Public()
   @Get('verify-email')
-  async verifyEmail(@Query('token') token: string) {
-    return await this.authService.verifyEmail(token);
+  async verifyEmail(@Query('token') token: string, @Req() req: Request) {
+    return await this.authService.verifyEmail(token, req);
   }
 
   @UseGuards(JwtAuthGuard)

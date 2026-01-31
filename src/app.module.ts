@@ -32,7 +32,9 @@ import { ChainModule } from './chain/chain.module';
 import { TransferModule } from './transfer/transfer.module';
 import { RoomModule } from './room/room.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SystemConfigModule } from './system-config/system-config.module';
 import { QueueModule } from './queue/queue.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -97,13 +99,15 @@ import { QueueModule } from './queue/queue.module';
     AuthModule,
     UsersModule,
     RolesModule,
-    SessionModule,
+    AdminModule,
+    SessionsModule,
     MessageModule,
     RewardsModule,
     ChainModule,
     TransferModule,
     RoomModule,
     NotificationsModule,
+    SystemConfigModule,
   ],
   controllers: [AppController],
   providers: [

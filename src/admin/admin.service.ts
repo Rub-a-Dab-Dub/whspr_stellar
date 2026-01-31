@@ -3,45 +3,85 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, Like, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { User } from '../user/entities/user.entity';
-import { AuditLog, AuditAction } from './entities/audit-log.entity';
+import {
+  AuditLog,
+  AuditAction,
+  AuditEventType,
+  AuditOutcome,
+  AuditSeverity,
+} from './entities/audit-log.entity';
 import { GetUsersDto, UserFilterStatus } from './dto/get-users.dto';
 import { BanUserDto } from './dto/ban-user.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { BulkActionDto, BulkActionType } from './dto/bulk-action.dto';
 import { Request } from 'express';
+import { AuditLogService, AuditLogFilters } from './services/audit-log.service';
+import { DataAccessAction } from './entities/data-access-log.entity';
+import { Transfer } from '../transfer/entities/transfer.entity';
+import { Session } from '../sessions/entities/session.entity';
+import { Message } from '../message/entities/message.entity';
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(AuditLog)
     private readonly auditLogRepository: Repository<AuditLog>,
+    @InjectRepository(Transfer)
+    private readonly transferRepository: Repository<Transfer>,
+    @InjectRepository(Session)
+    private readonly sessionRepository: Repository<Session>,
+    @InjectRepository(Message)
+    private readonly messageRepository: Repository<Message>,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   private async logAudit(
-    adminId: string,
+    actorUserId: string | null,
     action: AuditAction,
     targetUserId: string | null,
     details: string | null = null,
     metadata: Record<string, any> | null = null,
     req?: Request,
+    severity: AuditSeverity | null = AuditSeverity.MEDIUM,
+    resourceType?: string | null,
+    resourceId?: string | null,
   ): Promise<AuditLog> {
-    const auditLog = this.auditLogRepository.create({
-      adminId,
-      action,
+    const resolvedResourceType =
+      resourceType ?? (targetUserId ? 'user' : 'admin');
+    const resolvedResourceId = resourceId ?? targetUserId;
+
+    return await this.auditLogService.createAuditLog({
+      actorUserId,
       targetUserId,
+      action,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity,
       details,
       metadata,
-      ipAddress: req?.ip || req?.socket.remoteAddress || null,
-      userAgent: req?.headers['user-agent'] || null,
+      resourceType: resolvedResourceType,
+      resourceId: resolvedResourceId,
+      req,
     });
+  }
 
-    return await this.auditLogRepository.save(auditLog);
+  private async safeLogDataAccess(
+    input: Parameters<AuditLogService['logDataAccess']>[0],
+  ) {
+    try {
+      await this.auditLogService.logDataAccess(input);
+    } catch (error) {
+      this.logger.warn(`Failed to log data access: ${error.message}`);
+    }
   }
 
   async getUsers(
@@ -134,6 +174,15 @@ export class AdminService {
       req,
     );
 
+    await this.safeLogDataAccess({
+      actorUserId: adminId,
+      action: DataAccessAction.VIEW,
+      resourceType: 'user_list',
+      details: 'Viewed user list',
+      metadata: { filters: query, count: users.length },
+      req,
+    });
+
     return {
       users,
       total,
@@ -160,6 +209,17 @@ export class AdminService {
       null,
       req,
     );
+
+    await this.safeLogDataAccess({
+      actorUserId: adminId,
+      targetUserId: userId,
+      action: DataAccessAction.VIEW,
+      resourceType: 'user',
+      resourceId: userId,
+      details: 'Viewed user details',
+      metadata: { email: user.email },
+      req,
+    });
 
     return user;
   }
@@ -502,6 +562,9 @@ export class AdminService {
       }
     }
 
+    const bulkSeverity =
+      userIds.length >= 25 ? AuditSeverity.HIGH : AuditSeverity.MEDIUM;
+
     await this.logAudit(
       adminId,
       AuditAction.BULK_ACTION,
@@ -510,17 +573,22 @@ export class AdminService {
       {
         action,
         userIds,
+        count: userIds.length,
         success,
         failed,
         reason,
       },
       req,
+      bulkSeverity,
     );
 
     return { success, failed, errors };
   }
 
-  async getUserStatistics(): Promise<{
+  async getUserStatistics(
+    adminId: string,
+    req?: Request,
+  ): Promise<{
     total: number;
     active: number;
     banned: number;
@@ -568,6 +636,16 @@ export class AdminService {
       }
     });
 
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      'Viewed user statistics',
+      null,
+      req,
+      AuditSeverity.LOW,
+    );
+
     return {
       total,
       active,
@@ -580,7 +658,11 @@ export class AdminService {
     };
   }
 
-  async getUserActivity(userId: string): Promise<{
+  async getUserActivity(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{
     user: User;
     recentLogins: number;
     lastActive: Date | null;
@@ -600,8 +682,18 @@ export class AdminService {
       where: { targetUserId: userId },
       order: { createdAt: 'DESC' },
       take: 50,
-      relations: ['admin'],
+      relations: ['actorUser'],
     });
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      userId,
+      'Viewed user activity',
+      null,
+      req,
+      AuditSeverity.LOW,
+    );
 
     // This would need to be implemented based on your session/login tracking
     // For now, returning placeholder values
@@ -614,36 +706,126 @@ export class AdminService {
   }
 
   async getAuditLogs(
-    page: number = 1,
-    limit: number = 50,
-    adminId?: string,
-    targetUserId?: string,
+    filters: AuditLogFilters,
+    adminId: string,
+    req?: Request,
   ): Promise<{ logs: AuditLog[]; total: number; page: number; limit: number }> {
-    const skip = (page - 1) * limit;
-    const queryBuilder = this.auditLogRepository.createQueryBuilder('log');
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      action: AuditAction.AUDIT_LOG_VIEWED,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.LOW,
+      details: 'Viewed audit logs',
+      metadata: { filters },
+      req,
+    });
 
-    if (adminId) {
-      queryBuilder.andWhere('log.adminId = :adminId', { adminId });
+    return await this.auditLogService.searchAuditLogs(filters);
+  }
+
+  async exportAuditLogs(
+    filters: AuditLogFilters,
+    format: 'csv' | 'json',
+    adminId: string,
+    req?: Request,
+  ) {
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      action: AuditAction.AUDIT_LOG_EXPORTED,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.MEDIUM,
+      details: 'Exported audit logs',
+      metadata: { filters, format },
+      req,
+    });
+
+    await this.safeLogDataAccess({
+      actorUserId: adminId,
+      action: DataAccessAction.EXPORT,
+      resourceType: 'audit_logs',
+      details: 'Exported audit logs',
+      metadata: { filters, format },
+      req,
+    });
+
+    return await this.auditLogService.exportAuditLogs(filters, format);
+  }
+
+  async exportUserData(userId: string, adminId: string, req?: Request) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roles', 'roles.permissions'],
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    if (targetUserId) {
-      queryBuilder.andWhere('log.targetUserId = :targetUserId', { targetUserId });
-    }
+    const [sessions, transfersSent, transfersReceived, messages] = await Promise.all([
+      this.sessionRepository.find({ where: { userId } }),
+      this.transferRepository.find({ where: { senderId: userId } }),
+      this.transferRepository.find({ where: { recipientId: userId } }),
+      this.messageRepository.find({ where: { authorId: userId } }),
+    ]);
 
-    queryBuilder
-      .leftJoinAndSelect('log.admin', 'admin')
-      .leftJoinAndSelect('log.targetUser', 'targetUser')
-      .orderBy('log.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit);
+    const auditLogs = await this.auditLogRepository.find({
+      where: [{ actorUserId: userId }, { targetUserId: userId }],
+      order: { createdAt: 'DESC' },
+      take: 500,
+    });
 
-    const [logs, total] = await queryBuilder.getManyAndCount();
+    const dataAccessLogs = await this.auditLogService.getDataAccessLogsForUser(userId);
+
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      action: AuditAction.DATA_EXPORT,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.HIGH,
+      targetUserId: userId,
+      details: 'GDPR data export',
+      metadata: { userId },
+      req,
+    });
+
+    await this.safeLogDataAccess({
+      actorUserId: adminId,
+      targetUserId: userId,
+      action: DataAccessAction.EXPORT,
+      resourceType: 'user_data_export',
+      resourceId: userId,
+      details: 'GDPR data export',
+      req,
+    });
 
     return {
-      logs,
-      total,
-      page,
-      limit,
+      user,
+      sessions,
+      transfersSent,
+      transfersReceived,
+      messages,
+      auditLogs,
+      dataAccessLogs,
+      exportedAt: new Date().toISOString(),
     };
+  }
+
+  async logImpersonationStart(
+    adminId: string,
+    targetUserId: string,
+    req?: Request,
+  ): Promise<void> {
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      targetUserId,
+      action: AuditAction.IMPERSONATION_STARTED,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.HIGH,
+      details: 'Impersonation started',
+      req,
+    });
   }
 }
