@@ -16,6 +16,7 @@ import { MessageResponseDto } from './dto/message-response.dto';
 import { MessageEditHistoryDto } from './dto/message-edit-history.dto';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageType } from './enums/message-type.enum';
+import { UserStatsService } from '../users/services/user-stats.service';
 import { NotificationService } from '../notifications/services/notification.service';
 
 @Injectable()
@@ -30,6 +31,7 @@ export class MessageService {
     @InjectRepository(MessageEditHistory)
     private readonly editHistoryRepository: Repository<MessageEditHistory>,
     private readonly profanityFilterService: ProfanityFilterService,
+    private readonly userStatsService: UserStatsService,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
   ) {}
@@ -78,6 +80,11 @@ export class MessageService {
 
     const savedMessage = await this.messageRepository.save(message);
 
+    await this.userStatsService.recordMessageSent(userId, {
+      isTip: savedMessage.type === MessageType.TIP,
+      tipRecipientId: createMessageDto.tipRecipientId,
+      tipAmount: createMessageDto.tipAmount,
+    });
     // Create notifications for mentions and room members
     try {
       await this.notificationService.createMessageNotification(
