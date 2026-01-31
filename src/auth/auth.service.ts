@@ -10,6 +10,14 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { SessionService } from 'src/sessions/services/sessions.service';
 import { StreakService } from '../users/services/streak.service';
 import { UsersService as ProfileUsersService } from '../users/users.service';
+import { AuditLogService } from '../admin/services/audit-log.service';
+import {
+  AuditAction,
+  AuditEventType,
+  AuditOutcome,
+  AuditSeverity,
+} from '../admin/entities/audit-log.entity';
+import { Request } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -24,6 +32,7 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly streakService: StreakService,
     private readonly profileUsersService: ProfileUsersService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async register(email: string, password: string) {
@@ -46,10 +55,21 @@ export class AuthService {
     };
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, req?: Request) {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
+      await this.safeAuditLog({
+        actorUserId: null,
+        targetUserId: null,
+        action: AuditAction.AUTH_LOGIN_FAILED,
+        eventType: AuditEventType.AUTH,
+        outcome: AuditOutcome.FAILURE,
+        severity: AuditSeverity.MEDIUM,
+        details: 'Login failed: user not found',
+        metadata: { email },
+        req,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -57,6 +77,17 @@ export class AuthService {
       const lockoutRemaining = Math.ceil(
         (user.lockoutUntil.getTime() - Date.now()) / 1000 / 60,
       );
+      await this.safeAuditLog({
+        actorUserId: user.id || null,
+        targetUserId: user.id || null,
+        action: AuditAction.AUTH_LOGIN_FAILED,
+        eventType: AuditEventType.AUTH,
+        outcome: AuditOutcome.FAILURE,
+        severity: AuditSeverity.MEDIUM,
+        details: 'Login failed: account locked',
+        metadata: { email },
+        req,
+      });
       throw new UnauthorizedException(
         `Account is locked. Try again in ${lockoutRemaining} minutes.`,
       );
@@ -66,6 +97,17 @@ export class AuthService {
 
     if (!isPasswordValid) {
       await this.usersService.incrementLoginAttempts(user.id || '');
+      await this.safeAuditLog({
+        actorUserId: user.id || null,
+        targetUserId: user.id || null,
+        action: AuditAction.AUTH_LOGIN_FAILED,
+        eventType: AuditEventType.AUTH,
+        outcome: AuditOutcome.FAILURE,
+        severity: AuditSeverity.MEDIUM,
+        details: 'Login failed: invalid password',
+        metadata: { email },
+        req,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -93,6 +135,18 @@ export class AuthService {
       // Log but don't fail login if streak tracking fails
       this.logger.warn(`Failed to track streak for user ${user.email}: ${error.message}`);
     }
+
+    await this.safeAuditLog({
+      actorUserId: user.id || null,
+      targetUserId: user.id || null,
+      action: AuditAction.AUTH_LOGIN_SUCCESS,
+      eventType: AuditEventType.AUTH,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.LOW,
+      details: 'Login successful',
+      metadata: { email },
+      req,
+    });
 
     return {
       accessToken: tokens.accessToken,
@@ -142,7 +196,12 @@ export class AuthService {
     }
   }
 
-  async logout(userId: string, jti: string, sessionToken: string) {
+  async logout(
+    userId: string,
+    jti: string,
+    sessionToken?: string,
+    req?: Request,
+  ) {
     // Clear refresh token from database
     await this.usersService.updateRefreshToken(userId, null);
 
@@ -152,16 +211,40 @@ export class AuthService {
     );
     await this.redisService.set(`blacklist:${jti}`, 'true', accessExpiration);
 
-    const session = await this.sessionService.validateSession(sessionToken);
-    await this.sessionService.revokeSession(session.id, userId);
+    if (sessionToken) {
+      const session = await this.sessionService.validateSession(sessionToken);
+      await this.sessionService.revokeSession(session.id, userId);
+    }
+
+    await this.safeAuditLog({
+      actorUserId: userId,
+      targetUserId: userId,
+      action: AuditAction.AUTH_LOGOUT,
+      eventType: AuditEventType.AUTH,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.LOW,
+      details: 'Logout successful',
+      req,
+    });
 
     return { message: 'Logout successful' };
   }
 
-  async forgotPassword(email: string) {
+  async forgotPassword(email: string, req?: Request) {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
+      await this.safeAuditLog({
+        actorUserId: null,
+        targetUserId: null,
+        action: AuditAction.AUTH_PASSWORD_RESET_REQUESTED,
+        eventType: AuditEventType.AUTH,
+        outcome: AuditOutcome.FAILURE,
+        severity: AuditSeverity.LOW,
+        details: 'Password reset requested for unknown email',
+        metadata: { email },
+        req,
+      });
       // Don't reveal if user exists
       return { message: 'If the email exists, a reset link has been sent.' };
     }
@@ -171,16 +254,50 @@ export class AuthService {
 
     await this.sendPasswordResetEmail(email, resetToken);
 
+    await this.safeAuditLog({
+      actorUserId: user.id || null,
+      targetUserId: user.id || null,
+      action: AuditAction.AUTH_PASSWORD_RESET_REQUESTED,
+      eventType: AuditEventType.AUTH,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.MEDIUM,
+      details: 'Password reset requested',
+      metadata: { email },
+      req,
+    });
+
     return { message: 'If the email exists, a reset link has been sent.' };
   }
 
-  async resetPassword(token: string, newPassword: string) {
-    await this.usersService.resetPassword(token, newPassword);
+  async resetPassword(token: string, newPassword: string, req?: Request) {
+    const user = await this.usersService.resetPassword(token, newPassword);
+
+    await this.safeAuditLog({
+      actorUserId: user.id || null,
+      targetUserId: user.id || null,
+      action: AuditAction.AUTH_PASSWORD_RESET_COMPLETED,
+      eventType: AuditEventType.AUTH,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.MEDIUM,
+      details: 'Password reset completed',
+      req,
+    });
     return { message: 'Password reset successful' };
   }
 
-  async verifyEmail(token: string) {
-    await this.usersService.verifyEmail(token);
+  async verifyEmail(token: string, req?: Request) {
+    const user = await this.usersService.verifyEmail(token);
+
+    await this.safeAuditLog({
+      actorUserId: user.id || null,
+      targetUserId: user.id || null,
+      action: AuditAction.AUTH_EMAIL_VERIFIED,
+      eventType: AuditEventType.AUTH,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.LOW,
+      details: 'Email verified',
+      req,
+    });
     return { message: 'Email verified successfully' };
   }
 
@@ -235,6 +352,14 @@ export class AuthService {
         <p>This link will expire in 1 hour.</p>
       `,
     });
+  }
+
+  private async safeAuditLog(input: Parameters<AuditLogService['createAuditLog']>[0]) {
+    try {
+      await this.auditLogService.createAuditLog(input);
+    } catch (error) {
+      this.logger.warn(`Failed to write audit log: ${error.message}`);
+    }
   }
 
   private parseTime(timeString: string): number {

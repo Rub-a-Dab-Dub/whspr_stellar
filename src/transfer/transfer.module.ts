@@ -20,6 +20,7 @@ import { ScheduledTransferService } from './services/scheduled-transfer.service'
 import { TransferDisputeService } from './services/transfer-dispute.service';
 import { UsersModule } from '../user/user.module';
 import { QueueModule } from '../queue/queue.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { QueueModule } from '../queue/queue.module';
     ]),
     UsersModule,
     QueueModule,
+    AdminModule,
   ],
   controllers: [TransferController],
   providers: [

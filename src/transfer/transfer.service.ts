@@ -16,6 +16,13 @@ import { TransferBalanceService } from './services/transfer-balance.service';
 import { TransferBlockchainService } from './services/transfer-blockchain.service';
 import { TransferNotificationService } from './services/transfer-notification.service';
 import { UsersService } from '../user/user.service';
+import { AuditLogService } from '../admin/services/audit-log.service';
+import {
+  AuditAction,
+  AuditEventType,
+  AuditOutcome,
+  AuditSeverity,
+} from '../admin/entities/audit-log.entity';
 
 @Injectable()
 export class TransferService {
@@ -32,6 +39,7 @@ export class TransferService {
     private readonly notificationService: TransferNotificationService,
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async createTransfer(
@@ -74,6 +82,24 @@ export class TransferService {
     });
 
     await this.transferRepository.save(transfer);
+
+    await this.safeAuditLog({
+      actorUserId: senderId,
+      targetUserId: recipientId,
+      action: AuditAction.TRANSFER_CREATED,
+      eventType: AuditEventType.TRANSACTION,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.MEDIUM,
+      resourceType: 'transfer',
+      resourceId: transfer.id,
+      details: 'Transfer created',
+      metadata: {
+        amount: transfer.amount,
+        memo,
+        note,
+        blockchainNetwork,
+      },
+    });
 
     // Execute blockchain transfer asynchronously
     this.executeTransferAsync(transfer.id);
@@ -132,6 +158,23 @@ export class TransferService {
 
         await this.transferRepository.save(transfer);
 
+        await this.safeAuditLog({
+          actorUserId: transfer.senderId,
+          targetUserId: transfer.recipientId,
+          action: AuditAction.TRANSFER_COMPLETED,
+          eventType: AuditEventType.TRANSACTION,
+          outcome: AuditOutcome.SUCCESS,
+          severity: AuditSeverity.MEDIUM,
+          resourceType: 'transfer',
+          resourceId: transfer.id,
+          details: 'Transfer completed',
+          metadata: {
+            transactionHash: transfer.transactionHash,
+            amount: transfer.amount,
+            blockchainNetwork: transfer.blockchainNetwork,
+          },
+        });
+
         // Send notifications
         await this.notificationService.notifyTransferSent(transfer, transfer.recipient.email);
         await this.notificationService.notifyTransferReceived(transfer, transfer.sender.email);
@@ -161,7 +204,33 @@ export class TransferService {
     transfer.retryCount += 1;
 
     await this.transferRepository.save(transfer);
+    await this.safeAuditLog({
+      actorUserId: transfer.senderId,
+      targetUserId: transfer.recipientId,
+      action: AuditAction.TRANSFER_FAILED,
+      eventType: AuditEventType.TRANSACTION,
+      outcome: AuditOutcome.FAILURE,
+      severity: AuditSeverity.HIGH,
+      resourceType: 'transfer',
+      resourceId: transfer.id,
+      details: 'Transfer failed',
+      metadata: {
+        reason,
+        amount: transfer.amount,
+        blockchainNetwork: transfer.blockchainNetwork,
+      },
+    });
     await this.notificationService.notifyTransferFailed(transfer, reason);
+  }
+
+  private async safeAuditLog(
+    input: Parameters<AuditLogService['createAuditLog']>[0],
+  ) {
+    try {
+      await this.auditLogService.createAuditLog(input);
+    } catch (error) {
+      this.logger.warn(`Failed to write transfer audit log: ${error.message}`);
+    }
   }
 
   async createBulkTransfer(
