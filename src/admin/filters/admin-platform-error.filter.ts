@@ -7,12 +7,28 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { Request } from 'express';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ADMIN_STREAM_EVENTS } from '../gateways/admin-event-stream.gateway';
 
 /**
  * Emits platform.error to admin event stream for critical server errors (5xx).
+ * Does not replace default exception handling - use as a supplementary filter
+ * or call eventEmitter.emit(ADMIN_STREAM_EVENTS.PLATFORM_ERROR, ...) from services.
  */
+export function emitPlatformError(
+  eventEmitter: EventEmitter2,
+  error: Error | string,
+  context?: string,
+): void {
+  const message = typeof error === 'string' ? error : error.message;
+  eventEmitter.emit(ADMIN_STREAM_EVENTS.PLATFORM_ERROR, {
+    type: 'platform.error',
+    timestamp: new Date().toISOString(),
+    entity: { message, context },
+  });
+}
+
 @Catch()
 export class AdminPlatformErrorFilter implements ExceptionFilter {
   private readonly logger = new Logger(AdminPlatformErrorFilter.name);
@@ -22,7 +38,7 @@ export class AdminPlatformErrorFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest();
+    const request = ctx.getRequest<Request>();
 
     const status =
       exception instanceof HttpException
@@ -37,15 +53,11 @@ export class AdminPlatformErrorFilter implements ExceptionFilter {
           : 'Unknown error';
 
     if (status >= 500) {
-      this.eventEmitter.emit(ADMIN_STREAM_EVENTS.PLATFORM_ERROR, {
-        type: 'platform.error',
-        timestamp: new Date().toISOString(),
-        entity: {
-          message,
-          code: String(status),
-          context: `${request.method} ${request.url}`,
-        },
-      });
+      emitPlatformError(
+        this.eventEmitter,
+        message,
+        `${request.method} ${request.url}`,
+      );
       this.logger.error(`Platform error: ${message}`);
     }
 
