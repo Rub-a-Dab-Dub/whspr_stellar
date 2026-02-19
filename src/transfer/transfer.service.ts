@@ -181,8 +181,8 @@ export class TransferService {
         });
 
         // Send notifications
-        await this.notificationService.notifyTransferSent(transfer, transfer.sender.email);
-        await this.notificationService.notifyTransferReceived(transfer, transfer.recipient.email);
+        await this.notificationService.notifyTransferSent(transfer, transfer.recipient.email);
+        await this.notificationService.notifyTransferReceived(transfer, transfer.sender.email);
 
         // Emit large transaction event if above threshold
         const threshold = this.configService.get<number>('ADMIN_LARGE_TRANSACTION_THRESHOLD', 10000);
