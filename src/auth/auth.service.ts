@@ -17,6 +17,8 @@ import {
   AuditOutcome,
   AuditSeverity,
 } from '../admin/entities/audit-log.entity';
+import { ADMIN_STREAM_EVENTS } from '../admin/gateways/admin-event-stream.gateway';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Request } from 'express';
 
 @Injectable()

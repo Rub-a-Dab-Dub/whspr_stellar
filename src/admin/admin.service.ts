@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository, In } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import {
@@ -23,6 +24,7 @@ import { Request } from 'express';
 import { AuditLogService, AuditLogFilters } from './services/audit-log.service';
 import { DataAccessAction } from './entities/data-access-log.entity';
 import { Transfer } from '../transfer/entities/transfer.entity';
+import { ADMIN_STREAM_EVENTS } from './gateways/admin-event-stream.gateway';
 import { Session } from '../sessions/entities/session.entity';
 import { Message } from '../message/entities/message.entity';
 
@@ -42,6 +44,7 @@ export class AdminService {
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
     private readonly auditLogService: AuditLogService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async logAudit(
@@ -269,6 +272,17 @@ export class AdminService {
       { reason: banDto.reason },
       req,
     );
+
+    this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_BANNED, {
+      type: 'user.banned',
+      timestamp: new Date().toISOString(),
+      entity: {
+        userId: user.id,
+        email: user.email,
+        bannedBy: adminId,
+        reason: banDto.reason ?? undefined,
+      },
+    });
 
     return savedUser;
   }
