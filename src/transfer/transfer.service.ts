@@ -23,6 +23,9 @@ import {
   AuditOutcome,
   AuditSeverity,
 } from '../admin/entities/audit-log.entity';
+import { ADMIN_STREAM_EVENTS } from '../admin/gateways/admin-event-stream.gateway';
+import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class TransferService {
