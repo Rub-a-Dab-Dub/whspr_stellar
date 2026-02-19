@@ -35,6 +35,9 @@ pub enum DataKey {
     Invitation(u64),
     UserInvitations(Address),
     RoomInvitations(u64),
+    Claim(u64),
+    ClaimsByCreator(Address),
+    NextClaimId,
 }
 
 #[contracttype]

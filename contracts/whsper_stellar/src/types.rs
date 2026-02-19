@@ -88,6 +88,10 @@ pub enum ContractError {
     InvitationRevoked = 23,
     InvitationMaxUsesReached = 24,
     NotInviter = 25,
+    ClaimNotFound = 26,
+    ClaimAlreadyClaimed = 27,
+    NotClaimCreator = 28,
+    ClaimAlreadyCancelled = 29,
 }
 
 #[derive(Clone)]
@@ -206,3 +210,26 @@ pub struct Analytics {
     pub retention_rate: u32, // as percentage
     pub churn_rate: u32,     // as percentage
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum ClaimStatus {
+    Pending = 0,
+    Claimed = 1,
+    Cancelled = 2,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct Claim {
+    pub id: u64,
+    pub creator: Address,
+    pub token: Address,
+    pub amount: i128,
+    pub status: ClaimStatus,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub claimed_by: Option<Address>,
+    pub claimed_at: Option<u64>,
+}
+

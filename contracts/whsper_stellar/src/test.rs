@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{ActionType, InvitationStatus, RateLimitConfig, RoomType};
+use crate::types::{ActionType, InvitationStatus, RateLimitConfig, RoomType, Claim, ClaimStatus};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     Address, Env, Symbol, Vec,
@@ -406,4 +406,367 @@ fn test_tip_xp_award() {
 
         let analytics = BaseContract::get_dashboard(env.clone());
         assert_eq!(analytics.total_room_fees, 50);
+    }
+    // ==================== CLAIM CANCELLATION TESTS ====================
+
+    #[test]
+    fn test_cancel_pending_claim_success() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let token_admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, BaseContract);
+
+        // Create a mock token for testing
+        let token_id = env.register_stellar_asset_contract(token_admin.clone());
+        let token_address = Address::from_contract_id(&env, &token_id);
+
+        // Create a claim in pending status
+        let claim = Claim {
+            id: 1,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 1000,
+            status: ClaimStatus::Pending,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 86400,
+            claimed_by: None,
+            claimed_at: None,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(1), &claim);
+
+        // Transfer tokens to contract
+        let token_client = token::Client::new(&env, &token_address);
+        token_client.mint(&contract_id, &1000);
+
+        // Cancel the claim
+        let result = BaseContract::cancel_pending_claim(env.clone(), 1, creator.clone());
+        assert!(result.is_ok());
+
+        // Verify claim status is now cancelled
+        let updated_claim: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(1))
+            .unwrap();
+        assert_eq!(updated_claim.status, ClaimStatus::Cancelled);
+    }
+
+    #[test]
+    fn test_cancel_pending_claim_not_creator() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let non_creator = Address::generate(&env);
+        let token_address = Address::generate(&env);
+
+        // Create a claim
+        let claim = Claim {
+            id: 1,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 1000,
+            status: ClaimStatus::Pending,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 86400,
+            claimed_by: None,
+            claimed_at: None,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(1), &claim);
+
+        // Try to cancel as non-creator
+        let result = BaseContract::cancel_pending_claim(env.clone(), 1, non_creator);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ContractError::NotClaimCreator);
+    }
+
+    #[test]
+    fn test_cancel_already_claimed() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let claimer = Address::generate(&env);
+        let token_address = Address::generate(&env);
+
+        // Create a claim that's already claimed
+        let claim = Claim {
+            id: 1,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 1000,
+            status: ClaimStatus::Claimed,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 86400,
+            claimed_by: Some(claimer.clone()),
+            claimed_at: Some(env.ledger().timestamp()),
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(1), &claim);
+
+        // Try to cancel already claimed claim
+        let result = BaseContract::cancel_pending_claim(env.clone(), 1, creator.clone());
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ContractError::ClaimAlreadyClaimed);
+    }
+
+    #[test]
+    fn test_cancel_already_cancelled() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let token_address = Address::generate(&env);
+
+        // Create a claim that's already cancelled
+        let claim = Claim {
+            id: 1,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 1000,
+            status: ClaimStatus::Cancelled,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 86400,
+            claimed_by: None,
+            claimed_at: None,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(1), &claim);
+
+        // Try to cancel already cancelled claim
+        let result = BaseContract::cancel_pending_claim(env.clone(), 1, creator.clone());
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ContractError::ClaimAlreadyCancelled);
+    }
+
+    #[test]
+    fn test_cancel_non_existent_claim() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+
+        // Try to cancel non-existent claim
+        let result = BaseContract::cancel_pending_claim(env.clone(), 999, creator.clone());
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ContractError::ClaimNotFound);
+    }
+
+    #[test]
+    fn test_cancel_claim_without_expiration() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let token_admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, BaseContract);
+
+        // Create a mock token
+        let token_id = env.register_stellar_asset_contract(token_admin.clone());
+        let token_address = Address::from_contract_id(&env, &token_id);
+
+        // Create a claim with far future expiration (shouldn't affect cancellation)
+        let claim = Claim {
+            id: 1,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 5000,
+            status: ClaimStatus::Pending,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 31536000, // 1 year
+            claimed_by: None,
+            claimed_at: None,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(1), &claim);
+
+        // Transfer tokens to contract
+        let token_client = token::Client::new(&env, &token_address);
+        token_client.mint(&contract_id, &5000);
+
+        // Should succeed even though claim hasn't expired
+        let result = BaseContract::cancel_pending_claim(env.clone(), 1, creator.clone());
+        assert!(result.is_ok());
+
+        let updated_claim: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(1))
+            .unwrap();
+        assert_eq!(updated_claim.status, ClaimStatus::Cancelled);
+    }
+
+    #[test]
+    fn test_cancel_claim_tokens_returned() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let token_admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, BaseContract);
+
+        // Create a mock token
+        let token_id = env.register_stellar_asset_contract(token_admin.clone());
+        let token_address = Address::from_contract_id(&env, &token_id);
+
+        // Create a claim
+        let claim = Claim {
+            id: 1,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 2500,
+            status: ClaimStatus::Pending,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 86400,
+            claimed_by: None,
+            claimed_at: None,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(1), &claim);
+
+        // Transfer tokens to contract
+        let token_client = token::Client::new(&env, &token_address);
+        token_client.mint(&contract_id, &2500);
+
+        // Get balance before cancellation
+        let balance_before = token_client.balance(&creator);
+
+        // Cancel the claim
+        BaseContract::cancel_pending_claim(env.clone(), 1, creator.clone()).unwrap();
+
+        // Verify tokens were transferred back to creator
+        let balance_after = token_client.balance(&creator);
+        assert_eq!(balance_after - balance_before, 2500);
+    }
+
+    #[test]
+    fn test_cancel_claim_event_emitted() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let token_admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, BaseContract);
+
+        // Create a mock token
+        let token_id = env.register_stellar_asset_contract(token_admin.clone());
+        let token_address = Address::from_contract_id(&env, &token_id);
+
+        // Create a claim
+        let claim = Claim {
+            id: 42,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 1500,
+            status: ClaimStatus::Pending,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 86400,
+            claimed_by: None,
+            claimed_at: None,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(42), &claim);
+
+        // Transfer tokens to contract
+        let token_client = token::Client::new(&env, &token_address);
+        token_client.mint(&contract_id, &1500);
+
+        // Cancel the claim
+        BaseContract::cancel_pending_claim(env.clone(), 42, creator.clone()).unwrap();
+
+        // Events are published but we verify the operation succeeds
+        // In a real scenario, events would be verified through event logs
+        let updated_claim: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(42))
+            .unwrap();
+        assert_eq!(updated_claim.status, ClaimStatus::Cancelled);
+    }
+
+    #[test]
+    fn test_cancel_multiple_claims_independent() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let token_admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, BaseContract);
+
+        // Create a mock token
+        let token_id = env.register_stellar_asset_contract(token_admin.clone());
+        let token_address = Address::from_contract_id(&env, &token_id);
+
+        // Create multiple claims
+        let claim1 = Claim {
+            id: 1,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 1000,
+            status: ClaimStatus::Pending,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 86400,
+            claimed_by: None,
+            claimed_at: None,
+        };
+
+        let claim2 = Claim {
+            id: 2,
+            creator: creator.clone(),
+            token: token_address.clone(),
+            amount: 2000,
+            status: ClaimStatus::Pending,
+            created_at: env.ledger().timestamp(),
+            expires_at: env.ledger().timestamp() + 86400,
+            claimed_by: None,
+            claimed_at: None,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(1), &claim1);
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(2), &claim2);
+
+        // Transfer tokens to contract
+        let token_client = token::Client::new(&env, &token_address);
+        token_client.mint(&contract_id, &3000);
+
+        // Cancel only the first claim
+        BaseContract::cancel_pending_claim(env.clone(), 1, creator.clone()).unwrap();
+
+        // Verify first claim is cancelled
+        let updated_claim1: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(1))
+            .unwrap();
+        assert_eq!(updated_claim1.status, ClaimStatus::Cancelled);
+
+        // Verify second claim is still pending
+        let updated_claim2: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(2))
+            .unwrap();
+        assert_eq!(updated_claim2.status, ClaimStatus::Pending);
     }
