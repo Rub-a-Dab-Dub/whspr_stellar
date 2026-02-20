@@ -6,6 +6,7 @@ import { QueueModule } from '../queue/queue.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ChainModule } from '../chain/chain.module';
 import { UsersModule } from '../users/users.module';
+import { AdminModule } from '../admin/admin.module';
 
 // Entities
 import { Room } from './entities/room.entity';
@@ -75,6 +76,7 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     QueueModule,
     ScheduleModule.forRoot(),
     UsersModule,
+    AdminModule,
   ],
   controllers: [
     RoomController,

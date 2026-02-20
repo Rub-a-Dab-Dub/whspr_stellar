@@ -12,6 +12,7 @@ import {
   PREMIUM_XP_MULTIPLIER,
 } from '../constants/xp-actions.constants';
 import { QueueService } from '../../queue/queue.service';
+import { AdminService } from '../../admin/services/admin.service';
 
 @Injectable()
 export class XpService {
@@ -21,6 +22,7 @@ export class XpService {
     @InjectRepository(XpHistory)
     private readonly xpHistoryRepository: Repository<XpHistory>,
     private readonly queueService: QueueService,
+    private readonly adminService: AdminService,
   ) {}
 
   async addXp(
@@ -38,11 +40,16 @@ export class XpService {
       return { user, leveledUp: false, levelsGained: 0 };
     }
 
+    const globalXpMultiplier = await this.adminService.getConfigValue<number>(
+      'xp_multiplier',
+      1.0,
+    );
+
     let baseXp = XP_VALUES[action];
-    const multiplier = user.isPremium
+    const userMultiplier = user.isPremium
       ? user.xpMultiplier || PREMIUM_XP_MULTIPLIER
       : 1.0;
-    const xpToAdd = Math.floor(baseXp * multiplier);
+    const xpToAdd = Math.floor(baseXp * userMultiplier * globalXpMultiplier);
 
     const oldLevel = user.level;
     const oldXp = user.currentXp;

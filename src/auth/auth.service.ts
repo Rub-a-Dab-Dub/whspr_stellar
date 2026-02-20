@@ -1,5 +1,10 @@
 // src/auth/auth.service.ts
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../user/user.service';
@@ -11,6 +16,7 @@ import { SessionService } from 'src/sessions/services/sessions.service';
 import { StreakService } from '../users/services/streak.service';
 import { UsersService as ProfileUsersService } from '../users/users.service';
 import { AuditLogService } from '../admin/services/audit-log.service';
+import { AdminService } from '../admin/services/admin.service';
 import {
   AuditAction,
   AuditEventType,
@@ -35,10 +41,22 @@ export class AuthService {
     private readonly streakService: StreakService,
     private readonly profileUsersService: ProfileUsersService,
     private readonly auditLogService: AuditLogService,
+    private readonly adminService: AdminService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async register(email: string, password: string) {
+    const isRegistrationEnabled = await this.adminService.getConfigValue<boolean>(
+      'registration_enabled',
+      true,
+    );
+
+    if (!isRegistrationEnabled) {
+      throw new ServiceUnavailableException(
+        'New user registrations are currently disabled.',
+      );
+    }
+
     const user = await this.usersService.create(email, password);
 
     // Generate email verification token
