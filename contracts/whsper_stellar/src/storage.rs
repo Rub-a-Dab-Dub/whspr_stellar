@@ -1,5 +1,5 @@
 use crate::types::{ActionType, Badge};
-use soroban_sdk::{contracttype, Address};
+use soroban_sdk::{contracttype, Address, String, Symbol, Vec};
 
 #[derive(Clone)]
 #[contracttype]
@@ -7,6 +7,7 @@ pub enum DataKey {
     Admin,
     Metadata,
     RateLimitConfig,
+    ClaimWindowConfig,
     UserLastAction(Address, ActionType),
     UserDailyStats(Address),
     UserReputation(Address),
@@ -50,21 +51,5 @@ pub struct Tip {
     pub fee: i128,
     pub message_id: u64,
     pub timestamp: u64,
-    pub TipById:u64,
-    pub TipCount: u64,
-    pub TipsSentByUser: Address,
-    pub TipsReceivedByUser: Address,
-    pub TotalTippedByUser: Address,
-    pub TopTippers: Vec<Address>,
-    pub TransactionById: u64,
-    pub TransactionCount: u64,
-    pub TransactionsByUser: Address,
-    pub TransactionsByType: Symbol,
-    pub TransactionsByStatus: Symbol,
-    pub AnalyticsDashboard : u64,
-    pub UserActivity : Address,
-    pub MessageVolume : Symbol, // room ID or global
-    pub TipRevenue : Symbol,    // optional per room
-    pub Custom : String, 
 }
 

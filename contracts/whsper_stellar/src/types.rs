@@ -247,3 +247,33 @@ pub struct Claim {
     pub claimed_at: Option<u64>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct ClaimWindowConfig {
+    pub claim_validity_ledgers: u64,
+    pub enabled: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct Invitation {
+    pub id: u64,
+    pub room_id: u64,
+    pub inviter: Address,
+    pub invitee: Address,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub max_uses: Option<u32>,
+    pub use_count: u32,
+    pub is_revoked: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum InvitationStatus {
+    Pending = 0,
+    Accepted = 1,
+    Expired = 2,
+    Revoked = 3,
+}
+
