@@ -94,6 +94,12 @@ export class MessageService {
       throw new BadRequestException('Message contains inappropriate content');
     }
 
+    const metadata: Record<string, any> = {};
+    if (createMessageDto.type === MessageType.TIP) {
+      metadata.tipAmount = createMessageDto.tipAmount || 0;
+      metadata.platformFee = (metadata.tipAmount * 0.02).toFixed(8); // 2% platform fee
+    }
+
     const message = this.messageRepository.create({
       conversationId: createMessageDto.conversationId,
       roomId: createMessageDto.roomId,
@@ -104,6 +110,7 @@ export class MessageService {
       fileName: createMessageDto.fileName || null,
       originalContent: null,
       isEdited: false,
+      metadata,
     });
 
     const savedMessage = await this.messageRepository.save(message);
