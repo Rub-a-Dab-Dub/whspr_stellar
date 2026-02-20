@@ -12,7 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
-import { RoleType } from '../../roles/entities/role.entity';
+import { UserRole } from '../../roles/entities/role.entity';
 import type { AdminStreamEventPayload } from '../events/admin-stream.events';
 
 export const ADMIN_STREAM_EVENTS = {
@@ -79,7 +79,7 @@ export class AdminEventStreamGateway
       }
 
       const isAdmin = (user.roles || []).some(
-        (r) => r.name === RoleType.ADMIN || r.name === 'admin',
+        (r) => r.name === UserRole.ADMIN || r.name === 'admin',
       );
 
       if (!isAdmin) {
