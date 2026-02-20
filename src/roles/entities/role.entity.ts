@@ -11,7 +11,8 @@ import {
 import { User } from '../../user/entities/user.entity';
 import { Permission } from './permission.entity';
 
-export enum RoleType {
+export enum UserRole {
+  SUPER_ADMIN = 'super_admin',
   ADMIN = 'admin',
   MODERATOR = 'moderator',
   USER = 'user',
@@ -25,10 +26,10 @@ export class Role {
 
   @Column({
     type: 'enum',
-    enum: RoleType,
+    enum: UserRole,
     unique: true,
   })
-  name: RoleType;
+  name: UserRole;
 
   @Column({ nullable: true })
   description: string;

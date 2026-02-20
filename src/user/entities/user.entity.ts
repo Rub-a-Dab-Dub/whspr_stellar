@@ -10,13 +10,21 @@ import {
   Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { Role } from '../../roles/entities/role.entity';
+import { Role, UserRole } from '../../roles/entities/role.entity';
 import { UserProfile } from './user-profile.entity';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string | undefined;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  @Index()
+  role: UserRole = UserRole.USER;
 
   @Column({ unique: true, nullable: true })
   @Index()

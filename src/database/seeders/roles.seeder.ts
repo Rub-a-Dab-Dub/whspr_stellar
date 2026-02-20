@@ -1,6 +1,6 @@
 // src/database/seeders/roles.seeder.ts
 import { DataSource } from 'typeorm';
-import { Role, RoleType } from '../../roles/entities/role.entity';
+import { Role, UserRole } from '../../roles/entities/role.entity';
 import { Permission } from '../../roles/entities/permission.entity';
 
 export async function seedRolesAndPermissions(dataSource: DataSource) {
@@ -148,13 +148,19 @@ export async function seedRolesAndPermissions(dataSource: DataSource) {
   // Define roles with their permissions and hierarchy
   const rolesData = [
     {
-      name: RoleType.ADMIN,
+      name: UserRole.SUPER_ADMIN,
+      description: 'Super administrator with all permissions',
+      hierarchy: 1000,
+      permissions: permissions, // All permissions
+    },
+    {
+      name: UserRole.ADMIN,
       description: 'Full system access',
       hierarchy: 100,
       permissions: permissions, // All permissions
     },
     {
-      name: RoleType.MODERATOR,
+      name: UserRole.MODERATOR,
       description: 'Can moderate content and users',
       hierarchy: 50,
       permissions: getPermissions([
@@ -166,7 +172,7 @@ export async function seedRolesAndPermissions(dataSource: DataSource) {
       ]),
     },
     {
-      name: RoleType.CREATOR,
+      name: UserRole.CREATOR,
       description: 'Can create and manage own content',
       hierarchy: 20,
       permissions: getPermissions([
@@ -183,7 +189,7 @@ export async function seedRolesAndPermissions(dataSource: DataSource) {
       ]),
     },
     {
-      name: RoleType.USER,
+      name: UserRole.USER,
       description: 'Basic user access',
       hierarchy: 10,
       permissions: getPermissions([
@@ -194,6 +200,7 @@ export async function seedRolesAndPermissions(dataSource: DataSource) {
         'comment.read',
         'comment.update',
         'comment.delete',
+        'comment.manage',
       ]),
     },
   ];

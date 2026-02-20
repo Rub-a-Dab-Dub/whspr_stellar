@@ -12,14 +12,14 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Roles } from './decorators/roles.decorator';
-import { RoleType } from './entities/role.entity';
+import { UserRole } from './entities/role.entity';
 import { RoleGuard } from './guards/role.guard';
 import { RolesService } from './services/roles.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 class AssignRoleDto {
   userId!: string;
-  roleName!: RoleType;
+  roleName!: UserRole;
 }
 
 @Controller('roles')
@@ -28,7 +28,7 @@ export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Post('assign')
-  @Roles(RoleType.ADMIN)
+  @Roles(UserRole.ADMIN)
   async assignRole(
     @Body() dto: AssignRoleDto,
     @CurrentUser() currentUser: any,
@@ -43,7 +43,7 @@ export class RolesController {
   }
 
   @Delete('revoke')
-  @Roles(RoleType.ADMIN)
+  @Roles(UserRole.ADMIN)
   async revokeRole(
     @Body() dto: AssignRoleDto,
     @CurrentUser() currentUser: any,
@@ -58,20 +58,20 @@ export class RolesController {
   }
 
   @Get('user/:userId')
-  @Roles(RoleType.ADMIN, RoleType.MODERATOR)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async getUserRoles(@Param('userId') userId: string) {
     return this.rolesService.getUserRoles(userId);
   }
 
   @Get()
-  @Roles(RoleType.ADMIN)
+  @Roles(UserRole.ADMIN)
   async getAllRoles() {
     return this.rolesService.getAllRoles();
   }
 
   @Get(':name')
-  @Roles(RoleType.ADMIN, RoleType.MODERATOR)
-  async getRoleByName(@Param('name') name: RoleType) {
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async getRoleByName(@Param('name') name: UserRole) {
     return this.rolesService.getRoleByName(name);
   }
 }
