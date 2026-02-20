@@ -708,12 +708,39 @@ impl BaseContract {
     }
 
     // P2P Token Transfers (Zero Fees)
+    /// Direct transfer: moves tokens from sender to recipient immediately (0% fee).
+    /// Rate limiting applies. For transfer via claim window (pending claim), use [`transfer_with_claim`].
     pub fn transfer_tokens(
         env: Env,
         sender: Address,
         recipient: Address,
         token: Address,
         amount: i128,
+    ) -> Result<(), ContractError> {
+        Self::transfer_tokens_impl(env, sender, recipient, token, amount, false)
+    }
+
+    /// Transfers tokens via the claim window when enabled: creates a pending claim (tokens escrowed
+    /// in contract) instead of a direct transfer. Rate limiting applies. Fails with
+    /// [`ContractError::ClaimWindowDisabled`] if the claim window is not enabled in config.
+    pub fn transfer_with_claim(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        token: Address,
+        amount: i128,
+    ) -> Result<(), ContractError> {
+        Self::transfer_tokens_impl(env, sender, recipient, token, amount, true)
+    }
+
+    /// Internal: shared logic for direct transfer and transfer-via-claim. Rate limiting applies in both modes.
+    fn transfer_tokens_impl(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        token: Address,
+        amount: i128,
+        use_claim_window: bool,
     ) -> Result<(), ContractError> {
         // 1. Validate Access
         sender.require_auth();
@@ -722,21 +749,47 @@ impl BaseContract {
             return Err(ContractError::InvalidAmount);
         }
 
-        // 2. Rate Limiting
+        // 2. Rate Limiting (applies to both direct and claim-based transfers)
         check_can_act(&env, &sender, ActionType::Transfer);
 
-        // 3. Perform Token Transfer (0% Fee)
-        let token_client = token::Client::new(&env, &token);
-        token_client.transfer(&sender, &recipient, &amount);
+        if use_claim_window {
+            // 3a. Claim window path: create pending claim if enabled
+            let config: ClaimConfig = env
+                .storage()
+                .instance()
+                .get(&DataKey::ClaimConfig)
+                .ok_or(ContractError::ClaimWindowDisabled)?;
 
-        // 4. Record Action for Rate Limiting
-        record_action(&env, &sender, ActionType::Transfer);
+            if !config.claim_window_enabled {
+                return Err(ContractError::ClaimWindowDisabled);
+            }
 
-        // 5. Emit Event
-        env.events().publish(
-            (Symbol::new(&env, "transfer"), sender, recipient),
-            (token, amount),
-        );
+            let _claim_id = Self::create_pending_claim(
+                env.clone(),
+                sender.clone(),
+                recipient.clone(),
+                token.clone(),
+                amount,
+            )?;
+
+            record_action(&env, &sender, ActionType::Transfer);
+
+            env.events().publish(
+                (Symbol::new(&env, "transfer_via_claim"), sender, recipient),
+                (token, amount),
+            );
+        } else {
+            // 3b. Direct transfer path
+            let token_client = token::Client::new(&env, &token);
+            token_client.transfer(&sender, &recipient, &amount);
+
+            record_action(&env, &sender, ActionType::Transfer);
+
+            env.events().publish(
+                (Symbol::new(&env, "transfer"), sender, recipient),
+                (token, amount),
+            );
+        }
 
         Ok(())
     }
