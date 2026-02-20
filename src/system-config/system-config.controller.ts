@@ -14,14 +14,14 @@ import { RoleGuard } from '../roles/guards/role.guard';
 import { PermissionGuard } from '../roles/guards/permission.guard';
 import { Roles } from '../roles/decorators/roles.decorator';
 import { RequirePermissions } from '../roles/decorators/permissions.decorator';
-import { RoleType } from '../roles/entities/role.entity';
+import { UserRole } from '../roles/entities/role.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { SystemConfigService } from './system-config.service';
 import { SystemConfigPatchDto } from './dto/system-config-patch.dto';
 
 @Controller('admin/config')
 @UseGuards(JwtAuthGuard, RoleGuard, PermissionGuard)
-@Roles(RoleType.ADMIN)
+@Roles(UserRole.ADMIN)
 @RequirePermissions('admin.access')
 export class SystemConfigController {
   constructor(private readonly systemConfigService: SystemConfigService) {}

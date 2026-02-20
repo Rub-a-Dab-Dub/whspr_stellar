@@ -20,7 +20,7 @@ import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../roles/guards/role.guard';
 import { Roles } from '../roles/decorators/roles.decorator';
-import { RoleType } from '../roles/entities/role.entity';
+import { UserRole } from '../roles/entities/role.entity';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -145,7 +145,7 @@ export class RoomPaymentController {
 
   @Post('payments/:paymentId/refund')
   @UseGuards(JwtAuthGuard, RoleGuard)
-  @Roles(RoleType.ADMIN)
+  @Roles(UserRole.ADMIN)
   async refundPayment(
     @Param('paymentId') paymentId: string,
     @Body() refundDto: RefundPaymentDto,
