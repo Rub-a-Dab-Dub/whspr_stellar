@@ -13,6 +13,8 @@ import {
 } from '../constants/xp-actions.constants';
 import { QueueService } from '../../queue/queue.service';
 import { AdminService } from '../../admin/services/admin.service';
+import { LeaderboardService } from '../../leaderboard/leaderboard.service';
+import { LeaderboardCategory } from '../../leaderboard/leaderboard.interface';
 
 @Injectable()
 export class XpService {
@@ -23,6 +25,7 @@ export class XpService {
     private readonly xpHistoryRepository: Repository<XpHistory>,
     private readonly queueService: QueueService,
     private readonly adminService: AdminService,
+    private readonly leaderboardService: LeaderboardService,
   ) {}
 
   async addXp(
@@ -63,6 +66,14 @@ export class XpService {
     user.level = newLevel;
 
     await this.userRepository.save(user);
+
+    // Update Leaderboard
+    await this.leaderboardService.updateLeaderboard({
+      userId: user.id,
+      username: user.username,
+      category: LeaderboardCategory.XP,
+      scoreIncrement: xpToAdd,
+    });
 
     await this.xpHistoryRepository.save({
       userId: user.id,

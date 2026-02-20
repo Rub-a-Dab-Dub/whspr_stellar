@@ -28,13 +28,17 @@ import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto } from '../dto/bulk-action.dto';
 import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
 import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
+import { GetRevenueAnalyticsDto } from '../dto/get-revenue-analytics.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
 import { UpdateConfigDto } from '../dto/update-config.dto';
-import { GetRevenueAnalyticsDto } from '../dto/get-revenue-analytics.dto';
+import { LeaderboardCategory, LeaderboardPeriod } from '../../leaderboard/leaderboard.interface';
+import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
+import { SetPinnedDto } from '../dto/set-pinned.dto';
 
 @Controller('admin')
 @IsAdmin()
+@UseGuards(RoleGuard, PermissionGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
@@ -325,5 +329,56 @@ export class AdminController {
       currentUser.userId,
       req,
     );
+  }
+
+  @Get('leaderboards')
+  async getLeaderboardTypes() {
+    return await this.adminService.getLeaderboardTypes();
+  }
+
+  @Get('leaderboards/:type')
+  async getLeaderboardEntries(
+    @Param('type') type: LeaderboardCategory,
+    @Query() query: { period?: LeaderboardPeriod; roomId?: string; page?: number; limit?: number },
+  ) {
+    return await this.adminService.getLeaderboardEntries(type, query);
+  }
+
+  @Post('leaderboards/:type/reset')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN)
+  async resetLeaderboard(
+    @Param('type') type: LeaderboardCategory,
+    @Query('period') period: LeaderboardPeriod,
+    @Body() dto: ResetLeaderboardDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.resetLeaderboard(
+      type,
+      period,
+      dto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Get('leaderboards/history')
+  async getLeaderboardHistory(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return await this.adminService.getLeaderboardHistory(Number(page), Number(limit));
+  }
+
+  @Post('leaderboards/pin')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN)
+  async setPinnedStatus(
+    @Body() dto: SetPinnedDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.setLeaderboardPinned(dto, currentUser.userId, req);
   }
 }

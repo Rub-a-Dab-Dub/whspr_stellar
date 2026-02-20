@@ -1,14 +1,18 @@
 export enum LeaderboardCategory {
   XP = 'xp',
   TIPS_SENT = 'tips_sent',
+  TIPS_RECEIVED = 'tips_received',
   MESSAGES = 'messages',
 }
 
-export enum LeaderboardTimeframe {
+export enum LeaderboardPeriod {
   DAILY = 'daily',
   WEEKLY = 'weekly',
   ALL_TIME = 'all_time',
 }
+
+export type LeaderboardTimeframe = LeaderboardPeriod;
+export const LeaderboardTimeframe = LeaderboardPeriod;
 
 export interface ILeaderboardEntry {
   userId: string;
@@ -18,4 +22,5 @@ export interface ILeaderboardEntry {
   category: LeaderboardCategory;
   timeframe: LeaderboardTimeframe;
   roomId?: string; // Optional for room-specific leaderboards
+  isPinned?: boolean;
 }

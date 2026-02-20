@@ -21,12 +21,14 @@ import { RoomMember } from '../room/entities/room-member.entity';
 import { RoomPayment } from '../room/entities/room-payment.entity';
 import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
+import { LeaderboardModule } from '../leaderboard/leaderboard.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     JwtModule.register({}),
     forwardRef(() => TransferModule),
+    LeaderboardModule,
     TypeOrmModule.forFeature([
       User,
       AuditLog,

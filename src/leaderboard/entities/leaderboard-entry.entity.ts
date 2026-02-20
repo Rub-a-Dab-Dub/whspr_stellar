@@ -44,6 +44,9 @@ export class LeaderboardEntry {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @Column({ type: 'boolean', default: false })
+  isPinned: boolean;
+
   @Column({ type: 'timestamp', nullable: true })
   lastResetAt?: Date;
 }

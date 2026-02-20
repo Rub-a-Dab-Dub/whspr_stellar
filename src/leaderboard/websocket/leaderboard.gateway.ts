@@ -4,8 +4,8 @@ import {
   SubscribeMessage,
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
-import { LeaderboardService } from './leaderboard.service';
-import { GetLeaderboardDto } from './dto/get-leaderboard.dto';
+import { LeaderboardService } from '../leaderboard.service';
+import { GetLeaderboardDto } from '../dto/get-leaderboard.dto';
 
 @WebSocketGateway({ namespace: 'leaderboard' })
 export class LeaderboardGateway {

@@ -38,6 +38,10 @@ import { PlatformConfig } from '../entities/platform-config.entity';
 import { UpdateConfigDto } from '../dto/update-config.dto';
 import { RedisService } from '../../redis/redis.service';
 import { GetRevenueAnalyticsDto, RevenuePeriod } from '../dto/get-revenue-analytics.dto';
+import { LeaderboardService } from '../../leaderboard/leaderboard.service';
+import { LeaderboardCategory, LeaderboardPeriod } from '../../leaderboard/leaderboard.interface';
+import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
+import { SetPinnedDto } from '../dto/set-pinned.dto';
 
 @Injectable()
 export class AdminService {
@@ -66,6 +70,7 @@ export class AdminService {
     private readonly transferBalanceService: TransferBalanceService,
     private readonly redisService: RedisService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly leaderboardService: LeaderboardService,
   ) {}
 
   private async logAudit(
@@ -1164,5 +1169,80 @@ export class AdminService {
     );
 
     return response;
+  }
+
+  async getLeaderboardTypes() {
+    return Object.values(LeaderboardCategory);
+  }
+
+  async getLeaderboardEntries(
+    type: LeaderboardCategory,
+    query: { period?: LeaderboardPeriod; roomId?: string; page?: number; limit?: number },
+  ) {
+    return await this.leaderboardService.getTopUsers({
+      category: type,
+      timeframe: query.period || LeaderboardPeriod.ALL_TIME,
+      roomId: query.roomId,
+      limit: query.limit || 50,
+      offset: ((query.page || 1) - 1) * (query.limit || 50),
+    });
+  }
+
+  async resetLeaderboard(
+    type: LeaderboardCategory,
+    period: LeaderboardPeriod,
+    dto: ResetLeaderboardDto,
+    adminId: string,
+    req?: Request,
+  ) {
+    await this.leaderboardService.adminResetLeaderboard(type, period, {
+      reason: dto.reason,
+      snapshotBeforeReset: dto.snapshotBeforeReset,
+      adminId,
+      roomId: dto.roomId,
+    });
+
+    await this.logAudit(
+      adminId,
+      AuditAction.BULK_ACTION,
+      null,
+      `Reset leaderboard: ${type} (${period})`,
+      { type, period, dto },
+      req,
+      AuditSeverity.HIGH,
+    );
+
+    return { message: `Leaderboard ${type} (${period}) reset successfully` };
+  }
+
+  async getLeaderboardHistory(page: number = 1, limit: number = 20) {
+    const snapshots = await this.leaderboardService.getHistory(limit, (page - 1) * limit);
+    return snapshots;
+  }
+
+  async setLeaderboardPinned(
+    dto: SetPinnedDto,
+    adminId: string,
+    req?: Request,
+  ) {
+    await this.leaderboardService.setPinnedStatus(
+      dto.userId,
+      dto.category,
+      dto.period,
+      dto.isPinned,
+      dto.roomId,
+    );
+
+    await this.logAudit(
+      adminId,
+      AuditAction.BULK_ACTION,
+      dto.userId,
+      `Set user pinned status on leaderboard: ${dto.isPinned}`,
+      { dto },
+      req,
+      AuditSeverity.MEDIUM,
+    );
+
+    return { message: `User pinned status updated successfully` };
   }
 }
