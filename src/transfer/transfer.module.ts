@@ -50,6 +50,11 @@ import { AdminModule } from '../admin/admin.module';
     ScheduledTransferService,
     TransferDisputeService,
   ],
-  exports: [TransferService, TransferAnalyticsService, TransferLimitService],
+  exports: [
+    TransferService,
+    TransferAnalyticsService,
+    TransferLimitService,
+    TransferBalanceService,
+  ],
 })
 export class TransferModule {}

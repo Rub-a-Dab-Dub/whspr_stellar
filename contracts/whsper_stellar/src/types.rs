@@ -92,6 +92,7 @@ pub enum ContractError {
     ClaimAlreadyClaimed = 27,
     NotClaimCreator = 28,
     ClaimAlreadyCancelled = 29,
+    ClaimWindowDisabled = 30,
 }
 
 #[derive(Clone)]
@@ -211,6 +212,16 @@ pub struct Analytics {
     pub churn_rate: u32,     // as percentage
 }
 
+/// Configuration for the claim window (pending claims).
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct ClaimConfig {
+    /// When true, create_pending_claim is allowed.
+    pub claim_window_enabled: bool,
+    /// Number of ledgers after which a pending claim expires.
+    pub claim_validity_ledgers: u32,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
 pub enum ClaimStatus {
@@ -224,12 +235,45 @@ pub enum ClaimStatus {
 pub struct Claim {
     pub id: u64,
     pub creator: Address,
+    pub recipient: Address,
     pub token: Address,
     pub amount: i128,
     pub status: ClaimStatus,
     pub created_at: u64,
     pub expires_at: u64,
+    /// When set, expiry is ledger-based (current ledger >= this = expired).
+    pub expiry_ledger: Option<u32>,
     pub claimed_by: Option<Address>,
     pub claimed_at: Option<u64>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct ClaimWindowConfig {
+    pub claim_validity_ledgers: u64,
+    pub enabled: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct Invitation {
+    pub id: u64,
+    pub room_id: u64,
+    pub inviter: Address,
+    pub invitee: Address,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub max_uses: Option<u32>,
+    pub use_count: u32,
+    pub is_revoked: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[contracttype]
+pub enum InvitationStatus {
+    Pending = 0,
+    Accepted = 1,
+    Expired = 2,
+    Revoked = 3,
 }
 
