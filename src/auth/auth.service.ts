@@ -17,6 +17,8 @@ import {
   AuditOutcome,
   AuditSeverity,
 } from '../admin/entities/audit-log.entity';
+import { ADMIN_STREAM_EVENTS } from '../admin/gateways/admin-event-stream.gateway';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Request } from 'express';
 
 @Injectable()
@@ -33,6 +35,7 @@ export class AuthService {
     private readonly streakService: StreakService,
     private readonly profileUsersService: ProfileUsersService,
     private readonly auditLogService: AuditLogService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async register(email: string, password: string) {
@@ -47,6 +50,12 @@ export class AuthService {
 
     // Send verification email
     await this.sendVerificationEmail(email, verificationToken);
+
+    this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_REGISTERED, {
+      type: 'user.registered',
+      timestamp: new Date().toISOString(),
+      entity: { userId: user.id, email: user.email },
+    });
 
     return {
       message:

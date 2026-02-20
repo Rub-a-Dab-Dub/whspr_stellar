@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository, LessThan } from 'typeorm';
 import { ModerationRule } from './entities/moderation-rule.entity';
 import { ModerationAction, ModerationActionType, ModerationReason } from './entities/moderation-action.entity';
@@ -9,6 +10,7 @@ import { FlaggedMessage, FlagStatus } from './entities/flagged-message.entity';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { SpamDetectionService } from './services/spam-detection.service';
 import { RateLimiterService } from './services/rate-limiter.service';
+import { ADMIN_STREAM_EVENTS } from '../admin/gateways/admin-event-stream.gateway';
 
 export interface ModerationResult {
   allowed: boolean;
@@ -33,6 +35,7 @@ export class ModerationService {
     private profanityFilter: ProfanityFilterService,
     private spamDetection: SpamDetectionService,
     private rateLimiter: RateLimiterService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -252,7 +255,9 @@ export class ModerationService {
       status: FlagStatus.PENDING,
     });
 
-    return await this.flaggedRepo.save(flagged);
+    const saved = await this.flaggedRepo.save(flagged);
+    this.emitRoomFlagged(saved);
+    return saved;
   }
 
   /**
@@ -271,7 +276,23 @@ export class ModerationService {
       status: FlagStatus.PENDING,
     });
 
-    return await this.flaggedRepo.save(flagged);
+    const saved = await this.flaggedRepo.save(flagged);
+    this.emitRoomFlagged(saved);
+    return saved;
+  }
+
+  private emitRoomFlagged(flagged: FlaggedMessage): void {
+    this.eventEmitter.emit(ADMIN_STREAM_EVENTS.ROOM_FLAGGED, {
+      type: 'room.flagged',
+      timestamp: new Date().toISOString(),
+      entity: {
+        roomId: flagged.roomId,
+        messageId: flagged.messageId ?? undefined,
+        reason: flagged.reason,
+        reportedBy: flagged.reportedBy ?? undefined,
+        contentPreview: flagged.content?.slice(0, 100) ?? undefined,
+      },
+    });
   }
 
   /**

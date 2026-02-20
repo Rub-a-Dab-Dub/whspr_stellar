@@ -23,6 +23,9 @@ import {
   AuditOutcome,
   AuditSeverity,
 } from '../admin/entities/audit-log.entity';
+import { ADMIN_STREAM_EVENTS } from '../admin/gateways/admin-event-stream.gateway';
+import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class TransferService {
@@ -40,6 +43,8 @@ export class TransferService {
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
     private readonly auditLogService: AuditLogService,
+    private readonly configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createTransfer(
@@ -178,6 +183,23 @@ export class TransferService {
         // Send notifications
         await this.notificationService.notifyTransferSent(transfer, transfer.recipient.email);
         await this.notificationService.notifyTransferReceived(transfer, transfer.sender.email);
+
+        // Emit large transaction event if above threshold
+        const threshold = this.configService.get<number>('ADMIN_LARGE_TRANSACTION_THRESHOLD', 10000);
+        const amountNum = parseFloat(transfer.amount);
+        if (amountNum >= threshold) {
+          this.eventEmitter.emit(ADMIN_STREAM_EVENTS.TRANSACTION_LARGE, {
+            type: 'transaction.large',
+            timestamp: new Date().toISOString(),
+            entity: {
+              transferId: transfer.id,
+              amount: transfer.amount,
+              senderId: transfer.senderId,
+              recipientId: transfer.recipientId,
+              threshold,
+            },
+          });
+        }
 
         this.logger.log(`Transfer ${transferId} completed successfully`);
       } else {

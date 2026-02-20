@@ -29,4 +29,7 @@ export const validationSchema = Joi.object({
   CHAIN_BASE_RPC_URL: Joi.string().uri().optional(),
   CHAIN_BASE_CONTRACT_ADDRESS: Joi.string().optional(),
   GGPAY_CONTRACT_ADDRESS: Joi.string().optional(),
+
+  // Admin event stream
+  ADMIN_LARGE_TRANSACTION_THRESHOLD: Joi.number().default(10000),
 });
