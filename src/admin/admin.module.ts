@@ -2,7 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule } from '@nestjs/config';
+import { AdminConfigService } from '../config/admin-config.service';
 import { AdminController } from './controllers/admin.controller';
 import { AdminService } from './services/admin.service';
 import { User } from '../user/entities/user.entity';
@@ -46,11 +46,12 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
   ],
   controllers: [AdminController],
   providers: [
+    AdminConfigService,
     AdminService,
     AuditLogService,
     AuditLogRetentionJob,
     AdminEventStreamGateway,
   ],
-  exports: [AdminService, AuditLogService],
+  exports: [AdminConfigService, AdminService, AuditLogService],
 })
 export class AdminModule {}
