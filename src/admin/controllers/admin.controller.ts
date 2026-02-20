@@ -31,6 +31,7 @@ import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
 import { UpdateConfigDto } from '../dto/update-config.dto';
+import { GetRevenueAnalyticsDto } from '../dto/get-revenue-analytics.dto';
 
 @Controller('admin')
 @IsAdmin()
@@ -308,6 +309,19 @@ export class AdminController {
     return await this.adminService.updateConfig(
       key,
       dto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Get('analytics/revenue')
+  async getRevenueAnalytics(
+    @Query() query: GetRevenueAnalyticsDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.getRevenueAnalytics(
+      query,
       currentUser.userId,
       req,
     );

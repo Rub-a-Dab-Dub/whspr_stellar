@@ -18,6 +18,7 @@ import { Message } from '../message/entities/message.entity';
 import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
+import { RoomPayment } from '../room/entities/room-payment.entity';
 import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
 
@@ -37,6 +38,7 @@ import { PlatformConfig } from './entities/platform-config.entity';
       Message,
       Room,
       RoomMember,
+      RoomPayment,
       PlatformConfig,
     ]),
   ],

@@ -72,6 +72,9 @@ export class Message {
   @Column({ default: false })
   isHardDeleted: boolean;
 
+  @Column({ type: 'jsonb', default: {} })
+  metadata: Record<string, any>;
+
   @CreateDateColumn()
   createdAt: Date;
 
