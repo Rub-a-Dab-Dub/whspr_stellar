@@ -9,7 +9,7 @@ import {
 
 @Entity('platform_configs')
 export class PlatformConfig {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('increment')
   id: number;
 
   @Index({ unique: true })
