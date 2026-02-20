@@ -19,6 +19,7 @@ import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { TransferModule } from '../transfer/transfer.module';
+import { PlatformConfig } from './entities/platform-config.entity';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TransferModule } from '../transfer/transfer.module';
       Message,
       Room,
       RoomMember,
+      PlatformConfig,
     ]),
   ],
   controllers: [AdminController],

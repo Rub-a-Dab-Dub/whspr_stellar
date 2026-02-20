@@ -33,6 +33,9 @@ import { Room } from '../../room/entities/room.entity';
 import { RoomMember } from '../../room/entities/room-member.entity';
 import { TransferBalanceService } from '../../transfer/services/transfer-balance.service';
 import { UserRole } from '../../roles/entities/role.entity';
+import { PlatformConfig } from '../entities/platform-config.entity';
+import { UpdateConfigDto } from '../dto/update-config.dto';
+import { RedisService } from '../../redis/redis.service';
 
 @Injectable()
 export class AdminService {
@@ -53,8 +56,11 @@ export class AdminService {
     private readonly roomRepository: Repository<Room>,
     @InjectRepository(RoomMember)
     private readonly roomMemberRepository: Repository<RoomMember>,
+    @InjectRepository(PlatformConfig)
+    private readonly platformConfigRepository: Repository<PlatformConfig>,
     private readonly auditLogService: AuditLogService,
     private readonly transferBalanceService: TransferBalanceService,
+    private readonly redisService: RedisService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -958,5 +964,73 @@ export class AdminService {
     );
 
     return { message: 'User account successfully deleted and anonymized' };
+  }
+
+  async getConfigs(): Promise<PlatformConfig[]> {
+    return await this.platformConfigRepository.find({
+      order: { key: 'ASC' },
+    });
+  }
+
+  async updateConfig(
+    key: string,
+    dto: UpdateConfigDto,
+    adminId: string,
+    req?: Request,
+  ): Promise<PlatformConfig> {
+    const config = await this.platformConfigRepository.findOne({ where: { key } });
+
+    if (!config) {
+      throw new NotFoundException(`Configuration with key ${key} not found`);
+    }
+
+    const oldValue = JSON.stringify(config.value);
+    const newValue = JSON.stringify(dto.value);
+
+    // Update config
+    config.value = dto.value;
+    config.updatedBy = adminId;
+    const saved = await this.platformConfigRepository.save(config);
+
+    // Invalidate Redis cache
+    await this.redisService.del(`platform_config:${key}`);
+
+    // Audit log
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      action: AuditAction.PLATFORM_CONFIG_UPDATED,
+      eventType: AuditEventType.SYSTEM,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.HIGH,
+      resourceType: 'platform_config',
+      resourceId: key,
+      details: `Config ${key} updated: ${oldValue} -> ${newValue}. Reason: ${dto.reason}`,
+      metadata: {
+        key,
+        oldValue: config.value, // this is the new value now but we have oldValue as string
+        newValue: dto.value,
+        reason: dto.reason,
+      },
+      req,
+    });
+
+    return saved;
+  }
+
+  async getConfigValue<T>(key: string, defaultValue: T): Promise<T> {
+    const cacheKey = `platform_config:${key}`;
+    const cached = await this.redisService.get(cacheKey);
+
+    if (cached) {
+      return JSON.parse(cached) as T;
+    }
+
+    const config = await this.platformConfigRepository.findOne({ where: { key } });
+    if (!config) {
+      return defaultValue;
+    }
+
+    await this.redisService.set(cacheKey, JSON.stringify(config.value), 3600); // 1 hour cache
+    return config.value as T;
   }
 }

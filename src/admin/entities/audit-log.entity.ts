@@ -38,6 +38,7 @@ export enum AuditAction {
   AUDIT_LOG_VIEWED = 'audit.logs.viewed',
   AUDIT_LOG_EXPORTED = 'audit.logs.exported',
   DATA_EXPORT = 'data.exported',
+  PLATFORM_CONFIG_UPDATED = 'platform.config.updated',
 }
 
 export enum AuditEventType {
