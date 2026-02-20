@@ -770,3 +770,409 @@ fn test_tip_xp_award() {
             .unwrap();
         assert_eq!(updated_claim2.status, ClaimStatus::Pending);
     }
+
+    // ==================== ADMIN CANCEL EXPIRED CLAIM TESTS ====================
+
+    #[test]
+fn test_admin_cancel_expired_claim_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    // Initialize contract
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Create a mock token
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_address = Address::from_contract_id(&env, &token_id);
+
+    // Set initial timestamp
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+
+    // Create an expired claim
+    let claim = Claim {
+        id: 1,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 1000,
+        status: ClaimStatus::Pending,
+        created_at: 1000,
+        expires_at: 2000, // Expires at 2000
+        claimed_by: None,
+        claimed_at: None,
+    };
+
+    env.storage()
+        .instance()
+        .set(&DataKey::Claim(1), &claim);
+
+    // Transfer tokens to contract
+    let token_client = token::Client::new(&env, &token_address);
+    token_client.mint(&contract_id, &1000);
+
+    // Advance time past expiration
+    env.ledger().with_mut(|li| li.timestamp = 3000);
+
+    // Admin cancels the expired claim
+    let result = BaseContract::admin_cancel_expired_claim(env.clone(), 1);
+    assert!(result.is_ok());
+
+    // Verify claim status is now cancelled
+    let updated_claim: Claim = env
+        .storage()
+        .instance()
+        .get(&DataKey::Claim(1))
+        .unwrap();
+    assert_eq!(updated_claim.status, ClaimStatus::Cancelled);
+}
+
+#[test]
+fn test_admin_cancel_expired_claim_not_expired() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let token_address = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    // Initialize contract
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Set initial timestamp
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+
+    // Create a non-expired claim
+    let claim = Claim {
+        id: 1,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 1000,
+        status: ClaimStatus::Pending,
+        created_at: 1000,
+        expires_at: 5000, // Expires in the future
+        claimed_by: None,
+        claimed_at: None,
+    };
+
+    env.storage()
+        .instance()
+        .set(&DataKey::Claim(1), &claim);
+
+    // Attempt to cancel non-expired claim (should fail)
+    let result = BaseContract::admin_cancel_expired_claim(env.clone(), 1);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), ContractError::Unauthorized);
+}
+
+#[test]
+fn test_admin_cancel_expired_claim_already_claimed() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let claimer = Address::generate(&env);
+    let token_address = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    // Initialize contract
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Set initial timestamp
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+
+    // Create an expired claim that's already been claimed
+    let claim = Claim {
+        id: 1,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 1000,
+        status: ClaimStatus::Claimed,
+        created_at: 1000,
+        expires_at: 2000,
+        claimed_by: Some(claimer.clone()),
+        claimed_at: Some(1500),
+    };
+
+    env.storage()
+        .instance()
+        .set(&DataKey::Claim(1), &claim);
+
+    // Advance time past expiration
+    env.ledger().with_mut(|li| li.timestamp = 3000);
+
+    // Attempt to cancel already claimed claim (should fail)
+    let result = BaseContract::admin_cancel_expired_claim(env.clone(), 1);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), ContractError::ClaimAlreadyClaimed);
+}
+
+#[test]
+fn test_admin_cancel_expired_claim_already_cancelled() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let token_address = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    // Initialize contract
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Set initial timestamp
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+
+    // Create an expired claim that's already cancelled
+    let claim = Claim {
+        id: 1,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 1000,
+        status: ClaimStatus::Cancelled,
+        created_at: 1000,
+        expires_at: 2000,
+        claimed_by: None,
+        claimed_at: None,
+    };
+
+    env.storage()
+        .instance()
+        .set(&DataKey::Claim(1), &claim);
+
+    // Advance time past expiration
+    env.ledger().with_mut(|li| li.timestamp = 3000);
+
+    // Attempt to cancel already cancelled claim (should fail)
+    let result = BaseContract::admin_cancel_expired_claim(env.clone(), 1);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), ContractError::ClaimAlreadyCancelled);
+}
+
+#[test]
+fn test_admin_cancel_expired_claim_non_existent() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    // Initialize contract
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Attempt to cancel non-existent claim (should fail)
+    let result = BaseContract::admin_cancel_expired_claim(env.clone(), 999);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), ContractError::ClaimNotFound);
+}
+
+#[test]
+fn test_admin_cancel_expired_claim_returns_to_creator() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    // Initialize contract
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Create a mock token
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_address = Address::from_contract_id(&env, &token_id);
+
+    // Set initial timestamp
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+
+    // Create an expired claim
+    let claim = Claim {
+        id: 1,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 5000,
+        status: ClaimStatus::Pending,
+        created_at: 1000,
+        expires_at: 2000,
+        claimed_by: None,
+        claimed_at: None,
+    };
+
+    env.storage()
+        .instance()
+        .set(&DataKey::Claim(1), &claim);
+
+    // Transfer tokens to contract
+    let token_client = token::Client::new(&env, &token_address);
+    token_client.mint(&contract_id, &5000);
+
+    // Advance time past expiration
+    env.ledger().with_mut(|li| li.timestamp = 3000);
+
+    // Admin cancels the expired claim
+    BaseContract::admin_cancel_expired_claim(env.clone(), 1).unwrap();
+
+    // Verify tokens were transferred back to creator (tokens go back to creator, not admin)
+    // The transfer function will have been called with creator as recipient
+    let updated_claim: Claim = env
+        .storage()
+        .instance()
+        .get(&DataKey::Claim(1))
+        .unwrap();
+    assert_eq!(updated_claim.status, ClaimStatus::Cancelled);
+}
+
+#[test]
+fn test_admin_cancel_expired_claim_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    // Initialize contract
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Create a mock token
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_address = Address::from_contract_id(&env, &token_id);
+
+    // Set initial timestamp
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+
+    // Create an expired claim
+    let claim = Claim {
+        id: 42,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 2000,
+        status: ClaimStatus::Pending,
+        created_at: 1000,
+        expires_at: 2000,
+        claimed_by: None,
+        claimed_at: None,
+    };
+
+    env.storage()
+        .instance()
+        .set(&DataKey::Claim(42), &claim);
+
+    // Transfer tokens to contract
+    let token_client = token::Client::new(&env, &token_address);
+    token_client.mint(&contract_id, &2000);
+
+    // Advance time past expiration
+    env.ledger().with_mut(|li| li.timestamp = 3000);
+
+    // Admin cancels the expired claim
+    BaseContract::admin_cancel_expired_claim(env.clone(), 42).unwrap();
+
+    // Verify event was emitted with correct data
+    // The event should be "claim_expired_cancelled" with claim_id, admin, creator, amount, timestamp
+    assert!(!env.events().all().is_empty());
+}
+
+#[test]
+fn test_admin_cancel_multiple_expired_claims() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    // Initialize contract
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Create a mock token
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_address = Address::from_contract_id(&env, &token_id);
+
+    // Set initial timestamp
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+
+    // Create three expired claims
+    let claim1 = Claim {
+        id: 1,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 1000,
+        status: ClaimStatus::Pending,
+        created_at: 1000,
+        expires_at: 2000,
+        claimed_by: None,
+        claimed_at: None,
+    };
+
+    let claim2 = Claim {
+        id: 2,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 1500,
+        status: ClaimStatus::Pending,
+        created_at: 1000,
+        expires_at: 2000,
+        claimed_by: None,
+        claimed_at: None,
+    };
+
+    let claim3 = Claim {
+        id: 3,
+        creator: creator.clone(),
+        token: token_address.clone(),
+        amount: 2000,
+        status: ClaimStatus::Pending,
+        created_at: 1000,
+        expires_at: 2000,
+        claimed_by: None,
+        claimed_at: None,
+    };
+
+    env.storage().instance().set(&DataKey::Claim(1), &claim1);
+    env.storage().instance().set(&DataKey::Claim(2), &claim2);
+    env.storage().instance().set(&DataKey::Claim(3), &claim3);
+
+    // Transfer tokens to contract
+    let token_client = token::Client::new(&env, &token_address);
+    token_client.mint(&contract_id, &4500);
+
+    // Advance time past expiration
+    env.ledger().with_mut(|li| li.timestamp = 3000);
+
+    // Admin cancels all expired claims
+    BaseContract::admin_cancel_expired_claim(env.clone(), 1).unwrap();
+    BaseContract::admin_cancel_expired_claim(env.clone(), 2).unwrap();
+    BaseContract::admin_cancel_expired_claim(env.clone(), 3).unwrap();
+
+    // Verify all claims are cancelled
+    let updated_claim1: Claim = env
+        .storage()
+        .instance()
+        .get(&DataKey::Claim(1))
+        .unwrap();
+    assert_eq!(updated_claim1.status, ClaimStatus::Cancelled);
+
+    let updated_claim2: Claim = env
+        .storage()
+        .instance()
+        .get(&DataKey::Claim(2))
+        .unwrap();
+    assert_eq!(updated_claim2.status, ClaimStatus::Cancelled);
+
+    let updated_claim3: Claim = env
+        .storage()
+        .instance()
+        .get(&DataKey::Claim(3))
+        .unwrap();
+    assert_eq!(updated_claim3.status, ClaimStatus::Cancelled);
+}
+

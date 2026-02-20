@@ -1762,6 +1762,55 @@ pub fn tip_message(
         Ok(())
     }
 
+    pub fn admin_cancel_expired_claim(env: Env, claim_id: u64) -> Result<(), ContractError> {
+        // Require admin authentication
+        let admin = require_admin(&env)?;
+
+        // Retrieve the claim
+        let mut claim: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(claim_id))
+            .ok_or(ContractError::ClaimNotFound)?;
+
+        // Verify claim has expired (current ledger > expires_at)
+        let now = env.ledger().timestamp();
+        if now <= claim.expires_at {
+            return Err(ContractError::Unauthorized);
+        }
+
+        // Check claim hasn't been claimed or cancelled
+        if claim.status == ClaimStatus::Claimed {
+            return Err(ContractError::ClaimAlreadyClaimed);
+        }
+
+        if claim.status == ClaimStatus::Cancelled {
+            return Err(ContractError::ClaimAlreadyCancelled);
+        }
+
+        // Transfer tokens back to original creator (not admin)
+        let token_client = token::Client::new(&env, &claim.token);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &claim.creator,
+            &claim.amount,
+        );
+
+        // Mark claim as cancelled
+        claim.status = ClaimStatus::Cancelled;
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_id), &claim);
+
+        // Emit event: claim_expired_cancelled (distinguishes from creator cancellation)
+        env.events().publish(
+            (Symbol::new(&env, "claim_expired_cancelled"), claim_id),
+            (admin, claim.creator, claim.amount, env.ledger().timestamp()),
+        );
+
+        Ok(())
+    }
+
 
 fn verify_content_hash(hash: &BytesN<32>) -> Result<(), ContractError> {
     if hash.to_array() == [0u8; 32] {
