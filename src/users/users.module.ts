@@ -18,6 +18,7 @@ import { UserStatsDaily } from './entities/user-stats-daily.entity';
 import { UserStatsWeekly } from './entities/user-stats-weekly.entity';
 import { UserStatsService } from './services/user-stats.service';
 import { UserStatsAggregationJob } from './jobs/user-stats-aggregation.job';
+import { LeaderboardModule } from '../leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { UserStatsAggregationJob } from './jobs/user-stats-aggregation.job';
     ]),
     CacheModule,
     ScheduleModule.forRoot(),
+    LeaderboardModule,
   ],
   controllers: [UsersController],
   providers: [
