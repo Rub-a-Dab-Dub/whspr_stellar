@@ -38,6 +38,7 @@ pub enum DataKey {
     RoomInvitations(u64),
     Claim(u64),
     ClaimsByCreator(Address),
+    ClaimsByRecipient(Address),
     NextClaimId,
     ClaimConfig,
 }
