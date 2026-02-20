@@ -5,6 +5,8 @@ import { CacheService } from '../../cache/cache.service';
 import { UserStats } from '../entities/user-stats.entity';
 import { UserStatsDaily } from '../entities/user-stats-daily.entity';
 import { UserStatsWeekly } from '../entities/user-stats-weekly.entity';
+import { LeaderboardService } from '../../leaderboard/leaderboard.service';
+import { LeaderboardCategory } from '../../leaderboard/leaderboard.interface';
 
 type StatsIncrements = Partial<{
   messagesSent: number;
@@ -27,6 +29,7 @@ export class UserStatsService {
     @InjectRepository(UserStatsWeekly)
     private readonly weeklyRepository: Repository<UserStatsWeekly>,
     private readonly cacheService: CacheService,
+    private readonly leaderboardService: LeaderboardService,
   ) {}
 
   async recordMessageSent(
@@ -258,6 +261,31 @@ export class UserStatsService {
     await this.statsRepository.save(stats);
     await this.dailyRepository.save(daily);
     await this.invalidateCache(userId);
+
+    // Update Leaderboards
+    if (increments.messagesSent) {
+      await this.leaderboardService.updateLeaderboard({
+        userId,
+        category: LeaderboardCategory.MESSAGES,
+        scoreIncrement: increments.messagesSent,
+      });
+    }
+
+    if (increments.tipsSent) {
+      await this.leaderboardService.updateLeaderboard({
+        userId,
+        category: LeaderboardCategory.TIPS_SENT,
+        scoreIncrement: increments.tipsSent,
+      });
+    }
+
+    if (increments.tipsReceived) {
+      await this.leaderboardService.updateLeaderboard({
+        userId,
+        category: LeaderboardCategory.TIPS_RECEIVED,
+        scoreIncrement: increments.tipsReceived,
+      });
+    }
   }
 
   private async getOrCreateStats(userId: string): Promise<UserStats> {

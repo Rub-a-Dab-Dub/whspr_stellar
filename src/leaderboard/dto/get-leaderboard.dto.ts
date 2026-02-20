@@ -1,6 +1,6 @@
 import { IsEnum, IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
-import { LeaderboardCategory, LeaderboardTimeframe } from '../interfaces/leaderboard.interface';
+import { LeaderboardCategory, LeaderboardTimeframe } from '../leaderboard.interface';
 
 export class GetLeaderboardDto {
   @IsEnum(LeaderboardCategory)
