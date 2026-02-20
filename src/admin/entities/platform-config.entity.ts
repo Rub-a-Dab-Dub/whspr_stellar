@@ -2,16 +2,18 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  UpdateDateColumn,
   CreateDateColumn,
+  UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity('platform_configs')
 export class PlatformConfig {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ unique: true })
+  @Index({ unique: true })
+  @Column({ type: 'varchar', length: 255 })
   key: string;
 
   @Column({ type: 'jsonb' })

@@ -36,6 +36,7 @@ import { SystemConfigModule } from './system-config/system-config.module';
 import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './admin/admin.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 
 @Module({
   imports: [
@@ -102,7 +103,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     UsersModule,
     RolesModule,
     AdminModule,
-    SessionsModule,
+    SessionModule,
     MessageModule,
     RewardsModule,
     ChainModule,
@@ -122,7 +123,10 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
       provide: APP_GUARD,
       useClass: UserThrottlerGuard, // Apply rate limiting globally (User + IP)
     },
-
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
+    },
   ],
 })
 export class AppModule implements OnModuleInit {

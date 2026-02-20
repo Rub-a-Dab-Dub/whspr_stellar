@@ -30,6 +30,7 @@ import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
 import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
+import { UpdateConfigDto } from '../dto/update-config.dto';
 
 @Controller('admin')
 @IsAdmin()
@@ -285,6 +286,29 @@ export class AdminController {
       deleteDto,
       currentUser.userId,
       isForce,
+      req,
+    );
+  }
+
+  @Get('config')
+  @Roles(UserRole.SUPER_ADMIN)
+  async getConfigs() {
+    return await this.adminService.getConfigs();
+  }
+
+  @Patch('config/:key')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN)
+  async updateConfig(
+    @Param('key') key: string,
+    @Body() dto: UpdateConfigDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.updateConfig(
+      key,
+      dto,
+      currentUser.userId,
       req,
     );
   }
