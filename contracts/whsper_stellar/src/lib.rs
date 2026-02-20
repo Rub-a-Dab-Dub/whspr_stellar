@@ -1738,6 +1738,63 @@ impl BaseContract {
         Ok(())
     }
 
+    /// Allows beneficiaries to claim their pending transfers within the validity window.
+    /// Only the designated recipient can claim. Validates: recipient match, not expired,
+    /// not already claimed or cancelled. Transfers tokens and marks claim as claimed atomically.
+    pub fn claim(env: Env, claim_id: u64, recipient: Address) -> Result<(), ContractError> {
+        recipient.require_auth();
+
+        let mut claim: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(claim_id))
+            .ok_or(ContractError::ClaimNotFound)?;
+
+        // Verify recipient matches the claim recipient
+        if claim.recipient != recipient {
+            return Err(ContractError::Unauthorized);
+        }
+
+        // Check claim hasn't expired (validity: current ledger <= expires_at)
+        let current_ledger = env.ledger().sequence();
+        let expired = if let Some(exp_ledger) = claim.expiry_ledger {
+            current_ledger >= exp_ledger
+        } else {
+            env.ledger().timestamp() > claim.expires_at
+        };
+        if expired {
+            return Err(ContractError::ClaimExpired);
+        }
+
+        // Check claim hasn't been claimed or cancelled
+        if claim.status == ClaimStatus::Claimed {
+            return Err(ContractError::ClaimAlreadyClaimed);
+        }
+        if claim.status == ClaimStatus::Cancelled {
+            return Err(ContractError::ClaimAlreadyCancelled);
+        }
+
+        // Transfer tokens from contract to recipient
+        let token_client = token::Client::new(&env, &claim.token);
+        token_client.transfer(&env.current_contract_address(), &recipient, &claim.amount);
+
+        // Mark claim as claimed
+        claim.status = ClaimStatus::Claimed;
+        claim.claimed_by = Some(recipient.clone());
+        claim.claimed_at = Some(env.ledger().timestamp());
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_id), &claim);
+
+        // Emit claim_processed event
+        env.events().publish(
+            (Symbol::new(&env, "claim_processed"), claim_id),
+            (recipient, claim.creator, claim.token, claim.amount, env.ledger().timestamp()),
+        );
+
+        Ok(())
+    }
+
     pub fn admin_cancel_expired_claim(env: Env, claim_id: u64) -> Result<(), ContractError> {
         // Require admin authentication
         let admin = require_admin(&env)?;
