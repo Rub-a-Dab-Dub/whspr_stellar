@@ -92,8 +92,7 @@ pub enum ContractError {
     ClaimAlreadyClaimed = 27,
     NotClaimCreator = 28,
     ClaimAlreadyCancelled = 29,
-    ClaimExpired = 30,
-    ClaimAlreadyProcessed = 31,
+    ClaimWindowDisabled = 30,
 }
 
 #[derive(Clone)]
@@ -213,6 +212,16 @@ pub struct Analytics {
     pub churn_rate: u32,     // as percentage
 }
 
+/// Configuration for the claim window (pending claims).
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct ClaimConfig {
+    /// When true, create_pending_claim is allowed.
+    pub claim_window_enabled: bool,
+    /// Number of ledgers after which a pending claim expires.
+    pub claim_validity_ledgers: u32,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
 pub enum ClaimStatus {
@@ -226,11 +235,14 @@ pub enum ClaimStatus {
 pub struct Claim {
     pub id: u64,
     pub creator: Address,
+    pub recipient: Address,
     pub token: Address,
     pub amount: i128,
     pub status: ClaimStatus,
     pub created_at: u64,
     pub expires_at: u64,
+    /// When set, expiry is ledger-based (current ledger >= this = expired).
+    pub expiry_ledger: Option<u32>,
     pub claimed_by: Option<Address>,
     pub claimed_at: Option<u64>,
 }

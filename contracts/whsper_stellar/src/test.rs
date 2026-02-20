@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{ActionType, InvitationStatus, RateLimitConfig, RoomType, Claim, ClaimStatus};
+use crate::types::{ActionType, ClaimConfig, InvitationStatus, RateLimitConfig, RoomType, Claim, ClaimStatus};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     Address, Env, Symbol, Vec,
@@ -202,7 +202,7 @@ fn test_transfer_tokens() {
     };
     client.set_config(&config);
 
-    // 1. Successful Transfer (100 amount)
+    // 1. Successful direct transfer (100 amount)
     client.transfer_tokens(&user1, &user2, &token_id, &100);
 
     // Check balances (Zero Fee)
@@ -218,6 +218,125 @@ fn test_transfer_tokens() {
 
     // 6th should fail
     let res = client.try_transfer_tokens(&user1, &user2, &token_id, &10);
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_transfer_tokens_direct_explicit() {
+    // transfer_tokens (5-arg) always does direct transfer
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let user1 = Address::generate(&env);
+    let user2 = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token = token::Client::new(&env, &token_id);
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&user1, &500);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+
+    client.transfer_tokens(&user1, &user2, &token_id, &50);
+    assert_eq!(token.balance(&user1), 450);
+    assert_eq!(token.balance(&user2), 50);
+}
+
+#[test]
+fn test_transfer_with_claim_and_transfer_via_claim_window() {
+    // When claim window is enabled, transfer_tokens(..., Some(true)) and transfer_with_claim create pending claim
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token = token::Client::new(&env, &token_id);
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &1000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    // transfer_with_claim creates pending claim (tokens escrowed in contract)
+    client.transfer_with_claim(&sender, &recipient, &token_id, &100);
+    assert_eq!(token.balance(&sender), 900);
+    assert_eq!(token.balance(&recipient), 0);
+    assert_eq!(token.balance(&contract_id), 100);
+
+    // transfer_with_claim again creates pending claim
+    client.transfer_with_claim(&sender, &recipient, &token_id, &80);
+    assert_eq!(token.balance(&sender), 820);
+    assert_eq!(token.balance(&contract_id), 180);
+}
+
+#[test]
+fn test_transfer_claim_window_disabled() {
+    // When use_claim_window is true but claim window is disabled, returns ClaimWindowDisabled
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &1000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+    // Do not set claim config (or set claim_window_enabled: false)
+
+    let res = client.try_transfer_with_claim(&sender, &recipient, &token_id, &100);
     assert!(res.is_err());
 }
 

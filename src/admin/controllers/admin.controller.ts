@@ -14,14 +14,14 @@ import {
   Res,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RoleGuard } from '../roles/guards/role.guard';
-import { PermissionGuard } from '../roles/guards/permission.guard';
-import { Roles } from '../roles/decorators/roles.decorator';
-import { RequirePermissions } from '../roles/decorators/permissions.decorator';
-import { RoleType } from '../roles/entities/role.entity';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AdminService } from './admin.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RoleGuard } from '../../roles/guards/role.guard';
+import { PermissionGuard } from '../../roles/guards/permission.guard';
+import { Roles } from '../../roles/decorators/roles.decorator';
+import { RequirePermissions } from '../../roles/decorators/permissions.decorator';
+import { UserRole } from '../../roles/entities/role.entity';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { AdminService } from '../services/admin.service';
 import { GetUsersDto } from '../dto/get-users.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
@@ -29,6 +29,8 @@ import { BulkActionDto } from '../dto/bulk-action.dto';
 import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
 import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
+import { DeleteUserDto } from '../dto/delete-user.dto';
+import { UpdateConfigDto } from '../dto/update-config.dto';
 
 @Controller('admin')
 @IsAdmin()
@@ -266,5 +268,48 @@ export class AdminController {
       // In production, return a special impersonation token here
       // impersonationToken: await this.generateImpersonationToken(...)
     };
+  }
+
+  @Delete('users/:id')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN)
+  async deleteUser(
+    @Param('id') userId: string,
+    @Body() deleteDto: DeleteUserDto,
+    @Query('force') force: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    const isForce = force === 'true';
+    return await this.adminService.deleteUser(
+      userId,
+      deleteDto,
+      currentUser.userId,
+      isForce,
+      req,
+    );
+  }
+
+  @Get('config')
+  @Roles(UserRole.SUPER_ADMIN)
+  async getConfigs() {
+    return await this.adminService.getConfigs();
+  }
+
+  @Patch('config/:key')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN)
+  async updateConfig(
+    @Param('key') key: string,
+    @Body() dto: UpdateConfigDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.updateConfig(
+      key,
+      dto,
+      currentUser.userId,
+      req,
+    );
   }
 }
