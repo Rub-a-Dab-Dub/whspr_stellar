@@ -20,6 +20,7 @@ import { GetMessagesDto } from './dto/get-messages.dto';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageType } from './enums/message-type.enum';
 import { UserStatsService } from '../users/services/user-stats.service';
+import { AdminService } from '../admin/services/admin.service';
 import { NotificationService } from '../notifications/services/notification.service';
 import { Attachment } from './entities/attachment.entity';
 import { IpfsStorageService } from '../storage/services/ipfs-storage.service';
@@ -42,6 +43,7 @@ export class MessageService {
     private readonly attachmentRepository: Repository<Attachment>,
     private readonly profanityFilterService: ProfanityFilterService,
     private readonly userStatsService: UserStatsService,
+    private readonly adminService: AdminService,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -73,6 +75,17 @@ export class MessageService {
     createMessageDto: CreateMessageDto,
     userId: string,
   ): Promise<MessageResponseDto> {
+    // Check if tipping is enabled
+    if (createMessageDto.type === MessageType.TIP) {
+      const isTippingEnabled = await this.adminService.getConfigValue<boolean>(
+        'tipping_enabled',
+        true,
+      );
+      if (!isTippingEnabled) {
+        throw new BadRequestException('Tipping is currently disabled');
+      }
+    }
+
     // Validate content
     this.validateMessageContent(createMessageDto.content);
 

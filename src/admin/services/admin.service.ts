@@ -984,8 +984,9 @@ export class AdminService {
       throw new NotFoundException(`Configuration with key ${key} not found`);
     }
 
-    const oldValue = JSON.stringify(config.value);
-    const newValue = JSON.stringify(dto.value);
+    const oldValue = config.value;
+    const oldValueString = JSON.stringify(oldValue);
+    const newValueString = JSON.stringify(dto.value);
 
     // Update config
     config.value = dto.value;
@@ -1004,10 +1005,10 @@ export class AdminService {
       severity: AuditSeverity.HIGH,
       resourceType: 'platform_config',
       resourceId: key,
-      details: `Config ${key} updated: ${oldValue} -> ${newValue}. Reason: ${dto.reason}`,
+      details: `Config ${key} updated: ${oldValueString} -> ${newValueString}. Reason: ${dto.reason}`,
       metadata: {
         key,
-        oldValue: config.value, // this is the new value now but we have oldValue as string
+        oldValue,
         newValue: dto.value,
         reason: dto.reason,
       },
