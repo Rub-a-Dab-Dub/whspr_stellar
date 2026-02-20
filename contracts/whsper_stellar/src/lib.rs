@@ -1702,12 +1702,74 @@ pub fn tip_message(
         env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default()
     }
 
+    fn next_claim_id(env: &Env) -> u64 {
+        let id: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextClaimId)
+            .unwrap_or(1);
+        env.storage()
+            .instance()
+            .set(&DataKey::NextClaimId, &(id + 1));
+        id
+    }
+
+    pub fn cancel_pending_claim(
+        env: Env,
+        claim_id: u64,
+        creator: Address,
+    ) -> Result<(), ContractError> {
+        creator.require_auth();
+
+        // Retrieve the claim
+        let mut claim: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(claim_id))
+            .ok_or(ContractError::ClaimNotFound)?;
+
+        // Verify caller is the claim creator
+        if claim.creator != creator {
+            return Err(ContractError::NotClaimCreator);
+        }
+
+        // Check claim hasn't been claimed already
+        if claim.status == ClaimStatus::Claimed {
+            return Err(ContractError::ClaimAlreadyClaimed);
+        }
+
+        // Check claim hasn't been cancelled already
+        if claim.status == ClaimStatus::Cancelled {
+            return Err(ContractError::ClaimAlreadyCancelled);
+        }
+
+        // Transfer tokens back to creator
+        let token_client = token::Client::new(&env, &claim.token);
+        token_client.transfer(&env.current_contract_address(), &creator, &claim.amount);
+
+        // Mark claim as cancelled
+        claim.status = ClaimStatus::Cancelled;
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_id), &claim);
+
+        // Emit claim_cancelled event
+        env.events().publish(
+            (Symbol::new(&env, "claim_cancelled"), claim_id),
+            (creator, claim.amount, env.ledger().timestamp()),
+        );
+
+        Ok(())
+    }
+
+
 fn verify_content_hash(hash: &BytesN<32>) -> Result<(), ContractError> {
     if hash.to_array() == [0u8; 32] {
         return Err(ContractError::InvalidContentHash);
     }
     Ok(())
 }
+
 fn require_admin(env: &Env) -> Result<Address, ContractError> {
     let admin: Address = env
         .storage()
