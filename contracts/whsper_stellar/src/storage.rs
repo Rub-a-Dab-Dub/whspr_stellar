@@ -40,6 +40,7 @@ pub enum DataKey {
     ClaimsByCreator(Address),
     NextClaimId,
     ClaimConfig,
+    PendingClaim(u64),
 }
 
 #[contracttype]
