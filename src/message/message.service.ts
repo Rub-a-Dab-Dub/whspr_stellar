@@ -20,6 +20,7 @@ import { GetMessagesDto } from './dto/get-messages.dto';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageType } from './enums/message-type.enum';
 import { UserStatsService } from '../users/services/user-stats.service';
+import { AdminService } from '../admin/services/admin.service';
 import { NotificationService } from '../notifications/services/notification.service';
 import { Attachment } from './entities/attachment.entity';
 import { IpfsStorageService } from '../storage/services/ipfs-storage.service';
@@ -42,6 +43,7 @@ export class MessageService {
     private readonly attachmentRepository: Repository<Attachment>,
     private readonly profanityFilterService: ProfanityFilterService,
     private readonly userStatsService: UserStatsService,
+    private readonly adminService: AdminService,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -73,12 +75,29 @@ export class MessageService {
     createMessageDto: CreateMessageDto,
     userId: string,
   ): Promise<MessageResponseDto> {
+    // Check if tipping is enabled
+    if (createMessageDto.type === MessageType.TIP) {
+      const isTippingEnabled = await this.adminService.getConfigValue<boolean>(
+        'tipping_enabled',
+        true,
+      );
+      if (!isTippingEnabled) {
+        throw new BadRequestException('Tipping is currently disabled');
+      }
+    }
+
     // Validate content
     this.validateMessageContent(createMessageDto.content);
 
     // Check for profanity
     if (this.profanityFilterService.containsProfanity(createMessageDto.content)) {
       throw new BadRequestException('Message contains inappropriate content');
+    }
+
+    const metadata: Record<string, any> = {};
+    if (createMessageDto.type === MessageType.TIP) {
+      metadata.tipAmount = createMessageDto.tipAmount || 0;
+      metadata.platformFee = (metadata.tipAmount * 0.02).toFixed(8); // 2% platform fee
     }
 
     const message = this.messageRepository.create({
@@ -91,6 +110,7 @@ export class MessageService {
       fileName: createMessageDto.fileName || null,
       originalContent: null,
       isEdited: false,
+      metadata,
     });
 
     const savedMessage = await this.messageRepository.save(message);

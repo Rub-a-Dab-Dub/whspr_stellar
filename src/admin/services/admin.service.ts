@@ -31,11 +31,13 @@ import { Session } from '../../sessions/entities/session.entity';
 import { Message } from '../../message/entities/message.entity';
 import { Room } from '../../room/entities/room.entity';
 import { RoomMember } from '../../room/entities/room-member.entity';
+import { RoomPayment, PaymentStatus } from '../../room/entities/room-payment.entity';
 import { TransferBalanceService } from '../../transfer/services/transfer-balance.service';
 import { UserRole } from '../../roles/entities/role.entity';
 import { PlatformConfig } from '../entities/platform-config.entity';
 import { UpdateConfigDto } from '../dto/update-config.dto';
 import { RedisService } from '../../redis/redis.service';
+import { GetRevenueAnalyticsDto, RevenuePeriod } from '../dto/get-revenue-analytics.dto';
 
 @Injectable()
 export class AdminService {
@@ -56,6 +58,8 @@ export class AdminService {
     private readonly roomRepository: Repository<Room>,
     @InjectRepository(RoomMember)
     private readonly roomMemberRepository: Repository<RoomMember>,
+    @InjectRepository(RoomPayment)
+    private readonly roomPaymentRepository: Repository<RoomPayment>,
     @InjectRepository(PlatformConfig)
     private readonly platformConfigRepository: Repository<PlatformConfig>,
     private readonly auditLogService: AuditLogService,
@@ -984,8 +988,9 @@ export class AdminService {
       throw new NotFoundException(`Configuration with key ${key} not found`);
     }
 
-    const oldValue = JSON.stringify(config.value);
-    const newValue = JSON.stringify(dto.value);
+    const oldValue = config.value;
+    const oldValueString = JSON.stringify(oldValue);
+    const newValueString = JSON.stringify(dto.value);
 
     // Update config
     config.value = dto.value;
@@ -1004,10 +1009,10 @@ export class AdminService {
       severity: AuditSeverity.HIGH,
       resourceType: 'platform_config',
       resourceId: key,
-      details: `Config ${key} updated: ${oldValue} -> ${newValue}. Reason: ${dto.reason}`,
+      details: `Config ${key} updated: ${oldValueString} -> ${newValueString}. Reason: ${dto.reason}`,
       metadata: {
         key,
-        oldValue: config.value, // this is the new value now but we have oldValue as string
+        oldValue,
         newValue: dto.value,
         reason: dto.reason,
       },
@@ -1032,5 +1037,132 @@ export class AdminService {
 
     await this.redisService.set(cacheKey, JSON.stringify(config.value), 3600); // 1 hour cache
     return config.value as T;
+  }
+
+  async getRevenueAnalytics(
+    query: GetRevenueAnalyticsDto,
+    adminId: string,
+    req?: Request,
+  ) {
+    const { period, startDate, endDate, chain } = query;
+
+    const start = new Date();
+    const end = new Date();
+
+    if (period === RevenuePeriod.CUSTOM && startDate && endDate) {
+      start.setTime(new Date(startDate).getTime());
+      end.setTime(new Date(endDate).getTime());
+    } else {
+      switch (period) {
+        case RevenuePeriod.DAY:
+          start.setHours(0, 0, 0, 0);
+          break;
+        case RevenuePeriod.WEEK:
+          start.setDate(start.getDate() - 7);
+          break;
+        case RevenuePeriod.MONTH:
+          start.setMonth(start.getMonth() - 1);
+          break;
+        case RevenuePeriod.YEAR:
+          start.setFullYear(start.getFullYear() - 1);
+          break;
+      }
+    }
+
+    // Query room payments
+    const roomPaymentsQuery = this.roomPaymentRepository
+      .createQueryBuilder('payment')
+      .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere('payment.createdAt BETWEEN :start AND :end', { start, end });
+
+    if (chain) {
+      roomPaymentsQuery.andWhere('payment.blockchainNetwork = :chain', {
+        chain,
+      });
+    }
+
+    const roomPayments = await roomPaymentsQuery.getMany();
+
+    // Query tips (messages of type tip)
+    const tipsQuery = this.messageRepository
+      .createQueryBuilder('message')
+      .where("message.type = 'tip'")
+      .andWhere('message.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('message.createdAt BETWEEN :start AND :end', { start, end });
+
+    const tips = await tipsQuery.getMany();
+
+    // Aggregation
+    let totalRevenue = 0;
+    const byType = {
+      tips: 0,
+      roomEntry: 0,
+    };
+    const byChain: Record<string, number> = {};
+    const byDayMap = new Map<string, number>();
+
+    // Process room payments
+    for (const payment of roomPayments) {
+      const fee = parseFloat(payment.platformFee);
+      totalRevenue += fee;
+      byType.roomEntry += fee;
+
+      const network = payment.blockchainNetwork || 'unknown';
+      byChain[network] = (byChain[network] || 0) + fee;
+
+      const dateStr = payment.createdAt.toISOString().split('T')[0];
+      byDayMap.set(dateStr, (byDayMap.get(dateStr) || 0) + fee);
+    }
+
+    // Process tips
+    for (const tip of tips) {
+      const fee = parseFloat(tip.metadata?.platformFee || '0');
+      const network = tip.metadata?.blockchainNetwork || 'stellar'; // Default for tips if not specified
+
+      if (!chain || network === chain) {
+        totalRevenue += fee;
+        byType.tips += fee;
+        byChain[network] = (byChain[network] || 0) + fee;
+
+        const dateStr = tip.createdAt.toISOString().split('T')[0];
+        byDayMap.set(dateStr, (byDayMap.get(dateStr) || 0) + fee);
+      }
+    }
+
+    const byDay = Array.from(byDayMap.entries())
+      .map(([date, revenue]) => ({ date, revenue: revenue.toFixed(8) }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const totalTransactionCount = roomPayments.length + tips.length;
+    const averageFeePerTransaction =
+      totalTransactionCount > 0
+        ? (totalRevenue / totalTransactionCount).toFixed(8)
+        : '0.00000000';
+
+    const response = {
+      totalRevenue: totalRevenue.toFixed(8),
+      byType: {
+        tips: byType.tips.toFixed(8),
+        roomEntry: byType.roomEntry.toFixed(8),
+      },
+      byChain: Object.fromEntries(
+        Object.entries(byChain).map(([k, v]) => [k, v.toFixed(8)]),
+      ),
+      byDay,
+      transactionCount: totalTransactionCount,
+      averageFeePerTransaction,
+    };
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      'Viewed revenue analytics',
+      { query },
+      req,
+      AuditSeverity.LOW,
+    );
+
+    return response;
   }
 }
