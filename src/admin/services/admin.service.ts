@@ -8,25 +8,25 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository, In } from 'typeorm';
-import { User } from '../user/entities/user.entity';
+import { User } from '../../user/entities/user.entity';
 import {
   AuditLog,
   AuditAction,
   AuditEventType,
   AuditOutcome,
   AuditSeverity,
-} from './entities/audit-log.entity';
-import { GetUsersDto, UserFilterStatus } from './dto/get-users.dto';
-import { BanUserDto } from './dto/ban-user.dto';
-import { SuspendUserDto } from './dto/suspend-user.dto';
-import { BulkActionDto, BulkActionType } from './dto/bulk-action.dto';
+} from '../entities/audit-log.entity';
+import { GetUsersDto, UserFilterStatus } from '../dto/get-users.dto';
+import { BanUserDto } from '../dto/ban-user.dto';
+import { SuspendUserDto } from '../dto/suspend-user.dto';
+import { BulkActionDto, BulkActionType } from '../dto/bulk-action.dto';
 import { Request } from 'express';
-import { AuditLogService, AuditLogFilters } from './services/audit-log.service';
-import { DataAccessAction } from './entities/data-access-log.entity';
-import { Transfer } from '../transfer/entities/transfer.entity';
-import { ADMIN_STREAM_EVENTS } from './gateways/admin-event-stream.gateway';
-import { Session } from '../sessions/entities/session.entity';
-import { Message } from '../message/entities/message.entity';
+import { AuditLogService, AuditLogFilters } from './audit-log.service';
+import { DataAccessAction } from '../entities/data-access-log.entity';
+import { Transfer } from '../../transfer/entities/transfer.entity';
+import { ADMIN_STREAM_EVENTS } from '../gateways/admin-event-stream.gateway';
+import { Session } from '../../sessions/entities/session.entity';
+import { Message } from '../../message/entities/message.entity';
 
 @Injectable()
 export class AdminService {
