@@ -22,19 +22,27 @@ import { RequirePermissions } from '../roles/decorators/permissions.decorator';
 import { RoleType } from '../roles/entities/role.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
-import { GetUsersDto } from './dto/get-users.dto';
-import { BanUserDto } from './dto/ban-user.dto';
-import { SuspendUserDto } from './dto/suspend-user.dto';
-import { BulkActionDto } from './dto/bulk-action.dto';
-import { ImpersonateUserDto } from './dto/impersonate-user.dto';
-import { GetAuditLogsDto } from './dto/get-audit-logs.dto';
+import { GetUsersDto } from '../dto/get-users.dto';
+import { BanUserDto } from '../dto/ban-user.dto';
+import { SuspendUserDto } from '../dto/suspend-user.dto';
+import { BulkActionDto } from '../dto/bulk-action.dto';
+import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
+import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
+import { IsAdmin } from '../decorators/is-admin.decorator';
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, RoleGuard, PermissionGuard)
-@Roles(RoleType.ADMIN)
-@RequirePermissions('user.manage')
+@IsAdmin()
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  @Get('health')
+  @HttpCode(HttpStatus.OK)
+  async healthCheck() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    };
+  }
 
   @Get('users')
   async getUsers(
