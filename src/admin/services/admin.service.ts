@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +21,7 @@ import { GetUsersDto, UserFilterStatus } from '../dto/get-users.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto, BulkActionType } from '../dto/bulk-action.dto';
+import { DeleteUserDto } from '../dto/delete-user.dto';
 import { Request } from 'express';
 import { AuditLogService, AuditLogFilters } from './audit-log.service';
 import { DataAccessAction } from '../entities/data-access-log.entity';
@@ -27,6 +29,10 @@ import { Transfer } from '../../transfer/entities/transfer.entity';
 import { ADMIN_STREAM_EVENTS } from '../gateways/admin-event-stream.gateway';
 import { Session } from '../../sessions/entities/session.entity';
 import { Message } from '../../message/entities/message.entity';
+import { Room } from '../../room/entities/room.entity';
+import { RoomMember } from '../../room/entities/room-member.entity';
+import { TransferBalanceService } from '../../transfer/services/transfer-balance.service';
+import { UserRole } from '../../roles/entities/role.entity';
 
 @Injectable()
 export class AdminService {
@@ -43,7 +49,12 @@ export class AdminService {
     private readonly sessionRepository: Repository<Session>,
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
+    @InjectRepository(Room)
+    private readonly roomRepository: Repository<Room>,
+    @InjectRepository(RoomMember)
+    private readonly roomMemberRepository: Repository<RoomMember>,
     private readonly auditLogService: AuditLogService,
+    private readonly transferBalanceService: TransferBalanceService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -839,7 +850,113 @@ export class AdminService {
       outcome: AuditOutcome.SUCCESS,
       severity: AuditSeverity.HIGH,
       details: 'Impersonation started',
-      req,
     });
+  }
+
+  async deleteUser(
+    userId: string,
+    dto: DeleteUserDto,
+    adminId: string,
+    force: boolean = false,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    // Verify confirmEmail
+    if (dto.confirmEmail !== user.email) {
+      throw new BadRequestException('Confirmation email does not match user email');
+    }
+
+    // Check balance
+    const balance = await this.transferBalanceService.getBalance(userId);
+    if (balance > 0 && !force) {
+      throw new ConflictException(
+        `User has a non-zero balance (${balance}). Funds must be withdrawn before deletion unless 'force' is used.`,
+      );
+    }
+
+    // GDPR anonymization and soft delete
+    const uuid = userId.split('-')[0];
+    const originalEmail = user.email;
+    const originalUsername = user.username;
+
+    user.email = `deleted_${uuid}@deleted.local`;
+    user.username = `[deleted]`;
+    user.isBanned = true;
+    user.banReason = `User deleted by admin ${adminId}: ${dto.reason}`;
+    user.deletedAt = new Date();
+
+    await this.userRepository.save(user);
+
+    // Soft delete messages
+    await this.messageRepository.update(
+      { author: { id: userId } as any },
+      {
+        content: '[message deleted]',
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    );
+
+    // Handle rooms
+    const ownedRooms = await this.roomRepository.find({
+      where: { ownerId: userId },
+    });
+
+    const platformAdminId = process.env.PLATFORM_ADMIN_ID;
+
+    for (const room of ownedRooms) {
+      const memberCount = await this.roomMemberRepository.count({
+        where: { roomId: room.id },
+      });
+
+      if (memberCount < 2) {
+        // Close room
+        await this.roomRepository.update(room.id, {
+          isActive: false,
+          isDeleted: true,
+          deletedAt: new Date(),
+        });
+      } else if (platformAdminId) {
+        // Transfer to platform admin
+        await this.roomRepository.update(room.id, {
+          ownerId: platformAdminId,
+        });
+      } else {
+        // If no platform admin configured, we might have to close it or handle differently
+        // For now, let's close it to be safe if no platform admin is found
+        await this.roomRepository.update(room.id, {
+          isActive: false,
+          isDeleted: true,
+          deletedAt: new Date(),
+        });
+      }
+    }
+
+    // Invalidate sessions
+    await this.sessionRepository.update(
+      { userId, isActive: true },
+      { isActive: false },
+    );
+
+    // Log audit
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_DELETED,
+      userId,
+      `User deleted (GDPR compliant). Reason: ${dto.reason}`,
+      { originalEmail, originalUsername, forced: force },
+      req,
+      AuditSeverity.HIGH,
+    );
+
+    return { message: 'User account successfully deleted and anonymized' };
   }
 }
