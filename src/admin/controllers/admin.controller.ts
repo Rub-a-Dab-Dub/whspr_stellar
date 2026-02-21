@@ -193,6 +193,12 @@ export class AdminController {
     );
   }
 
+  @Get('rooms')
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  async getRooms(@Query() query: GetRoomsDto) {
+    return await this.adminService.getRooms(query);
+  }
+
   @Get('statistics')
   async getStatistics(@CurrentUser() currentUser: any, @Req() req: Request) {
     return await this.adminService.getUserStatistics(currentUser.userId, req);
