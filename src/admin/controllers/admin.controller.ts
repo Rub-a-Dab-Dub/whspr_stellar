@@ -234,6 +234,7 @@ export class AdminController {
   }
 
   @Get('users/:id/sessions')
+  @ApiOperation({ title: 'Get user active sessions' })
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   async getUserSessions(
     @Param('id') userId: string,
@@ -244,6 +245,7 @@ export class AdminController {
   }
 
   @Delete('users/:id/sessions/:sessionId')
+  @ApiOperation({ title: 'Terminate specific user session' })
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
   async terminateSession(
@@ -261,6 +263,7 @@ export class AdminController {
   }
 
   @Delete('users/:id/sessions')
+  @ApiOperation({ title: 'Terminate all user sessions' })
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
   async terminateAllUserSessions(
@@ -277,6 +280,7 @@ export class AdminController {
 
   @Get('rooms')
   @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ title: 'Get rooms list with filters' })
   async getRooms(@Query() query: GetRoomsDto) {
     return await this.adminService.getRooms(query);
   }
@@ -491,6 +495,7 @@ export class AdminController {
   }
 
   @Get('analytics/overview')
+  @ApiOperation({ title: 'Get platform overview analytics' })
   async getOverviewAnalytics(
     @Query() query: GetOverviewAnalyticsDto,
     @CurrentUser() currentUser: any,
@@ -600,6 +605,7 @@ export class AdminController {
   }
 
   @Get('rooms/:roomId')
+  @ApiOperation({ title: 'Get room details' })
   async getRoomDetails(
     @Param('roomId') roomId: string,
     @Query() query: any,
