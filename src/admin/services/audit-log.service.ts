@@ -46,11 +46,15 @@ export type AuditLogFilters = {
   outcome?: AuditOutcome;
   resourceType?: string;
   resourceId?: string;
+  targetType?: string; // Alias for resourceType
+  targetId?: string; // Alias for resourceId
   ipAddress?: string;
   userAgent?: string;
   search?: string;
   createdAfter?: string;
   createdBefore?: string;
+  startDate?: string; // Alias for createdAfter
+  endDate?: string; // Alias for createdBefore
 };
 
 export type DataAccessLogInput = {
@@ -135,78 +139,87 @@ export class AuditLogService {
     const limit = filters.limit || 50;
     const skip = (page - 1) * limit;
 
+    // Normalize filter aliases
+    const normalizedFilters = {
+      ...filters,
+      resourceType: filters.resourceType || filters.targetType,
+      resourceId: filters.resourceId || filters.targetId,
+      createdAfter: filters.createdAfter || filters.startDate,
+      createdBefore: filters.createdBefore || filters.endDate,
+    };
+
     const queryBuilder = this.auditLogRepository.createQueryBuilder('log');
 
-    if (filters.actorUserId) {
+    if (normalizedFilters.actorUserId) {
       queryBuilder.andWhere('log.actorUserId = :actorUserId', {
-        actorUserId: filters.actorUserId,
+        actorUserId: normalizedFilters.actorUserId,
       });
     }
 
-    if (filters.targetUserId) {
+    if (normalizedFilters.targetUserId) {
       queryBuilder.andWhere('log.targetUserId = :targetUserId', {
-        targetUserId: filters.targetUserId,
+        targetUserId: normalizedFilters.targetUserId,
       });
     }
 
-    if (filters.actions && filters.actions.length > 0) {
+    if (normalizedFilters.actions && normalizedFilters.actions.length > 0) {
       queryBuilder.andWhere('log.action IN (:...actions)', {
-        actions: filters.actions,
+        actions: normalizedFilters.actions,
       });
     }
 
-    if (filters.eventType) {
+    if (normalizedFilters.eventType) {
       queryBuilder.andWhere('log.eventType = :eventType', {
-        eventType: filters.eventType,
+        eventType: normalizedFilters.eventType,
       });
     }
 
-    if (filters.outcome) {
+    if (normalizedFilters.outcome) {
       queryBuilder.andWhere('log.outcome = :outcome', {
-        outcome: filters.outcome,
+        outcome: normalizedFilters.outcome,
       });
     }
 
-    if (filters.resourceType) {
+    if (normalizedFilters.resourceType) {
       queryBuilder.andWhere('log.resourceType = :resourceType', {
-        resourceType: filters.resourceType,
+        resourceType: normalizedFilters.resourceType,
       });
     }
 
-    if (filters.resourceId) {
+    if (normalizedFilters.resourceId) {
       queryBuilder.andWhere('log.resourceId = :resourceId', {
-        resourceId: filters.resourceId,
+        resourceId: normalizedFilters.resourceId,
       });
     }
 
-    if (filters.ipAddress) {
+    if (normalizedFilters.ipAddress) {
       queryBuilder.andWhere('log.ipAddress = :ipAddress', {
-        ipAddress: filters.ipAddress,
+        ipAddress: normalizedFilters.ipAddress,
       });
     }
 
-    if (filters.userAgent) {
+    if (normalizedFilters.userAgent) {
       queryBuilder.andWhere('log.userAgent ILIKE :userAgent', {
-        userAgent: `%${filters.userAgent}%`,
+        userAgent: `%${normalizedFilters.userAgent}%`,
       });
     }
 
-    if (filters.search) {
+    if (normalizedFilters.search) {
       queryBuilder.andWhere(
         '(log.details ILIKE :search OR CAST(log.metadata AS TEXT) ILIKE :search)',
-        { search: `%${filters.search}%` },
+        { search: `%${normalizedFilters.search}%` },
       );
     }
 
-    if (filters.createdAfter) {
+    if (normalizedFilters.createdAfter) {
       queryBuilder.andWhere('log.createdAt >= :createdAfter', {
-        createdAfter: new Date(filters.createdAfter),
+        createdAfter: new Date(normalizedFilters.createdAfter),
       });
     }
 
-    if (filters.createdBefore) {
+    if (normalizedFilters.createdBefore) {
       queryBuilder.andWhere('log.createdAt <= :createdBefore', {
-        createdBefore: new Date(filters.createdBefore),
+        createdBefore: new Date(normalizedFilters.createdBefore),
       });
     }
 

@@ -237,7 +237,8 @@ export class AdminController {
       ? query.actions.split(',').map((action) => action.trim())
       : undefined;
 
-    const actorUserId = query.actorUserId || adminId;
+    // Use adminId parameter if provided, otherwise use actorUserId from query
+    const actorUserId = adminId || query.adminId || query.actorUserId;
 
     return await this.adminService.getAuditLogs(
       {
@@ -265,7 +266,8 @@ export class AdminController {
       ? query.actions.split(',').map((action) => action.trim())
       : undefined;
 
-    const actorUserId = query.actorUserId || adminId;
+    // Use adminId parameter if provided, otherwise use actorUserId from query
+    const actorUserId = adminId || query.adminId || query.actorUserId;
 
     const exportResult = await this.adminService.exportAuditLogs(
       {

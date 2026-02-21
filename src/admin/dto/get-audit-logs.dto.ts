@@ -34,6 +34,10 @@ export class GetAuditLogsDto {
   @ApiPropertyOptional({ description: 'Admin user ID who performed the action' })
   @IsOptional()
   @IsString()
+  adminId?: string; // Alias for actorUserId
+
+  @IsOptional()
+  @IsString()
   actorUserId?: string;
 
   @ApiPropertyOptional({ description: 'Target user ID' })
@@ -42,6 +46,14 @@ export class GetAuditLogsDto {
   targetUserId?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  targetType?: string; // Filter by resource type
+
+  @IsOptional()
+  @IsString()
+  targetId?: string; // Filter by resource id
+
   @IsOptional()
   @IsString()
   resourceType?: string;
@@ -62,6 +74,14 @@ export class GetAuditLogsDto {
   userAgent?: string;
 
   @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string; // Alias for createdAfter
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string; // Alias for createdBefore
+
   @IsOptional()
   @IsInt()
   @Min(1)
