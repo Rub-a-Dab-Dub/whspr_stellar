@@ -26,6 +26,7 @@ import { AdminService } from '../services/admin.service';
 import { GetUsersDto } from '../dto/get-users.dto';
 import { GetRoomsDto } from '../dto/get-rooms.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
+import { UnbanUserDto } from '../dto/unban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto } from '../dto/bulk-action.dto';
 import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
@@ -123,10 +124,16 @@ export class AdminController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async unbanUser(
     @Param('id') userId: string,
+    @Body() unbanDto: UnbanUserDto,
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.unbanUser(userId, currentUser.userId, req);
+    return await this.adminService.unbanUser(
+      userId,
+      currentUser.userId,
+      unbanDto,
+      req,
+    );
   }
 
   @Post('users/:id/suspend')
