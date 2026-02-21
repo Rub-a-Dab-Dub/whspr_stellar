@@ -1,33 +1,15 @@
-import { ApiModelProperty } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class PaginatedMeta {
-    @ApiModelProperty()
-    total: number;
+export class PaginatedResponseDto<T = unknown> {
+  @ApiProperty({ isArray: true, description: 'Array of items for the current page' })
+  data: T[];
 
-    @ApiModelProperty()
-    page: number;
+  @ApiProperty({ example: 100, description: 'Total number of items across all pages' })
+  total: number;
 
-    @ApiModelProperty()
-    limit: number;
+  @ApiProperty({ example: 1, description: 'Current page number (1-based)' })
+  page: number;
 
-    @ApiModelProperty()
-    totalPages: number;
-}
-
-export class PaginatedResponseDto<T> {
-    @ApiModelProperty({ isArray: true })
-    data: T[];
-
-    @ApiModelProperty()
-    meta: PaginatedMeta;
-
-    constructor(data: T[], total: number, page: number, limit: number) {
-        this.data = data;
-        this.meta = {
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-        };
-    }
+  @ApiProperty({ example: 10, description: 'Number of items per page' })
+  limit: number;
 }

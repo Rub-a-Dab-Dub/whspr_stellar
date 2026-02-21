@@ -32,23 +32,24 @@ export class MentionDetectionService {
     }
 
     // Extract unique usernames
-    const usernames = Array.from(new Set(matches.map(match => match[1])));
+    const usernames = Array.from(new Set(matches.map((match) => match[1])));
 
     // Find users by username/email
     const users = await this.userRepository.find({
-      where: usernames.map(username => [
-        { email: username },
-        { email: `${username}@*` }, // Partial email match
-      ]).flat(),
+      where: usernames
+        .map((username) => [
+          { email: username },
+          { email: `${username}@*` }, // Partial email match
+        ])
+        .flat(),
       select: ['id', 'email'],
     });
 
     // Create mention matches
     for (const match of matches) {
       const username = match[1];
-      const user = users.find(u => 
-        u.email === username || 
-        u.email.startsWith(`${username}@`)
+      const user = users.find(
+        (u) => u.email === username || u.email.startsWith(`${username}@`),
       );
 
       if (user) {
@@ -70,7 +71,7 @@ export class MentionDetectionService {
    */
   formatMentions(content: string, mentions: MentionMatch[]): string {
     let formattedContent = content;
-    
+
     // Sort mentions by start index in descending order to avoid index shifting
     const sortedMentions = mentions.sort((a, b) => b.startIndex - a.startIndex);
 
@@ -78,7 +79,7 @@ export class MentionDetectionService {
       const beforeMention = formattedContent.substring(0, mention.startIndex);
       const afterMention = formattedContent.substring(mention.endIndex);
       const formattedMention = `<@${mention.userId}>`;
-      
+
       formattedContent = beforeMention + formattedMention + afterMention;
     }
 

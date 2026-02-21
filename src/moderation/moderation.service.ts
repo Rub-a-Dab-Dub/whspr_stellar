@@ -3,7 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository, LessThan } from 'typeorm';
 import { ModerationRule } from './entities/moderation-rule.entity';
-import { ModerationAction, ModerationActionType, ModerationReason } from './entities/moderation-action.entity';
+import {
+  ModerationAction,
+  ModerationActionType,
+  ModerationReason,
+} from './entities/moderation-action.entity';
 import { ModerationWarning } from './entities/moderation-warning.entity';
 import { RoomModerationSettings } from './entities/room-moderation-settings.entity';
 import { FlaggedMessage, FlagStatus } from './entities/flagged-message.entity';
@@ -44,7 +48,7 @@ export class ModerationService {
   async moderateMessage(
     content: string,
     userId: string,
-    roomId: string
+    roomId: string,
   ): Promise<ModerationResult> {
     const settings = await this.getOrCreateSettings(roomId);
 
@@ -55,7 +59,7 @@ export class ModerationService {
       {
         maxMessages: settings.maxMessagesPerMinute,
         windowMs: 60000, // 1 minute
-      }
+      },
     );
 
     if (rateLimitCheck.limited) {
@@ -64,7 +68,7 @@ export class ModerationService {
         roomId,
         null,
         ModerationReason.RATE_LIMIT,
-        'Rate limit exceeded'
+        'Rate limit exceeded',
       );
       return {
         allowed: false,
@@ -76,19 +80,22 @@ export class ModerationService {
     if (settings.profanityFilterEnabled) {
       const isProfane = this.profanityFilter.isProfane(
         content,
-        settings.blacklistedWords
+        settings.blacklistedWords,
       );
 
       if (isProfane) {
-        const cleaned = this.profanityFilter.clean(content, settings.blacklistedWords);
+        const cleaned = this.profanityFilter.clean(
+          content,
+          settings.blacklistedWords,
+        );
         await this.handleViolation(
           userId,
           roomId,
           null,
           ModerationReason.PROFANITY,
-          'Profanity detected'
+          'Profanity detected',
         );
-        
+
         // Auto-flag the message
         await this.flagMessage({
           messageId: null, // will be set by caller
@@ -117,7 +124,7 @@ export class ModerationService {
           roomId,
           null,
           ModerationReason.SPAM,
-          'Spam detected'
+          'Spam detected',
         );
         return {
           allowed: false,
@@ -130,7 +137,7 @@ export class ModerationService {
     if (settings.linkSpamDetectionEnabled) {
       const isLinkSpam = this.spamDetection.isLinkSpam(
         content,
-        settings.whitelistedDomains
+        settings.whitelistedDomains,
       );
 
       if (isLinkSpam) {
@@ -139,7 +146,7 @@ export class ModerationService {
           roomId,
           null,
           ModerationReason.LINK_SPAM,
-          'Link spam detected'
+          'Link spam detected',
         );
         return {
           allowed: false,
@@ -159,7 +166,7 @@ export class ModerationService {
     roomId: string,
     messageId: string | null,
     reason: ModerationReason,
-    details: string
+    details: string,
   ): Promise<void> {
     const settings = await this.getOrCreateSettings(roomId);
 
@@ -207,7 +214,7 @@ export class ModerationService {
   private async autoMuteUser(
     userId: string,
     roomId: string,
-    durationMinutes: number
+    durationMinutes: number,
   ): Promise<void> {
     const expiresAt = new Date(Date.now() + durationMinutes * 60000);
 
@@ -315,7 +322,7 @@ export class ModerationService {
     flaggedId: string,
     reviewerId: string,
     approved: boolean,
-    notes?: string
+    notes?: string,
   ): Promise<FlaggedMessage> {
     const flagged = await this.flaggedRepo.findOne({
       where: { id: flaggedId },
@@ -336,7 +343,7 @@ export class ModerationService {
    * Get or create room moderation settings
    */
   private async getOrCreateSettings(
-    roomId: string
+    roomId: string,
   ): Promise<RoomModerationSettings> {
     let settings = await this.settingsRepo.findOne({ where: { roomId } });
 
@@ -353,7 +360,7 @@ export class ModerationService {
    */
   async updateSettings(
     roomId: string,
-    updates: Partial<RoomModerationSettings>
+    updates: Partial<RoomModerationSettings>,
   ): Promise<RoomModerationSettings> {
     const settings = await this.getOrCreateSettings(roomId);
     Object.assign(settings, updates);
@@ -363,7 +370,10 @@ export class ModerationService {
   /**
    * Get moderation actions for user
    */
-  async getUserActions(userId: string, roomId?: string): Promise<ModerationAction[]> {
+  async getUserActions(
+    userId: string,
+    roomId?: string,
+  ): Promise<ModerationAction[]> {
     const where: any = { userId };
     if (roomId) where.roomId = roomId;
 

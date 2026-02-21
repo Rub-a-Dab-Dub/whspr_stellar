@@ -9,10 +9,7 @@ import { ChainMonitoringService } from './services/chain-monitoring.service';
 import { ChainAnalyticsService } from './services/chain-analytics.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([RoomPayment]),
-    ScheduleModule.forRoot(),
-  ],
+  imports: [TypeOrmModule.forFeature([RoomPayment]), ScheduleModule.forRoot()],
   controllers: [ChainController],
   providers: [
     ChainService,
@@ -20,10 +17,6 @@ import { ChainAnalyticsService } from './services/chain-analytics.service';
     ChainMonitoringService,
     ChainAnalyticsService,
   ],
-  exports: [
-    ChainService,
-    ChainDetectionService,
-    ChainMonitoringService,
-  ],
+  exports: [ChainService, ChainDetectionService, ChainMonitoringService],
 })
 export class ChainModule {}

@@ -1,4 +1,12 @@
-import { IsEnum, IsString, IsOptional, IsUUID, IsNumber, IsBoolean, IsObject } from 'class-validator';
+import {
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsNumber,
+  IsBoolean,
+  IsObject,
+} from 'class-validator';
 import { RewardType } from '../enums/reward-type.enum';
 
 export class GrantRewardDto {

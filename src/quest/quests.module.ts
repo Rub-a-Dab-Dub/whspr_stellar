@@ -9,19 +9,18 @@ import { QuestRewardService } from './services/quest-reward.service';
 import { QuestProgressController } from './controllers/quest-progress.controller';
 import { QuestProgressCache } from './cache/quest-progress.cache';
 
-
 @Module({
-imports: [
-TypeOrmModule.forFeature([Quest, QuestProgress]),
-EventEmitterModule.forRoot(),
-],
-controllers: [QuestProgressController],
-providers: [
-QuestProgressService,
-QuestCompletionService,
-QuestRewardService,
-QuestProgressCache,
-],
-exports: [QuestProgressService],
+  imports: [
+    TypeOrmModule.forFeature([Quest, QuestProgress]),
+    EventEmitterModule.forRoot(),
+  ],
+  controllers: [QuestProgressController],
+  providers: [
+    QuestProgressService,
+    QuestCompletionService,
+    QuestRewardService,
+    QuestProgressCache,
+  ],
+  exports: [QuestProgressService],
 })
 export class QuestsModule {}

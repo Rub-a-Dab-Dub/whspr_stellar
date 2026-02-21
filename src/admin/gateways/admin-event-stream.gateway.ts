@@ -90,7 +90,9 @@ export class AdminEventStreamGateway
 
       this.adminSockets.add(client.id);
       client.data.adminId = userId;
-      this.logger.log(`Admin ${userId} connected to event stream (${client.id})`);
+      this.logger.log(
+        `Admin ${userId} connected to event stream (${client.id})`,
+      );
     } catch (error) {
       this.logger.warn(`Admin WS: auth failed - ${(error as Error).message}`);
       client.disconnect();

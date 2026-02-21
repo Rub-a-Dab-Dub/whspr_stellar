@@ -1,4 +1,11 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey, TableIndex, TableUnique } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableForeignKey,
+  TableIndex,
+  TableUnique,
+} from 'typeorm';
 
 export class CreateRoomMemberAndInvitationTables1769500000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

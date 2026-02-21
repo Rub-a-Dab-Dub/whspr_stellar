@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { RoomInvitation, InvitationStatus } from '../entities/room-invitation.entity';
+import {
+  RoomInvitation,
+  InvitationStatus,
+} from '../entities/room-invitation.entity';
 import { RoomMember, MemberRole } from '../entities/room-member.entity';
 import { RoomInvitationRepository } from '../repositories/room-invitation.repository';
 import { Room } from '../entities/room.entity';
@@ -49,7 +52,10 @@ export class RoomInvitationService {
     }
 
     // Check inviter has permission
-    const inviter = await this.memberRepository.findMemberWithRole(roomId, invitedById);
+    const inviter = await this.memberRepository.findMemberWithRole(
+      roomId,
+      invitedById,
+    );
     if (!inviter) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
@@ -60,8 +66,14 @@ export class RoomInvitationService {
 
     // Check rate limit
     const sinceTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const sentToday = await this.invitationRepository.countSentByUser(invitedById, sinceTime);
-    if (sentToday + userIds.length > INVITATION_CONFIG.MAX_INVITATIONS_PER_DAY) {
+    const sentToday = await this.invitationRepository.countSentByUser(
+      invitedById,
+      sinceTime,
+    );
+    if (
+      sentToday + userIds.length >
+      INVITATION_CONFIG.MAX_INVITATIONS_PER_DAY
+    ) {
       throw new BadRequestException(
         `Too many invitations sent today. Limit: ${INVITATION_CONFIG.MAX_INVITATIONS_PER_DAY}`,
       );
@@ -76,29 +88,34 @@ export class RoomInvitationService {
 
       for (const userId of userIds) {
         // Check user exists
-        const user = await this.userRepository.findOne({ where: { id: userId } });
+        const user = await this.userRepository.findOne({
+          where: { id: userId },
+        });
         if (!user) {
           continue;
         }
 
         // Check if already a member
-        const existingMember = await this.memberRepository.findMemberWithRole(roomId, userId);
+        const existingMember = await this.memberRepository.findMemberWithRole(
+          roomId,
+          userId,
+        );
         if (existingMember) {
           continue;
         }
 
         // Check for existing pending invitation
-        const existingInvitation = await this.invitationRepository.findByUserAndRoom(
-          userId,
-          roomId,
-        );
+        const existingInvitation =
+          await this.invitationRepository.findByUserAndRoom(userId, roomId);
         if (existingInvitation) {
           continue;
         }
 
         const inviteToken = this.generateInviteToken();
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + ROOM_MEMBER_CONSTANTS.INVITATION_EXPIRY_DAYS);
+        expiresAt.setDate(
+          expiresAt.getDate() + ROOM_MEMBER_CONSTANTS.INVITATION_EXPIRY_DAYS,
+        );
 
         const invitation = new RoomInvitation();
         invitation.roomId = roomId;
@@ -135,16 +152,20 @@ export class RoomInvitationService {
     skip: number = 0,
     take: number = 20,
   ): Promise<{ total: number; invitations: RoomInvitation[] }> {
-    const [invitations, total] = await this.invitationRepository.findPendingInvitations(
-      userId,
-      skip,
-      take,
-    );
+    const [invitations, total] =
+      await this.invitationRepository.findPendingInvitations(
+        userId,
+        skip,
+        take,
+      );
 
     return { total, invitations };
   }
 
-  async acceptInvitation(invitationId: string, userId: string): Promise<RoomMember> {
+  async acceptInvitation(
+    invitationId: string,
+    userId: string,
+  ): Promise<RoomMember> {
     const invitation = await this.invitationRepository.findOne({
       where: { id: invitationId },
       relations: ['room', 'invitedBy'],
@@ -159,7 +180,9 @@ export class RoomInvitationService {
     }
 
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new BadRequestException(`Invitation has already been ${invitation.status.toLowerCase()}`);
+      throw new BadRequestException(
+        `Invitation has already been ${invitation.status.toLowerCase()}`,
+      );
     }
 
     if (new Date() > invitation.expiresAt) {
@@ -222,7 +245,9 @@ export class RoomInvitationService {
     }
 
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new BadRequestException(`Invitation has already been ${invitation.status.toLowerCase()}`);
+      throw new BadRequestException(
+        `Invitation has already been ${invitation.status.toLowerCase()}`,
+      );
     }
 
     invitation.status = InvitationStatus.REJECTED;
@@ -320,17 +345,21 @@ export class RoomInvitationService {
     skip: number = 0,
     take: number = 20,
   ): Promise<{ total: number; invitations: RoomInvitation[] }> {
-    const [invitations, total] = await this.invitationRepository.findRoomInvitations(
-      roomId,
-      status,
-      skip,
-      take,
-    );
+    const [invitations, total] =
+      await this.invitationRepository.findRoomInvitations(
+        roomId,
+        status,
+        skip,
+        take,
+      );
 
     return { total, invitations };
   }
 
-  async revokeInvitation(invitationId: string, initiatorId: string): Promise<void> {
+  async revokeInvitation(
+    invitationId: string,
+    initiatorId: string,
+  ): Promise<void> {
     const invitation = await this.invitationRepository.findOne({
       where: { id: invitationId },
     });
@@ -348,6 +377,8 @@ export class RoomInvitationService {
   }
 
   private generateInviteToken(): string {
-    return crypto.randomBytes(INVITATION_CONFIG.TOKEN_LENGTH / 2).toString('hex');
+    return crypto
+      .randomBytes(INVITATION_CONFIG.TOKEN_LENGTH / 2)
+      .toString('hex');
   }
 }

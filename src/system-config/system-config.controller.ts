@@ -40,11 +40,15 @@ export class SystemConfigController {
     @Req() req: Request,
   ) {
     if (body.updates && body.rollback) {
-      throw new BadRequestException('Provide either updates or rollback, not both.');
+      throw new BadRequestException(
+        'Provide either updates or rollback, not both.',
+      );
     }
 
     if (!body.updates && !body.rollback) {
-      throw new BadRequestException('Provide updates or rollback in request body.');
+      throw new BadRequestException(
+        'Provide updates or rollback in request body.',
+      );
     }
 
     if (body.rollback) {

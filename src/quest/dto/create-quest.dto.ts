@@ -1,4 +1,11 @@
-import { IsString, IsNumber, IsEnum, IsDateString, IsOptional, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsDateString,
+  IsOptional,
+  Min,
+} from 'class-validator';
 import { QuestType, RewardType } from '../entities/quest.entity';
 
 export class CreateQuestDto {

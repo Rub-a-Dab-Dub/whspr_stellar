@@ -33,13 +33,13 @@ export class PermissionGuard implements CanActivate {
     }
 
     // Get all permissions from user's roles
-    const userPermissions = roles.flatMap((role) =>
-      role.permissions?.map((p) => p.name) || []
+    const userPermissions = roles.flatMap(
+      (role) => role.permissions?.map((p) => p.name) || [],
     );
 
     // Check if user has all required permissions
     return requiredPermissions.every((permission) =>
-      userPermissions.includes(permission)
+      userPermissions.includes(permission),
     );
   }
 }

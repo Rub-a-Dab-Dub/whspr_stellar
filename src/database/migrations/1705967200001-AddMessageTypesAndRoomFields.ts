@@ -5,9 +5,7 @@ import {
   TableIndex,
 } from 'typeorm';
 
-export class AddMessageTypesAndRoomFields1705967200001
-  implements MigrationInterface
-{
+export class AddMessageTypesAndRoomFields1705967200001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add type column
     await queryRunner.addColumn(

@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { TransferService } from './transfer.service';
-import { Transfer, TransferStatus, TransferType } from './entities/transfer.entity';
+import {
+  Transfer,
+  TransferStatus,
+  TransferType,
+} from './entities/transfer.entity';
 import { BulkTransfer } from './entities/bulk-transfer.entity';
 import { TransferValidationService } from './services/transfer-validation.service';
 import { TransferBalanceService } from './services/transfer-balance.service';
@@ -10,6 +14,9 @@ import { TransferBlockchainService } from './services/transfer-blockchain.servic
 import { TransferNotificationService } from './services/transfer-notification.service';
 import { UsersService } from '../user/user.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { AuditLogService } from '../admin/services/audit-log.service';
+import { AdminConfigService } from '../config/admin-config.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('TransferService', () => {
   let service: TransferService;
@@ -66,6 +73,18 @@ describe('TransferService', () => {
     createQueryRunner: jest.fn(),
   };
 
+  const mockAuditLogService = {
+    log: jest.fn(),
+  };
+
+  const mockAdminConfigService = {
+    largeTransactionThreshold: 10000,
+  };
+
+  const mockEventEmitter = {
+    emit: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -102,16 +121,38 @@ describe('TransferService', () => {
           provide: DataSource,
           useValue: mockDataSource,
         },
+        {
+          provide: AuditLogService,
+          useValue: mockAuditLogService,
+        },
+        {
+          provide: AdminConfigService,
+          useValue: mockAdminConfigService,
+        },
+        {
+          provide: EventEmitter2,
+          useValue: mockEventEmitter,
+        },
       ],
     }).compile();
 
     service = module.get<TransferService>(TransferService);
-    transferRepository = module.get<Repository<Transfer>>(getRepositoryToken(Transfer));
-    bulkTransferRepository = module.get<Repository<BulkTransfer>>(getRepositoryToken(BulkTransfer));
-    validationService = module.get<TransferValidationService>(TransferValidationService);
+    transferRepository = module.get<Repository<Transfer>>(
+      getRepositoryToken(Transfer),
+    );
+    bulkTransferRepository = module.get<Repository<BulkTransfer>>(
+      getRepositoryToken(BulkTransfer),
+    );
+    validationService = module.get<TransferValidationService>(
+      TransferValidationService,
+    );
     balanceService = module.get<TransferBalanceService>(TransferBalanceService);
-    blockchainService = module.get<TransferBlockchainService>(TransferBlockchainService);
-    notificationService = module.get<TransferNotificationService>(TransferNotificationService);
+    blockchainService = module.get<TransferBlockchainService>(
+      TransferBlockchainService,
+    );
+    notificationService = module.get<TransferNotificationService>(
+      TransferNotificationService,
+    );
   });
 
   afterEach(() => {
@@ -141,7 +182,9 @@ describe('TransferService', () => {
       mockValidationService.validateAmount.mockResolvedValue(undefined);
       mockValidationService.validateRecipient.mockResolvedValue(undefined);
       mockValidationService.validateBalance.mockResolvedValue(undefined);
-      mockBalanceService.recordBalanceSnapshot.mockResolvedValue('500.00000000');
+      mockBalanceService.recordBalanceSnapshot.mockResolvedValue(
+        '500.00000000',
+      );
       mockTransferRepository.create.mockReturnValue(mockTransfer);
       mockTransferRepository.save.mockResolvedValue(mockTransfer);
 
@@ -173,9 +216,9 @@ describe('TransferService', () => {
         throw new BadRequestException('Amount must be greater than zero');
       });
 
-      await expect(service.createTransfer(senderId, createTransferDto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createTransfer(senderId, createTransferDto),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw error for insufficient balance', async () => {
@@ -192,9 +235,9 @@ describe('TransferService', () => {
         throw new BadRequestException('Insufficient balance');
       });
 
-      await expect(service.createTransfer(senderId, createTransferDto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createTransfer(senderId, createTransferDto),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

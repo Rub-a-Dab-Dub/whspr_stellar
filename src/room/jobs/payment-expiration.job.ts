@@ -11,7 +11,7 @@ export class PaymentExpirationJob {
   @Cron(CronExpression.EVERY_HOUR)
   async handlePaymentExpiration() {
     this.logger.log('Running payment expiration check...');
-    
+
     try {
       await this.roomPaymentService.expireOldPayments();
       this.logger.log('Payment expiration check completed');

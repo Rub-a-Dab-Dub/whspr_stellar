@@ -1,17 +1,23 @@
-
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from 'typeorm';
 import { UserQuestProgress } from './user-quest-progress.entity';
 
 export enum QuestType {
   DAILY = 'daily',
   WEEKLY = 'weekly',
-  SPECIAL = 'special'
+  SPECIAL = 'special',
 }
 
 export enum RewardType {
   XP = 'xp',
   TOKEN = 'token',
-  BOTH = 'both'
+  BOTH = 'both',
 }
 
 @Entity('quests')
@@ -46,7 +52,7 @@ export class Quest {
   @Column({ type: 'json', nullable: true })
   metadata?: Record<string, any>;
 
-  @OneToMany(() => UserQuestProgress, progress => progress.quest)
+  @OneToMany(() => UserQuestProgress, (progress) => progress.quest)
   userProgress: UserQuestProgress[];
 
   @CreateDateColumn()
