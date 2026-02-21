@@ -1,4 +1,10 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableIndex,
+  TableForeignKey,
+} from 'typeorm';
 
 export class CreateNotificationTables1769700000000 implements MigrationInterface {
   name = 'CreateNotificationTables1769700000000';
@@ -396,15 +402,18 @@ export class CreateNotificationTables1769700000000 implements MigrationInterface
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop foreign keys
     const notificationsTable = await queryRunner.getTable('notifications');
-    const notificationPreferencesTable = await queryRunner.getTable('notification_preferences');
-    const pushSubscriptionsTable = await queryRunner.getTable('push_subscriptions');
+    const notificationPreferencesTable = await queryRunner.getTable(
+      'notification_preferences',
+    );
+    const pushSubscriptionsTable =
+      await queryRunner.getTable('push_subscriptions');
 
     if (notificationsTable) {
       const recipientForeignKey = notificationsTable.foreignKeys.find(
-        fk => fk.columnNames.indexOf('recipientId') !== -1,
+        (fk) => fk.columnNames.indexOf('recipientId') !== -1,
       );
       const senderForeignKey = notificationsTable.foreignKeys.find(
-        fk => fk.columnNames.indexOf('senderId') !== -1,
+        (fk) => fk.columnNames.indexOf('senderId') !== -1,
       );
 
       if (recipientForeignKey) {
@@ -417,16 +426,19 @@ export class CreateNotificationTables1769700000000 implements MigrationInterface
 
     if (notificationPreferencesTable) {
       const userForeignKey = notificationPreferencesTable.foreignKeys.find(
-        fk => fk.columnNames.indexOf('userId') !== -1,
+        (fk) => fk.columnNames.indexOf('userId') !== -1,
       );
       if (userForeignKey) {
-        await queryRunner.dropForeignKey('notification_preferences', userForeignKey);
+        await queryRunner.dropForeignKey(
+          'notification_preferences',
+          userForeignKey,
+        );
       }
     }
 
     if (pushSubscriptionsTable) {
       const userForeignKey = pushSubscriptionsTable.foreignKeys.find(
-        fk => fk.columnNames.indexOf('userId') !== -1,
+        (fk) => fk.columnNames.indexOf('userId') !== -1,
       );
       if (userForeignKey) {
         await queryRunner.dropForeignKey('push_subscriptions', userForeignKey);

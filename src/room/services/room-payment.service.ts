@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { RoomPayment, PaymentStatus } from '../entities/room-payment.entity';
@@ -35,7 +41,7 @@ export class RoomPaymentService {
   ): Promise<PaymentStatusDto> {
     const room = await this.roomRepository.findOne({
       where: { id: roomId },
-      relations: ['creator']
+      relations: ['creator'],
     });
 
     if (!room) {
@@ -59,22 +65,27 @@ export class RoomPaymentService {
 
     // Check for duplicate transaction
     const existingPayment = await this.paymentRepository.findOne({
-      where: { transactionHash: payEntryDto.transactionHash }
+      where: { transactionHash: payEntryDto.transactionHash },
     });
 
     if (existingPayment) {
-      throw new BadRequestException('This transaction has already been processed');
+      throw new BadRequestException(
+        'This transaction has already been processed',
+      );
     }
 
     // Verify blockchain transaction on the specified chain
-    const chain = (payEntryDto.blockchainNetwork as SupportedChain) || SupportedChain.ETHEREUM;
-    const verification = await this.paymentVerificationService.verifyTransaction(
-      payEntryDto.transactionHash,
-      room.entryFee,
-      roomId,
-      userAddress,
-      chain,
-    );
+    const chain =
+      (payEntryDto.blockchainNetwork as SupportedChain) ||
+      SupportedChain.ETHEREUM;
+    const verification =
+      await this.paymentVerificationService.verifyTransaction(
+        payEntryDto.transactionHash,
+        room.entryFee,
+        roomId,
+        userAddress,
+        chain,
+      );
 
     if (!verification.verified) {
       throw new BadRequestException('Transaction verification failed');
@@ -101,11 +112,20 @@ export class RoomPaymentService {
     const amount = Number.parseFloat(savedPayment.amount) || 0;
     await this.userStatsService.recordTokensTransferred(userId, amount, true);
     if (room.creator?.id && room.creator.id !== userId) {
-      await this.userStatsService.recordTokensTransferred(room.creator.id, amount, false);
+      await this.userStatsService.recordTokensTransferred(
+        room.creator.id,
+        amount,
+        false,
+      );
     }
 
     // Grant access
-    await this.grantAccess(userId, roomId, savedPayment.id, savedPayment.accessExpiresAt);
+    await this.grantAccess(
+      userId,
+      roomId,
+      savedPayment.id,
+      savedPayment.accessExpiresAt,
+    );
 
     this.logger.log(`Payment processed for user ${userId} in room ${roomId}`);
 
@@ -115,18 +135,20 @@ export class RoomPaymentService {
   private async grantFreeTrial(
     userId: string,
     roomId: string,
-    room: Room
+    room: Room,
   ): Promise<PaymentStatusDto> {
     // Check if user has already used free trial
     const previousTrial = await this.accessRepository.findOne({
-      where: { userId, roomId, isFreeTrial: true }
+      where: { userId, roomId, isFreeTrial: true },
     });
 
     if (previousTrial) {
       throw new BadRequestException('Free trial already used for this room');
     }
 
-    const expiresAt = new Date(Date.now() + room.freeTrialDurationHours * 60 * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + room.freeTrialDurationHours * 60 * 60 * 1000,
+    );
 
     const access = this.accessRepository.create({
       userId,
@@ -155,10 +177,10 @@ export class RoomPaymentService {
     userId: string,
     roomId: string,
     paymentId: string,
-    expiresAt: Date | null
+    expiresAt: Date | null,
   ): Promise<void> {
     const existingAccess = await this.accessRepository.findOne({
-      where: { userId, roomId }
+      where: { userId, roomId },
     });
 
     if (existingAccess) {
@@ -180,25 +202,33 @@ export class RoomPaymentService {
     }
   }
 
-  async checkUserAccess(userId: string, roomId: string): Promise<{
+  async checkUserAccess(
+    userId: string,
+    roomId: string,
+  ): Promise<{
     hasAccess: boolean;
     isExpired: boolean;
     expiresAt: Date | null;
   }> {
     const access = await this.accessRepository.findOne({
-      where: { userId, roomId }
+      where: { userId, roomId },
     });
 
     if (!access || !access.hasAccess) {
       return { hasAccess: false, isExpired: false, expiresAt: null };
     }
 
-    const isExpired = access.accessExpiresAt && access.accessExpiresAt < new Date();
+    const isExpired =
+      access.accessExpiresAt && access.accessExpiresAt < new Date();
 
     if (isExpired) {
       access.hasAccess = false;
       await this.accessRepository.save(access);
-      return { hasAccess: false, isExpired: true, expiresAt: access.accessExpiresAt };
+      return {
+        hasAccess: false,
+        isExpired: true,
+        expiresAt: access.accessExpiresAt,
+      };
     }
 
     return {
@@ -208,9 +238,12 @@ export class RoomPaymentService {
     };
   }
 
-  async getPaymentStatus(paymentId: string, userId: string): Promise<PaymentStatusDto> {
+  async getPaymentStatus(
+    paymentId: string,
+    userId: string,
+  ): Promise<PaymentStatusDto> {
     const payment = await this.paymentRepository.findOne({
-      where: { id: paymentId, userId }
+      where: { id: paymentId, userId },
     });
 
     if (!payment) {
@@ -220,7 +253,10 @@ export class RoomPaymentService {
     return this.mapPaymentToDto(payment);
   }
 
-  async getUserPaymentHistory(userId: string, roomId?: string): Promise<PaymentStatusDto[]> {
+  async getUserPaymentHistory(
+    userId: string,
+    roomId?: string,
+  ): Promise<PaymentStatusDto[]> {
     const where: any = { userId };
     if (roomId) {
       where.roomId = roomId;
@@ -228,16 +264,19 @@ export class RoomPaymentService {
 
     const payments = await this.paymentRepository.find({
       where,
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
 
     return payments.map((p: any) => this.mapPaymentToDto(p));
   }
 
-  async refundPayment(refundDto: RefundPaymentDto, adminUserId: string): Promise<PaymentStatusDto> {
+  async refundPayment(
+    refundDto: RefundPaymentDto,
+    adminUserId: string,
+  ): Promise<PaymentStatusDto> {
     const payment = await this.paymentRepository.findOne({
       where: { id: refundDto.paymentId },
-      relations: ['room', 'user']
+      relations: ['room', 'user'],
     });
 
     if (!payment) {
@@ -260,7 +299,7 @@ export class RoomPaymentService {
     // Revoke access
     await this.accessRepository.update(
       { paymentId: payment.id },
-      { hasAccess: false }
+      { hasAccess: false },
     );
 
     this.logger.log(`Payment ${payment.id} refunded by admin ${adminUserId}`);
@@ -272,8 +311,8 @@ export class RoomPaymentService {
     const expiredAccess = await this.accessRepository.find({
       where: {
         hasAccess: true,
-        accessExpiresAt: MoreThan(new Date())
-      }
+        accessExpiresAt: MoreThan(new Date()),
+      },
     });
 
     for (const access of expiredAccess) {
@@ -283,7 +322,7 @@ export class RoomPaymentService {
       if (access.paymentId) {
         await this.paymentRepository.update(
           { id: access.paymentId },
-          { status: PaymentStatus.EXPIRED, accessGranted: false }
+          { status: PaymentStatus.EXPIRED, accessGranted: false },
         );
       }
     }
@@ -291,27 +330,44 @@ export class RoomPaymentService {
     this.logger.log(`Expired ${expiredAccess.length} room access entries`);
   }
 
-  async getRoomRevenue(roomId: string): Promise<{ totalRevenue: string; platformFees: string; creatorEarnings: string }> {
+  async getRoomRevenue(
+    roomId: string,
+  ): Promise<{
+    totalRevenue: string;
+    platformFees: string;
+    creatorEarnings: string;
+  }> {
     const payments = await this.paymentRepository.find({
-      where: { roomId, status: PaymentStatus.COMPLETED }
+      where: { roomId, status: PaymentStatus.COMPLETED },
     });
 
-    const totalRevenue = payments.reduce((acc: number, p: any) => acc + parseFloat(p.amount), 0);
-    const platformFees = payments.reduce((acc: number, p: any) => acc + parseFloat(p.platformFee), 0);
-    const creatorEarnings = payments.reduce((acc: number, p: any) => acc + parseFloat(p.creatorAmount), 0);
+    const totalRevenue = payments.reduce(
+      (acc: number, p: any) => acc + parseFloat(p.amount),
+      0,
+    );
+    const platformFees = payments.reduce(
+      (acc: number, p: any) => acc + parseFloat(p.platformFee),
+      0,
+    );
+    const creatorEarnings = payments.reduce(
+      (acc: number, p: any) => acc + parseFloat(p.creatorAmount),
+      0,
+    );
 
     return {
       totalRevenue: totalRevenue.toString(),
       platformFees: platformFees.toString(),
-      creatorEarnings: creatorEarnings.toString()
+      creatorEarnings: creatorEarnings.toString(),
     };
   }
 
-  async getCreatorEarnings(userId: string): Promise<{ totalEarned: string; totalWithdrawn: string; balance: string }> {
+  async getCreatorEarnings(
+    userId: string,
+  ): Promise<{ totalEarned: string; totalWithdrawn: string; balance: string }> {
     // This assumes we have a way to track withdrawals in the DB.
     // For now, let's aggregate from payments in creator's rooms.
     const rooms = await this.roomRepository.find({
-      where: { creator: { id: userId } as any }
+      where: { creator: { id: userId } as any },
     });
 
     const roomIds = rooms.map((r: any) => r.id);
@@ -319,29 +375,36 @@ export class RoomPaymentService {
       return { totalEarned: '0', totalWithdrawn: '0', balance: '0' };
     }
 
-    const payments = await this.paymentRepository.createQueryBuilder('payment')
+    const payments = await this.paymentRepository
+      .createQueryBuilder('payment')
       .where('payment.roomId IN (:...roomIds)', { roomIds })
       .andWhere('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .getMany();
 
-    const totalEarned = payments.reduce((acc: number, p: any) => acc + parseFloat(p.creatorAmount), 0);
-    
+    const totalEarned = payments.reduce(
+      (acc: number, p: any) => acc + parseFloat(p.creatorAmount),
+      0,
+    );
+
     // In a real app, we would subtract actual withdrawals from a withdrawals table.
     // For this implementation, we'll return the total earned as balance.
     return {
       totalEarned: totalEarned.toString(),
       totalWithdrawn: '0',
-      balance: totalEarned.toString()
+      balance: totalEarned.toString(),
     };
   }
 
-  async withdrawFunds(userId: string, withdrawDto: WithdrawFundsDto): Promise<{ transactionHash: string; amount: string; status: string }> {
+  async withdrawFunds(
+    userId: string,
+    withdrawDto: WithdrawFundsDto,
+  ): Promise<{ transactionHash: string; amount: string; status: string }> {
     const earnings = await this.getCreatorEarnings(userId);
     const amountToWithdraw = parseFloat(withdrawDto.amount);
     const balance = parseFloat(earnings.balance);
 
     if (amountToWithdraw <= 0) {
-       throw new BadRequestException('Withdrawal amount must be positive');
+      throw new BadRequestException('Withdrawal amount must be positive');
     }
 
     if (amountToWithdraw > balance) {
@@ -352,12 +415,14 @@ export class RoomPaymentService {
     // For now, we simulate a successful withdrawal
     const transactionHash = `simulated-withdrawal-${Date.now()}`;
 
-    this.logger.log(`User ${userId} withdrew ${withdrawDto.amount} to ${withdrawDto.address}`);
+    this.logger.log(
+      `User ${userId} withdrew ${withdrawDto.amount} to ${withdrawDto.address}`,
+    );
 
     return {
       transactionHash,
       amount: withdrawDto.amount,
-      status: 'completed'
+      status: 'completed',
     };
   }
 

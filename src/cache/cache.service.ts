@@ -35,7 +35,9 @@ export class CacheService {
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     try {
       await this.cacheManager.set(key, value, ttl ? ttl * 1000 : undefined);
-      this.logger.debug(`Cache set for key: ${key}${ttl ? ` with TTL: ${ttl}s` : ''}`);
+      this.logger.debug(
+        `Cache set for key: ${key}${ttl ? ` with TTL: ${ttl}s` : ''}`,
+      );
     } catch (error) {
       this.logger.error(`Error setting cache key ${key}:`, error);
     }
@@ -60,7 +62,9 @@ export class CacheService {
   async deletePattern(pattern: string): Promise<void> {
     try {
       // This is a simplified version - for production, you'd need to access Redis directly
-      this.logger.warn(`Pattern deletion not fully implemented for pattern: ${pattern}`);
+      this.logger.warn(
+        `Pattern deletion not fully implemented for pattern: ${pattern}`,
+      );
       // Implementation would require accessing the Redis store directly
     } catch (error) {
       this.logger.error(`Error deleting cache pattern ${pattern}:`, error);
@@ -73,7 +77,9 @@ export class CacheService {
   async clear(): Promise<void> {
     try {
       // Note: cache-manager v5+ doesn't have reset(), use store-specific methods if needed
-      this.logger.warn('Cache clear operation not fully implemented - requires direct Redis access');
+      this.logger.warn(
+        'Cache clear operation not fully implemented - requires direct Redis access',
+      );
       // For full implementation, you would need to access the Redis store directly
     } catch (error) {
       this.logger.error('Error clearing cache:', error);

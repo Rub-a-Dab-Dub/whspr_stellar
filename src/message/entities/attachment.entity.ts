@@ -41,7 +41,9 @@ export class Attachment {
   @Column({ default: false })
   isScanned: boolean;
 
-  @ManyToOne(() => Message, (message) => message.attachments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Message, (message) => message.attachments, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'messageId' })
   message: Message;
 

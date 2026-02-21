@@ -1,4 +1,10 @@
-import { IsBoolean, IsDefined, IsOptional, IsString, IsNotEmpty } from 'class-validator';
+import {
+  IsBoolean,
+  IsDefined,
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+} from 'class-validator';
 
 export class SystemConfigUpdateItemDto {
   @IsString()

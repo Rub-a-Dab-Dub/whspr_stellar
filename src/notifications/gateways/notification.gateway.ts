@@ -65,7 +65,9 @@ export class NotificationGateway
       // Store userId in socket data for easy access
       client.data.userId = userId;
 
-      this.logger.log(`User ${userId} connected to notifications with socket ${client.id}`);
+      this.logger.log(
+        `User ${userId} connected to notifications with socket ${client.id}`,
+      );
 
       // Send initial unread count
       this.sendUnreadCount(userId);
@@ -77,7 +79,7 @@ export class NotificationGateway
 
   handleDisconnect(client: Socket): void {
     const userId = client.data.userId;
-    
+
     if (userId) {
       const userSockets = this.userSockets.get(userId);
       if (userSockets) {
@@ -97,7 +99,7 @@ export class NotificationGateway
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
     const userId = client.data.userId;
-    
+
     if (!userId) {
       client.emit('error', { message: 'Unauthorized' });
       return;
@@ -105,10 +107,10 @@ export class NotificationGateway
 
     // Join user notification room (redundant but ensures subscription)
     client.join(`user:${userId}`);
-    
+
     // Send current unread count
     await this.sendUnreadCount(userId);
-    
+
     client.emit('subscribed', { message: 'Subscribed to notifications' });
     this.logger.log(`User ${userId} subscribed to notifications`);
   }
@@ -120,7 +122,7 @@ export class NotificationGateway
     @MessageBody() data: { notificationId: string },
   ): Promise<void> {
     const userId = client.data.userId;
-    
+
     if (!userId) {
       client.emit('error', { message: 'Unauthorized' });
       return;
@@ -128,11 +130,11 @@ export class NotificationGateway
 
     try {
       await this.notificationService.markAsRead(data.notificationId, userId);
-      
+
       // Send updated unread count
       await this.sendUnreadCount(userId);
-      
-      client.emit('notification-marked-read', { 
+
+      client.emit('notification-marked-read', {
         notificationId: data.notificationId,
         success: true,
       });
@@ -144,11 +146,9 @@ export class NotificationGateway
 
   @SubscribeMessage('mark-all-read')
   @UseGuards(WsJwtGuard)
-  async handleMarkAllRead(
-    @ConnectedSocket() client: Socket,
-  ): Promise<void> {
+  async handleMarkAllRead(@ConnectedSocket() client: Socket): Promise<void> {
     const userId = client.data.userId;
-    
+
     if (!userId) {
       client.emit('error', { message: 'Unauthorized' });
       return;
@@ -156,19 +156,21 @@ export class NotificationGateway
 
     try {
       const markedCount = await this.notificationService.markAllAsRead(userId);
-      
-      client.emit('all-notifications-marked-read', { 
+
+      client.emit('all-notifications-marked-read', {
         markedCount,
         success: true,
       });
-      
+
       // Broadcast to all user's sockets
-      this.server.to(`user:${userId}`).emit('unread-count-updated', { 
+      this.server.to(`user:${userId}`).emit('unread-count-updated', {
         unreadCount: 0,
       });
     } catch (error) {
       this.logger.error('Error marking all notifications as read:', error);
-      client.emit('error', { message: 'Failed to mark all notifications as read' });
+      client.emit('error', {
+        message: 'Failed to mark all notifications as read',
+      });
     }
   }
 
@@ -176,18 +178,22 @@ export class NotificationGateway
   @UseGuards(WsJwtGuard)
   async handleGetNotifications(
     @ConnectedSocket() client: Socket,
-    @MessageBody() query: { page?: string; limit?: string; unreadOnly?: boolean },
+    @MessageBody()
+    query: { page?: string; limit?: string; unreadOnly?: boolean },
   ): Promise<void> {
     const userId = client.data.userId;
-    
+
     if (!userId) {
       client.emit('error', { message: 'Unauthorized' });
       return;
     }
 
     try {
-      const result = await this.notificationService.getNotifications(userId, query);
-      
+      const result = await this.notificationService.getNotifications(
+        userId,
+        query,
+      );
+
       client.emit('notifications-data', {
         notifications: result.notifications,
         total: result.total,
@@ -209,7 +215,7 @@ export class NotificationGateway
     notification: Notification,
   ): Promise<void> {
     const userRoom = `user:${userId}`;
-    
+
     this.server.to(userRoom).emit('new-notification', {
       id: notification.id,
       type: notification.type,
@@ -220,15 +226,17 @@ export class NotificationGateway
       actionUrl: notification.actionUrl,
       imageUrl: notification.imageUrl,
       createdAt: notification.createdAt,
-      sender: notification.sender ? {
-        id: notification.sender.id,
-        email: notification.sender.email,
-      } : null,
+      sender: notification.sender
+        ? {
+            id: notification.sender.id,
+            email: notification.sender.email,
+          }
+        : null,
     });
 
     // Update unread count
     await this.sendUnreadCount(userId);
-    
+
     this.logger.debug(`Real-time notification sent to user ${userId}`);
   }
 
@@ -256,8 +264,10 @@ export class NotificationGateway
    */
   private async sendUnreadCount(userId: string): Promise<void> {
     try {
-      const result = await this.notificationService.getNotifications(userId, { unreadOnly: true });
-      
+      const result = await this.notificationService.getNotifications(userId, {
+        unreadOnly: true,
+      });
+
       this.server.to(`user:${userId}`).emit('unread-count-updated', {
         unreadCount: result.unreadCount,
       });

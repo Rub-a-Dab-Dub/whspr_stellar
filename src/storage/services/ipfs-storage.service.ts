@@ -8,11 +8,13 @@ export class IpfsStorageService {
   private ipfs;
 
   constructor(private configService: ConfigService) {
-    const ipfsUrl = this.configService.get<string>('IPFS_NODE_URL') || 'http://localhost:5001';
+    const ipfsUrl =
+      this.configService.get<string>('IPFS_NODE_URL') ||
+      'http://localhost:5001';
     try {
-        this.ipfs = create({ url: ipfsUrl });
+      this.ipfs = create({ url: ipfsUrl });
     } catch (error) {
-        this.logger.error('Failed to connect to IPFS node', error);
+      this.logger.error('Failed to connect to IPFS node', error);
     }
   }
 
@@ -31,7 +33,9 @@ export class IpfsStorageService {
   }
 
   getGatewayUrl(cid: string): string {
-    const gateway = this.configService.get<string>('IPFS_GATEWAY_URL') || 'https://ipfs.io/ipfs/';
+    const gateway =
+      this.configService.get<string>('IPFS_GATEWAY_URL') ||
+      'https://ipfs.io/ipfs/';
     return `${gateway}${cid}`;
   }
 }

@@ -7,8 +7,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotificationPreference } from '../entities/notification-preference.entity';
-import { UpdateNotificationPreferenceDto, BulkUpdatePreferencesDto } from '../dto/notification-preferences.dto';
-import { NotificationType, NotificationChannel } from '../enums/notification-type.enum';
+import {
+  UpdateNotificationPreferenceDto,
+  BulkUpdatePreferencesDto,
+} from '../dto/notification-preferences.dto';
+import {
+  NotificationType,
+  NotificationChannel,
+} from '../enums/notification-type.enum';
 
 @Injectable()
 export class NotificationPreferenceService {
@@ -69,8 +75,10 @@ export class NotificationPreferenceService {
     }
 
     const savedPreference = await this.preferenceRepository.save(preference);
-    this.logger.log(`Updated notification preference for user ${userId}: ${updateDto.type}/${updateDto.channel}`);
-    
+    this.logger.log(
+      `Updated notification preference for user ${userId}: ${updateDto.type}/${updateDto.channel}`,
+    );
+
     return savedPreference;
   }
 
@@ -94,7 +102,9 @@ export class NotificationPreferenceService {
   /**
    * Initialize default preferences for new user
    */
-  async initializeDefaultPreferences(userId: string): Promise<NotificationPreference[]> {
+  async initializeDefaultPreferences(
+    userId: string,
+  ): Promise<NotificationPreference[]> {
     const defaultPreferences = this.getDefaultPreferences();
     const preferences: NotificationPreference[] = [];
 
@@ -108,7 +118,7 @@ export class NotificationPreferenceService {
 
     const savedPreferences = await this.preferenceRepository.save(preferences);
     this.logger.log(`Initialized default preferences for user ${userId}`);
-    
+
     return savedPreferences;
   }
 
@@ -124,7 +134,7 @@ export class NotificationPreferenceService {
       if (!preference.mutedUsers) {
         preference.mutedUsers = [];
       }
-      
+
       if (!preference.mutedUsers.includes(mutedUserId)) {
         preference.mutedUsers.push(mutedUserId);
         await this.preferenceRepository.save(preference);
@@ -144,7 +154,9 @@ export class NotificationPreferenceService {
 
     for (const preference of preferences) {
       if (preference.mutedUsers?.includes(mutedUserId)) {
-        preference.mutedUsers = preference.mutedUsers.filter(id => id !== mutedUserId);
+        preference.mutedUsers = preference.mutedUsers.filter(
+          (id) => id !== mutedUserId,
+        );
         await this.preferenceRepository.save(preference);
       }
     }
@@ -164,7 +176,7 @@ export class NotificationPreferenceService {
       if (!preference.mutedRooms) {
         preference.mutedRooms = [];
       }
-      
+
       if (!preference.mutedRooms.includes(roomId)) {
         preference.mutedRooms.push(roomId);
         await this.preferenceRepository.save(preference);
@@ -184,7 +196,9 @@ export class NotificationPreferenceService {
 
     for (const preference of preferences) {
       if (preference.mutedRooms?.includes(roomId)) {
-        preference.mutedRooms = preference.mutedRooms.filter(id => id !== roomId);
+        preference.mutedRooms = preference.mutedRooms.filter(
+          (id) => id !== roomId,
+        );
         await this.preferenceRepository.save(preference);
       }
     }
@@ -203,7 +217,7 @@ export class NotificationPreferenceService {
     const mutedUsers = new Set<string>();
     for (const preference of preferences) {
       if (preference.mutedUsers) {
-        preference.mutedUsers.forEach(id => mutedUsers.add(id));
+        preference.mutedUsers.forEach((id) => mutedUsers.add(id));
       }
     }
 
@@ -221,7 +235,7 @@ export class NotificationPreferenceService {
     const mutedRooms = new Set<string>();
     for (const preference of preferences) {
       if (preference.mutedRooms) {
-        preference.mutedRooms.forEach(id => mutedRooms.add(id));
+        preference.mutedRooms.forEach((id) => mutedRooms.add(id));
       }
     }
 
@@ -231,15 +245,21 @@ export class NotificationPreferenceService {
   /**
    * Check if user is in quiet hours
    */
-  async isInQuietHours(userId: string, type: NotificationType): Promise<boolean> {
+  async isInQuietHours(
+    userId: string,
+    type: NotificationType,
+  ): Promise<boolean> {
     const preferences = await this.getPreferencesForType(userId, type);
-    
+
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
     for (const preference of preferences) {
       if (preference.quietHoursStart && preference.quietHoursEnd) {
-        if (currentTime >= preference.quietHoursStart && currentTime <= preference.quietHoursEnd) {
+        if (
+          currentTime >= preference.quietHoursStart &&
+          currentTime <= preference.quietHoursEnd
+        ) {
           return true;
         }
       }
@@ -272,7 +292,10 @@ export class NotificationPreferenceService {
   /**
    * Get default enabled state for notification type and channel
    */
-  private getDefaultEnabledState(type: NotificationType, channel: NotificationChannel): boolean {
+  private getDefaultEnabledState(
+    type: NotificationType,
+    channel: NotificationChannel,
+  ): boolean {
     // High priority notifications enabled by default
     const highPriorityTypes = [
       NotificationType.MENTION,
@@ -292,7 +315,9 @@ export class NotificationPreferenceService {
 
     // Email notifications enabled for very high priority types only
     if (channel === NotificationChannel.EMAIL) {
-      return [NotificationType.MENTION, NotificationType.ROOM_INVITE].includes(type);
+      return [NotificationType.MENTION, NotificationType.ROOM_INVITE].includes(
+        type,
+      );
     }
 
     // SMS disabled by default

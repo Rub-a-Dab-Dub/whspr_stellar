@@ -1,4 +1,10 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableIndex,
+  TableForeignKey,
+} from 'typeorm';
 
 export class AddAdvancedTransferFeatures1706500000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -144,7 +150,14 @@ export class AddAdvancedTransferFeatures1706500000000 implements MigrationInterf
           {
             name: 'recurrence_frequency',
             type: 'enum',
-            enum: ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'],
+            enum: [
+              'daily',
+              'weekly',
+              'biweekly',
+              'monthly',
+              'quarterly',
+              'yearly',
+            ],
             isNullable: true,
           },
           {
@@ -317,7 +330,15 @@ export class AddAdvancedTransferFeatures1706500000000 implements MigrationInterf
           {
             name: 'reason',
             type: 'enum',
-            enum: ['unauthorized', 'wrong_amount', 'wrong_recipient', 'not_received', 'duplicate', 'fraud', 'other'],
+            enum: [
+              'unauthorized',
+              'wrong_amount',
+              'wrong_recipient',
+              'not_received',
+              'duplicate',
+              'fraud',
+              'other',
+            ],
             isNullable: false,
           },
           {
@@ -493,36 +514,69 @@ export class AddAdvancedTransferFeatures1706500000000 implements MigrationInterf
     const disputesTable = await queryRunner.getTable('transfer_disputes');
 
     if (templatesTable) {
-      const fk = templatesTable.foreignKeys.find(fk => fk.columnNames.indexOf('user_id') !== -1);
+      const fk = templatesTable.foreignKeys.find(
+        (fk) => fk.columnNames.indexOf('user_id') !== -1,
+      );
       if (fk) await queryRunner.dropForeignKey('transfer_templates', fk);
     }
 
     if (scheduledTable) {
-      const fk = scheduledTable.foreignKeys.find(fk => fk.columnNames.indexOf('sender_id') !== -1);
+      const fk = scheduledTable.foreignKeys.find(
+        (fk) => fk.columnNames.indexOf('sender_id') !== -1,
+      );
       if (fk) await queryRunner.dropForeignKey('scheduled_transfers', fk);
     }
 
     if (limitsTable) {
-      const fk = limitsTable.foreignKeys.find(fk => fk.columnNames.indexOf('user_id') !== -1);
+      const fk = limitsTable.foreignKeys.find(
+        (fk) => fk.columnNames.indexOf('user_id') !== -1,
+      );
       if (fk) await queryRunner.dropForeignKey('transfer_limits', fk);
     }
 
     if (disputesTable) {
-      const transferFk = disputesTable.foreignKeys.find(fk => fk.columnNames.indexOf('transfer_id') !== -1);
-      const initiatorFk = disputesTable.foreignKeys.find(fk => fk.columnNames.indexOf('initiator_id') !== -1);
-      if (transferFk) await queryRunner.dropForeignKey('transfer_disputes', transferFk);
-      if (initiatorFk) await queryRunner.dropForeignKey('transfer_disputes', initiatorFk);
+      const transferFk = disputesTable.foreignKeys.find(
+        (fk) => fk.columnNames.indexOf('transfer_id') !== -1,
+      );
+      const initiatorFk = disputesTable.foreignKeys.find(
+        (fk) => fk.columnNames.indexOf('initiator_id') !== -1,
+      );
+      if (transferFk)
+        await queryRunner.dropForeignKey('transfer_disputes', transferFk);
+      if (initiatorFk)
+        await queryRunner.dropForeignKey('transfer_disputes', initiatorFk);
     }
 
     // Drop indexes
-    await queryRunner.dropIndex('transfer_templates', 'IDX_TEMPLATES_USER_CREATED');
-    await queryRunner.dropIndex('transfer_templates', 'IDX_TEMPLATES_USER_NAME');
-    await queryRunner.dropIndex('scheduled_transfers', 'IDX_SCHEDULED_SENDER_DATE');
-    await queryRunner.dropIndex('scheduled_transfers', 'IDX_SCHEDULED_STATUS_DATE');
-    await queryRunner.dropIndex('scheduled_transfers', 'IDX_SCHEDULED_RECURRING_NEXT');
+    await queryRunner.dropIndex(
+      'transfer_templates',
+      'IDX_TEMPLATES_USER_CREATED',
+    );
+    await queryRunner.dropIndex(
+      'transfer_templates',
+      'IDX_TEMPLATES_USER_NAME',
+    );
+    await queryRunner.dropIndex(
+      'scheduled_transfers',
+      'IDX_SCHEDULED_SENDER_DATE',
+    );
+    await queryRunner.dropIndex(
+      'scheduled_transfers',
+      'IDX_SCHEDULED_STATUS_DATE',
+    );
+    await queryRunner.dropIndex(
+      'scheduled_transfers',
+      'IDX_SCHEDULED_RECURRING_NEXT',
+    );
     await queryRunner.dropIndex('transfer_limits', 'IDX_LIMITS_USER_PERIOD');
-    await queryRunner.dropIndex('transfer_disputes', 'IDX_DISPUTES_TRANSFER_STATUS');
-    await queryRunner.dropIndex('transfer_disputes', 'IDX_DISPUTES_INITIATOR_CREATED');
+    await queryRunner.dropIndex(
+      'transfer_disputes',
+      'IDX_DISPUTES_TRANSFER_STATUS',
+    );
+    await queryRunner.dropIndex(
+      'transfer_disputes',
+      'IDX_DISPUTES_INITIATOR_CREATED',
+    );
 
     // Drop tables
     await queryRunner.dropTable('transfer_disputes');

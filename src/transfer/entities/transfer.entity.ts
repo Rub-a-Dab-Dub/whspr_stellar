@@ -78,16 +78,40 @@ export class Transfer {
   @Column({ name: 'bulk_transfer_id', nullable: true })
   bulkTransferId: string;
 
-  @Column({ name: 'sender_balance_before', type: 'decimal', precision: 18, scale: 8, nullable: true })
+  @Column({
+    name: 'sender_balance_before',
+    type: 'decimal',
+    precision: 18,
+    scale: 8,
+    nullable: true,
+  })
   senderBalanceBefore: string;
 
-  @Column({ name: 'sender_balance_after', type: 'decimal', precision: 18, scale: 8, nullable: true })
+  @Column({
+    name: 'sender_balance_after',
+    type: 'decimal',
+    precision: 18,
+    scale: 8,
+    nullable: true,
+  })
   senderBalanceAfter: string;
 
-  @Column({ name: 'recipient_balance_before', type: 'decimal', precision: 18, scale: 8, nullable: true })
+  @Column({
+    name: 'recipient_balance_before',
+    type: 'decimal',
+    precision: 18,
+    scale: 8,
+    nullable: true,
+  })
   recipientBalanceBefore: string;
 
-  @Column({ name: 'recipient_balance_after', type: 'decimal', precision: 18, scale: 8, nullable: true })
+  @Column({
+    name: 'recipient_balance_after',
+    type: 'decimal',
+    precision: 18,
+    scale: 8,
+    nullable: true,
+  })
   recipientBalanceAfter: string;
 
   @Column({ name: 'failure_reason', type: 'text', nullable: true })

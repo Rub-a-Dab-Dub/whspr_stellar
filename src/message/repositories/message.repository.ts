@@ -79,10 +79,7 @@ export class MessageRepository extends Repository<Message> {
     });
   }
 
-  async findMessagesByType(
-    roomId: string,
-    type: string,
-  ): Promise<Message[]> {
+  async findMessagesByType(roomId: string, type: string): Promise<Message[]> {
     return this.find({
       where: {
         roomId,

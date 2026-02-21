@@ -38,7 +38,13 @@ export class Streak {
   @Column({ name: 'grace_period_end', type: 'timestamp', nullable: true })
   gracePeriodEnd!: Date | null;
 
-  @Column({ name: 'streak_multiplier', type: 'decimal', precision: 3, scale: 2, default: 1.0 })
+  @Column({
+    name: 'streak_multiplier',
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    default: 1.0,
+  })
   streakMultiplier!: number;
 
   @Column({ name: 'total_days_logged', type: 'int', default: 0 })

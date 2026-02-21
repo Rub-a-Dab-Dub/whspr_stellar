@@ -74,7 +74,12 @@ export class PaymentVerificationService {
       }
 
       // Verify payment details
-      const { payer, amount, platformFee, roomId: eventRoomId } = paymentEvent.args;
+      const {
+        payer,
+        amount,
+        platformFee,
+        roomId: eventRoomId,
+      } = paymentEvent.args;
 
       if (payer.toLowerCase() !== userAddress.toLowerCase()) {
         throw new BadRequestException('Payer address mismatch');
@@ -89,12 +94,17 @@ export class PaymentVerificationService {
       const actualAmountNum = parseFloat(amountInEther);
 
       // Allow 0.1% tolerance for floating point differences
-      if (Math.abs(actualAmountNum - expectedAmountNum) > expectedAmountNum * 0.001) {
+      if (
+        Math.abs(actualAmountNum - expectedAmountNum) >
+        expectedAmountNum * 0.001
+      ) {
         throw new BadRequestException('Payment amount mismatch');
       }
 
       const platformFeeInEther = ethers.formatEther(platformFee);
-      const creatorAmount = (actualAmountNum - parseFloat(platformFeeInEther)).toString();
+      const creatorAmount = (
+        actualAmountNum - parseFloat(platformFeeInEther)
+      ).toString();
 
       return {
         verified: true,
@@ -104,7 +114,10 @@ export class PaymentVerificationService {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      this.logger.error(`Transaction verification failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Transaction verification failed: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }

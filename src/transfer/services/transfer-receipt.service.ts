@@ -39,7 +39,10 @@ export class TransferReceiptService {
     private readonly usersService: UsersService,
   ) {}
 
-  async generateReceipt(transferId: string, userId: string): Promise<TransferReceipt> {
+  async generateReceipt(
+    transferId: string,
+    userId: string,
+  ): Promise<TransferReceipt> {
     const transfer = await this.transferRepository.findOne({
       where: { id: transferId },
       relations: ['sender', 'recipient'],
@@ -79,9 +82,12 @@ export class TransferReceiptService {
     };
   }
 
-  async generateReceiptPDF(transferId: string, userId: string): Promise<Buffer> {
+  async generateReceiptPDF(
+    transferId: string,
+    userId: string,
+  ): Promise<Buffer> {
     const receipt = await this.generateReceipt(transferId, userId);
-    
+
     // TODO: Implement PDF generation using a library like pdfkit or puppeteer
     // For now, return a placeholder
     const receiptText = JSON.stringify(receipt, null, 2);

@@ -17,7 +17,7 @@ import { utilities as nestWinstonModuleUtilities } from 'nest-winston';
               prettyPrint: true,
             }),
           ),
-          level: 'debug', 
+          level: 'debug',
         }),
         new winston.transports.DailyRotateFile({
           dirname: 'logs',

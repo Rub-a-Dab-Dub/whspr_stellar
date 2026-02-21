@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
 import { SupportedChain } from './enums/supported-chain.enum';
@@ -38,9 +43,7 @@ export class ChainService implements OnModuleInit {
       });
     }
 
-    this.logger.log(
-      `Loaded ${this.chainConfigs.size} chain configurations`,
-    );
+    this.logger.log(`Loaded ${this.chainConfigs.size} chain configurations`);
   }
 
   /**
@@ -54,7 +57,9 @@ export class ChainService implements OnModuleInit {
           name: config.name,
         });
         this.providers.set(chain, provider);
-        this.logger.log(`Initialized provider for ${config.name} (${config.chainId})`);
+        this.logger.log(
+          `Initialized provider for ${config.name} (${config.chainId})`,
+        );
       } catch (error) {
         this.logger.warn(
           `Failed to initialize provider for ${config.name}: ${error.message}`,
@@ -69,7 +74,9 @@ export class ChainService implements OnModuleInit {
   getProvider(chain: SupportedChain): ethers.JsonRpcProvider {
     const provider = this.providers.get(chain);
     if (!provider) {
-      throw new BadRequestException(`No provider available for chain: ${chain}`);
+      throw new BadRequestException(
+        `No provider available for chain: ${chain}`,
+      );
     }
     return provider;
   }

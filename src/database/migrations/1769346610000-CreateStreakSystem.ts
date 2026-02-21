@@ -108,18 +108,28 @@ export class CreateStreakSystem1769346610000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "public"."IDX_streak_history_user_created"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_streak_history_user_created"`,
+    );
     await queryRunner.query(`DROP TABLE "streak_history"`);
     await queryRunner.query(`DROP TYPE "public"."streak_history_action_enum"`);
 
     await queryRunner.query(`DROP INDEX "public"."IDX_streak_badges_user_id"`);
     await queryRunner.query(`DROP TABLE "streak_badges"`);
-    await queryRunner.query(`DROP TYPE "public"."streak_badges_badge_type_enum"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."streak_badges_badge_type_enum"`,
+    );
 
-    await queryRunner.query(`DROP INDEX "public"."IDX_streak_rewards_user_milestone"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_streak_rewards_user_claimed"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_streak_rewards_user_milestone"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_streak_rewards_user_claimed"`,
+    );
     await queryRunner.query(`DROP TABLE "streak_rewards"`);
-    await queryRunner.query(`DROP TYPE "public"."streak_rewards_reward_type_enum"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."streak_rewards_reward_type_enum"`,
+    );
 
     await queryRunner.query(`DROP INDEX "public"."IDX_streaks_user_id"`);
     await queryRunner.query(`DROP TABLE "streaks"`);

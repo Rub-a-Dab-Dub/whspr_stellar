@@ -46,10 +46,11 @@ export class AuthService {
   ) {}
 
   async register(email: string, password: string) {
-    const isRegistrationEnabled = await this.adminService.getConfigValue<boolean>(
-      'registration_enabled',
-      true,
-    );
+    const isRegistrationEnabled =
+      await this.adminService.getConfigValue<boolean>(
+        'registration_enabled',
+        true,
+      );
 
     if (!isRegistrationEnabled) {
       throw new ServiceUnavailableException(
@@ -153,14 +154,18 @@ export class AuthService {
     // Track daily login for streak system
     try {
       // Try to find user in profile system by email
-      const profileUser = await this.profileUsersService.findByEmail(user.email);
+      const profileUser = await this.profileUsersService.findByEmail(
+        user.email,
+      );
       if (profileUser) {
         await this.streakService.trackDailyLogin(profileUser.id);
         this.logger.log(`Streak tracked for user ${profileUser.id}`);
       }
     } catch (error) {
       // Log but don't fail login if streak tracking fails
-      this.logger.warn(`Failed to track streak for user ${user.email}: ${error.message}`);
+      this.logger.warn(
+        `Failed to track streak for user ${user.email}: ${error.message}`,
+      );
     }
 
     await this.safeAuditLog({
@@ -381,7 +386,9 @@ export class AuthService {
     });
   }
 
-  private async safeAuditLog(input: Parameters<AuditLogService['createAuditLog']>[0]) {
+  private async safeAuditLog(
+    input: Parameters<AuditLogService['createAuditLog']>[0],
+  ) {
     try {
       await this.auditLogService.createAuditLog(input);
     } catch (error) {

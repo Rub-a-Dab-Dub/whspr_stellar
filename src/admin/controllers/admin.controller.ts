@@ -34,7 +34,10 @@ import { GetOverviewAnalyticsDto } from '../dto/get-overview-analytics.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
 import { UpdateConfigDto } from '../dto/update-config.dto';
-import { LeaderboardCategory, LeaderboardPeriod } from '../../leaderboard/leaderboard.interface';
+import {
+  LeaderboardCategory,
+  LeaderboardPeriod,
+} from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
 import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
@@ -80,7 +83,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.getUserDetail(userId, currentUser.userId, req);
+    return await this.adminService.getUserDetail(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Post('users/:id/ban')
@@ -94,7 +101,12 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.banUser(userId, currentUser.userId, banDto, req);
+    return await this.adminService.banUser(
+      userId,
+      currentUser.userId,
+      banDto,
+      req,
+    );
   }
 
   @Post('users/:id/unban')
@@ -121,7 +133,12 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.suspendUser(userId, currentUser.userId, suspendDto, req);
+    return await this.adminService.suspendUser(
+      userId,
+      currentUser.userId,
+      suspendDto,
+      req,
+    );
   }
 
   @Post('users/:id/unsuspend')
@@ -134,7 +151,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.unsuspendUser(userId, currentUser.userId, req);
+    return await this.adminService.unsuspendUser(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Post('users/:id/verify')
@@ -160,7 +181,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.unverifyUser(userId, currentUser.userId, req);
+    return await this.adminService.unverifyUser(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Post('users/bulk-action')
@@ -185,7 +210,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.getUserActivity(userId, currentUser.userId, req);
+    return await this.adminService.getUserActivity(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Get('statistics')
@@ -454,7 +483,10 @@ export class AdminController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
   ) {
-    return await this.adminService.getLeaderboardHistory(Number(page), Number(limit));
+    return await this.adminService.getLeaderboardHistory(
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Post('leaderboards/pin')
@@ -468,6 +500,10 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.setLeaderboardPinned(dto, currentUser.userId, req);
+    return await this.adminService.setLeaderboardPinned(
+      dto,
+      currentUser.userId,
+      req,
+    );
   }
 }

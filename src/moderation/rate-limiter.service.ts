@@ -23,7 +23,7 @@ export class RateLimiterService {
   async checkRateLimit(
     userId: string,
     roomId: string,
-    config: RateLimitConfig
+    config: RateLimitConfig,
   ): Promise<{ limited: boolean; remainingMessages: number }> {
     const key = `${userId}:${roomId}`;
     const now = Date.now();
@@ -31,13 +31,16 @@ export class RateLimiterService {
 
     // Get user's message timestamps
     let timestamps = this.userMessageCache.get(key) || [];
-    
+
     // Remove old timestamps outside the window
-    timestamps = timestamps.filter(ts => ts > windowStart);
+    timestamps = timestamps.filter((ts) => ts > windowStart);
 
     // Check if limit exceeded
     const limited = timestamps.length >= config.maxMessages;
-    const remainingMessages = Math.max(0, config.maxMessages - timestamps.length);
+    const remainingMessages = Math.max(
+      0,
+      config.maxMessages - timestamps.length,
+    );
 
     // Add current timestamp if not limited
     if (!limited) {
@@ -62,7 +65,7 @@ export class RateLimiterService {
   clearOldCache(maxAgeMs: number = 3600000): void {
     const now = Date.now();
     for (const [key, timestamps] of this.userMessageCache.entries()) {
-      const recentTimestamps = timestamps.filter(ts => now - ts < maxAgeMs);
+      const recentTimestamps = timestamps.filter((ts) => now - ts < maxAgeMs);
       if (recentTimestamps.length === 0) {
         this.userMessageCache.delete(key);
       } else {

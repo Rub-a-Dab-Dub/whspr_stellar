@@ -1,4 +1,12 @@
-import { IsUUID, IsArray, IsOptional, IsString, IsEmail, MinLength, ArrayMinSize } from 'class-validator';
+import {
+  IsUUID,
+  IsArray,
+  IsOptional,
+  IsString,
+  IsEmail,
+  MinLength,
+  ArrayMinSize,
+} from 'class-validator';
 import { InvitationStatus } from '../entities/room-invitation.entity';
 
 export class InviteMemberDto {

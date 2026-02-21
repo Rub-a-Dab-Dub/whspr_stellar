@@ -23,9 +23,10 @@ export class NotificationCleanupJob {
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async cleanupExpiredNotifications(): Promise<void> {
     this.logger.log('Starting expired notifications cleanup');
-    
+
     try {
-      const cleanedCount = await this.notificationService.cleanupExpiredNotifications();
+      const cleanedCount =
+        await this.notificationService.cleanupExpiredNotifications();
       this.logger.log(`Cleaned up ${cleanedCount} expired notifications`);
     } catch (error) {
       this.logger.error('Failed to cleanup expired notifications:', error);
@@ -38,7 +39,7 @@ export class NotificationCleanupJob {
   @Cron(CronExpression.EVERY_WEEK)
   async cleanupOldDeletedNotifications(): Promise<void> {
     this.logger.log('Starting old deleted notifications cleanup');
-    
+
     try {
       // Delete notifications that were soft-deleted more than 30 days ago
       const thirtyDaysAgo = new Date();
@@ -49,7 +50,9 @@ export class NotificationCleanupJob {
         deletedAt: LessThan(thirtyDaysAgo),
       });
 
-      this.logger.log(`Permanently deleted ${result.affected || 0} old notifications`);
+      this.logger.log(
+        `Permanently deleted ${result.affected || 0} old notifications`,
+      );
     } catch (error) {
       this.logger.error('Failed to cleanup old deleted notifications:', error);
     }
@@ -61,7 +64,7 @@ export class NotificationCleanupJob {
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
   async cleanupOldReadNotifications(): Promise<void> {
     this.logger.log('Starting old read notifications cleanup');
-    
+
     try {
       // Delete read notifications older than 90 days
       const ninetyDaysAgo = new Date();
@@ -79,7 +82,9 @@ export class NotificationCleanupJob {
         },
       );
 
-      this.logger.log(`Soft deleted ${result.affected || 0} old read notifications`);
+      this.logger.log(
+        `Soft deleted ${result.affected || 0} old read notifications`,
+      );
     } catch (error) {
       this.logger.error('Failed to cleanup old read notifications:', error);
     }
@@ -91,12 +96,16 @@ export class NotificationCleanupJob {
   @Cron(CronExpression.EVERY_WEEK)
   async cleanupInactivePushSubscriptions(): Promise<void> {
     this.logger.log('Starting inactive push subscriptions cleanup');
-    
+
     try {
-      const cleanedCount = await this.pushService.cleanupInactiveSubscriptions(30);
+      const cleanedCount =
+        await this.pushService.cleanupInactiveSubscriptions(30);
       this.logger.log(`Cleaned up ${cleanedCount} inactive push subscriptions`);
     } catch (error) {
-      this.logger.error('Failed to cleanup inactive push subscriptions:', error);
+      this.logger.error(
+        'Failed to cleanup inactive push subscriptions:',
+        error,
+      );
     }
   }
 
@@ -106,13 +115,13 @@ export class NotificationCleanupJob {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async generateNotificationStats(): Promise<void> {
     this.logger.log('Generating notification statistics');
-    
+
     try {
       const today = new Date();
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(0, 0, 0, 0);
-      
+
       const endOfYesterday = new Date(yesterday);
       endOfYesterday.setHours(23, 59, 59, 999);
 
@@ -138,11 +147,12 @@ export class NotificationCleanupJob {
         },
       });
 
-      this.logger.log(`Daily stats - Created: ${createdCount}, Read: ${readCount}, Unread: ${unreadCount}`);
-      
+      this.logger.log(
+        `Daily stats - Created: ${createdCount}, Read: ${readCount}, Unread: ${unreadCount}`,
+      );
+
       // Here you could save these stats to a separate analytics table
       // or send them to an analytics service
-      
     } catch (error) {
       this.logger.error('Failed to generate notification statistics:', error);
     }
@@ -158,7 +168,7 @@ export class NotificationCleanupJob {
     inactivePushSubscriptions: number;
   }> {
     this.logger.log('Running manual cleanup');
-    
+
     const results = {
       expiredNotifications: 0,
       oldDeletedNotifications: 0,
@@ -168,12 +178,13 @@ export class NotificationCleanupJob {
 
     try {
       // Clean expired notifications
-      results.expiredNotifications = await this.notificationService.cleanupExpiredNotifications();
+      results.expiredNotifications =
+        await this.notificationService.cleanupExpiredNotifications();
 
       // Clean old deleted notifications
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
+
       const deletedResult = await this.notificationRepository.delete({
         isDeleted: true,
         deletedAt: LessThan(thirtyDaysAgo),
@@ -183,7 +194,7 @@ export class NotificationCleanupJob {
       // Clean old read notifications
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-      
+
       const readResult = await this.notificationRepository.update(
         {
           isRead: true,
@@ -198,7 +209,8 @@ export class NotificationCleanupJob {
       results.oldReadNotifications = readResult.affected || 0;
 
       // Clean inactive push subscriptions
-      results.inactivePushSubscriptions = await this.pushService.cleanupInactiveSubscriptions(30);
+      results.inactivePushSubscriptions =
+        await this.pushService.cleanupInactiveSubscriptions(30);
 
       this.logger.log('Manual cleanup completed:', results);
       return results;

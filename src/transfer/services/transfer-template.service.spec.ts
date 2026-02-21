@@ -42,8 +42,12 @@ describe('TransferTemplateService', () => {
     }).compile();
 
     service = module.get<TransferTemplateService>(TransferTemplateService);
-    repository = module.get<Repository<TransferTemplate>>(getRepositoryToken(TransferTemplate));
-    validationService = module.get<TransferValidationService>(TransferValidationService);
+    repository = module.get<Repository<TransferTemplate>>(
+      getRepositoryToken(TransferTemplate),
+    );
+    validationService = module.get<TransferValidationService>(
+      TransferValidationService,
+    );
   });
 
   afterEach(() => {
@@ -80,8 +84,13 @@ describe('TransferTemplateService', () => {
       const result = await service.createTemplate(userId, dto);
 
       expect(result).toEqual(mockTemplate);
-      expect(mockValidationService.validateRecipient).toHaveBeenCalledWith(dto.recipientId, userId);
-      expect(mockValidationService.validateAmount).toHaveBeenCalledWith(dto.amount);
+      expect(mockValidationService.validateRecipient).toHaveBeenCalledWith(
+        dto.recipientId,
+        userId,
+      );
+      expect(mockValidationService.validateAmount).toHaveBeenCalledWith(
+        dto.amount,
+      );
       expect(mockRepository.save).toHaveBeenCalled();
     });
 
@@ -97,7 +106,9 @@ describe('TransferTemplateService', () => {
       mockValidationService.validateAmount.mockReturnValue(undefined);
       mockRepository.findOne.mockResolvedValue({ id: 'existing-template' });
 
-      await expect(service.createTemplate(userId, dto)).rejects.toThrow(BadRequestException);
+      await expect(service.createTemplate(userId, dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -112,7 +123,10 @@ describe('TransferTemplateService', () => {
       };
 
       mockRepository.findOne.mockResolvedValue(mockTemplate);
-      mockRepository.save.mockResolvedValue({ ...mockTemplate, isFavorite: true });
+      mockRepository.save.mockResolvedValue({
+        ...mockTemplate,
+        isFavorite: true,
+      });
 
       const result = await service.toggleFavorite(templateId, userId);
 
