@@ -47,6 +47,7 @@ import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
 import { PlatformWalletService } from '../services/platform-wallet.service';
 import { PlatformWalletWithdrawDto } from '../dto/platform-wallet-withdraw.dto';
 import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
+import { RefundTransactionDto } from '../dto/refund-transaction.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -643,6 +644,16 @@ export class AdminController {
   @ApiResponse({ status: 200, description: 'Withdrawal history' })
   async getWithdrawals(@Query() query: GetWithdrawalsDto) {
     return await this.platformWalletService.getWithdrawals(query);
+  }
+
+  @Post('transactions/:txId/refund')
+  async refundTransaction(
+    @Param('txId') txId: string,
+    @Body() dto: RefundTransactionDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return this.adminService.refundTransaction(txId, dto, currentUser.id, req);
   }
 
 }
