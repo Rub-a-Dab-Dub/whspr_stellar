@@ -98,6 +98,153 @@ export class AdminService {
     private readonly notificationsQueue: Queue,
   ) {}
 
+  async getTransactions(
+    query: any,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ transactions: any[]; total: number; page: number; limit: number }> {
+    const {
+      type,
+      status,
+      userId,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      chainId,
+      page = 1,
+      limit = 20,
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    // Fetch relevant records per type
+    const results: any[] = [];
+
+    // 1) P2P transfers
+    if (!type || type === 'p2p_transfer') {
+      const transferQ = this.transferRepository.createQueryBuilder('t');
+      if (status) transferQ.andWhere('t.status = :status', { status });
+      if (userId) transferQ.andWhere('(t.senderId = :userId OR t.recipientId = :userId)', { userId });
+      if (chainId) transferQ.andWhere('t.blockchainNetwork = :chainId', { chainId });
+      if (startDate) transferQ.andWhere('t.createdAt >= :startDate', { startDate: new Date(startDate) });
+      if (endDate) transferQ.andWhere('t.createdAt <= :endDate', { endDate: new Date(endDate) });
+      if (minAmount) transferQ.andWhere('CAST(t.amount AS DECIMAL) >= :minAmount', { minAmount });
+      if (maxAmount) transferQ.andWhere('CAST(t.amount AS DECIMAL) <= :maxAmount', { maxAmount });
+      transferQ.orderBy('t.createdAt', 'DESC');
+      const transfers = await transferQ.getMany();
+
+      for (const t of transfers) {
+        results.push({
+          txHash: t.transactionHash || null,
+          type: 'p2p_transfer',
+          fromUser: t.senderId,
+          toUser: t.recipientId,
+          amount: t.amount,
+          platformFee: null,
+          netAmount: t.amount,
+          chain: t.blockchainNetwork,
+          status: t.status,
+          blockNumber: null,
+          confirmedAt: t.completedAt || null,
+          createdAt: t.createdAt,
+        });
+      }
+    }
+
+    // 2) Room payments (room_entry)
+    if (!type || type === 'room_entry') {
+      const rpQ = this.roomPaymentRepository.createQueryBuilder('p').leftJoinAndSelect('p.room', 'room');
+      if (status) rpQ.andWhere('p.status = :status', { status });
+      if (userId) rpQ.andWhere('p.userId = :userId', { userId });
+      if (chainId) rpQ.andWhere('p.blockchainNetwork = :chainId', { chainId });
+      if (startDate) rpQ.andWhere('p.createdAt >= :startDate', { startDate: new Date(startDate) });
+      if (endDate) rpQ.andWhere('p.createdAt <= :endDate', { endDate: new Date(endDate) });
+      if (minAmount) rpQ.andWhere('CAST(p.amount AS DECIMAL) >= :minAmount', { minAmount });
+      if (maxAmount) rpQ.andWhere('CAST(p.amount AS DECIMAL) <= :maxAmount', { maxAmount });
+      rpQ.orderBy('p.createdAt', 'DESC');
+      const payments = await rpQ.getMany();
+
+      for (const p of payments) {
+        results.push({
+          txHash: p.transactionHash || null,
+          type: 'room_entry',
+          fromUser: p.userId,
+          toUser: p.room ? (p.room.ownerId || null) : null,
+          amount: p.amount,
+          platformFee: p.platformFee,
+          netAmount: p.creatorAmount,
+          chain: p.blockchainNetwork,
+          status: p.status,
+          blockNumber: null,
+          confirmedAt: p.refundedAt || p.updatedAt || null,
+          createdAt: p.createdAt,
+        });
+      }
+    }
+
+    // 3) Tips (messages of type TIP)
+    if (!type || type === 'tip') {
+      const msgQ = this.messageRepository.createQueryBuilder('m').leftJoinAndSelect('m.author', 'author');
+      msgQ.where("m.type = 'tip'");
+      if (userId) msgQ.andWhere('(m.authorId = :userId OR (m.metadata->>\'toUser\') = :userId)', { userId });
+      if (startDate) msgQ.andWhere('m.createdAt >= :startDate', { startDate: new Date(startDate) });
+      if (endDate) msgQ.andWhere('m.createdAt <= :endDate', { endDate: new Date(endDate) });
+      if (chainId) msgQ.andWhere("(m.metadata->> 'blockchainNetwork') = :chainId", { chainId });
+      msgQ.orderBy('m.createdAt', 'DESC');
+      const tips = await msgQ.getMany();
+
+      for (const t of tips) {
+        const amount = t.metadata?.amount || null;
+        const fee = t.metadata?.platformFee || null;
+        results.push({
+          txHash: t.metadata?.txHash || null,
+          type: 'tip',
+          fromUser: t.authorId,
+          toUser: t.metadata?.toUser || null,
+          amount,
+          platformFee: fee,
+          netAmount: amount ? (parseFloat(amount) - parseFloat(fee || '0')).toString() : null,
+          chain: t.metadata?.blockchainNetwork || null,
+          status: t.metadata?.status || (t.metadata?.txHash ? 'confirmed' : 'pending'),
+          blockNumber: t.metadata?.blockNumber || null,
+          confirmedAt: t.metadata?.confirmedAt ? new Date(t.metadata.confirmedAt) : null,
+          createdAt: t.createdAt,
+        });
+      }
+    }
+
+    // 4) Withdrawals & refunds: attempt to include as room payments with refunded status or special transfer types
+    // Refunds from room payments already included via status = 'refunded' if filter applied.
+
+    // Sort merged results by createdAt desc
+    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const total = results.length;
+    const pageItems = results.slice(skip, skip + limit);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      `Viewed transactions (${pageItems.length})`,
+      { filters: query },
+      req,
+      AuditSeverity.LOW,
+    );
+
+    await this.safeLogDataAccess({
+      actorUserId: adminId,
+      action: DataAccessAction.VIEW,
+      resourceType: 'transactions',
+      details: 'Viewed transactions ledger',
+      metadata: { filters: query, count: pageItems.length },
+      req,
+    });
+
+    return { transactions: pageItems, total, page, limit };
+  }
+
   private async logAudit(
     actorUserId: string | null,
     action: AuditAction,
