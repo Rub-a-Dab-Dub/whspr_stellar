@@ -87,9 +87,8 @@ The seed script is **idempotent** - it clears all data and recreates it fresh ea
 └── ~25 SYSTEM
 
 200 Transactions:
-├── 120 P2P (80% completed, 12% pending, 8% failed)
-├── 50 ROOM_PAYMENT
-└── 30 REWARD
+├── 150 P2P (80% completed, 12% pending, 8% failed)
+└── 50 BULK
 ```
 
 ### npm Scripts

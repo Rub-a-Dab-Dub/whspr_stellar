@@ -275,9 +275,8 @@ export async function seedTestDatabase(dataSource: DataSource) {
   // ========================
   console.log('💸 Creating 200 transactions...');
   const transactionTypes = [
-    { type: TransferType.P2P, count: 120 },
-    { type: TransferType.ROOM_PAYMENT, count: 50 },
-    { type: TransferType.REWARD, count: 30 },
+    { type: TransferType.P2P, count: 150 },
+    { type: TransferType.BULK, count: 50 },
   ];
 
   const statuses = [
@@ -346,7 +345,7 @@ export async function seedTestDatabase(dataSource: DataSource) {
   console.log('   - 50 rooms (20 PUBLIC, 15 PRIVATE, 10 TOKEN_GATED, 5 TIMED)');
   console.log(`   - ${memberCount} room memberships`);
   console.log('   - 500 messages');
-  console.log('   - 200 transactions');
+  console.log('   - 200 transactions (150 P2P, 50 BULK)');
 }
 
 /**
