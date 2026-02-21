@@ -37,6 +37,7 @@ import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
     ScheduleModule.forRoot(),
     JwtModule.register({}),
     forwardRef(() => TransferModule),
+    forwardRef(() => AdminAuthModule),
     LeaderboardModule,
     TypeOrmModule.forFeature([
       User,
