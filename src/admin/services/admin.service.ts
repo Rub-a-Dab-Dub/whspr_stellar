@@ -2176,11 +2176,13 @@ export class AdminService {
 
     await this.roomRepository.save(room);
 
-    // Soft delete all messages in the room
-    await this.messageRepository.update(
-      { room: { id: roomId } },
-      { isDeleted: true },
-    );
+    // Soft delete all messages in the room using query builder
+    await this.messageRepository
+      .createQueryBuilder('message')
+      .update()
+      .set({ isDeleted: true })
+      .where('message.roomId = :roomId', { roomId })
+      .execute();
 
     // Log audit action
     await this.auditLogService.log({
@@ -2260,11 +2262,14 @@ export class AdminService {
 
     await this.roomRepository.save(room);
 
-    // Restore deleted messages if it was soft-deleted
-    await this.messageRepository.update(
-      { room: { id: roomId }, isDeleted: true },
-      { isDeleted: false },
-    );
+    // Restore deleted messages if it was soft-deleted using query builder
+    await this.messageRepository
+      .createQueryBuilder('message')
+      .update()
+      .set({ isDeleted: false })
+      .where('message.roomId = :roomId', { roomId })
+      .andWhere('message.isDeleted = :isDeleted', { isDeleted: true })
+      .execute();
 
     // Log audit action
     await this.auditLogService.log({
