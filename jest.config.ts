@@ -6,10 +6,17 @@ module.exports = {
     "^.+\\.(t|j)s$": "ts-jest"
   },
   collectCoverageFrom: [
-    "**/*.(t|j)s"
+    "admin/**/*.ts",
+    "!admin/**/*.spec.ts",
+    "!admin/**/index.ts",
   ],
   coverageDirectory: "../coverage",
   testEnvironment: "node",
+  coverageThreshold: {
+    global: {
+      lines: 80,
+    },
+  },
   moduleFileExtensions: ['js', 'json', 'ts'],
   transformIgnorePatterns: [
     'node_modules/(?!(bad-words|badwords-list)/)',

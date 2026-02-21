@@ -14,12 +14,18 @@ export class GetRevenueAnalyticsDto {
   @IsEnum(RevenuePeriod)
   period: RevenuePeriod;
 
-  @ApiPropertyOptional({ example: '2024-01-01', description: 'Required for CUSTOM period' })
+  @ApiPropertyOptional({
+    example: '2024-01-01',
+    description: 'Required for CUSTOM period',
+  })
   @IsOptional()
   @IsDateString()
   startDate?: string;
 
-  @ApiPropertyOptional({ example: '2024-12-31', description: 'Required for CUSTOM period' })
+  @ApiPropertyOptional({
+    example: '2024-12-31',
+    description: 'Required for CUSTOM period',
+  })
   @IsOptional()
   @IsDateString()
   endDate?: string;

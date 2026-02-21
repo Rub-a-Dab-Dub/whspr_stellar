@@ -1,6 +1,9 @@
 import { IsBoolean, IsEnum, IsString, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LeaderboardCategory, LeaderboardPeriod } from '../../leaderboard/leaderboard.interface';
+import {
+  LeaderboardCategory,
+  LeaderboardPeriod,
+} from '../../leaderboard/leaderboard.interface';
 
 export class SetPinnedDto {
   @ApiProperty({ description: 'User ID to pin/unpin' })

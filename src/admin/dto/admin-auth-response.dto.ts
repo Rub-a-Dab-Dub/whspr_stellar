@@ -15,6 +15,9 @@ export class AdminAuthResponseDto {
   @ApiProperty({ description: 'Refresh token for obtaining new access tokens' })
   refreshToken: string;
 
-  @ApiProperty({ type: AdminAuthUserDto, description: 'Authenticated admin user info' })
+  @ApiProperty({
+    type: AdminAuthUserDto,
+    description: 'Authenticated admin user info',
+  })
   user: AdminAuthUserDto;
 }

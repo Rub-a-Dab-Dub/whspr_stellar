@@ -10,14 +10,8 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Permission } from './permission.entity';
-
-export enum UserRole {
-  SUPER_ADMIN = 'super_admin',
-  ADMIN = 'admin',
-  MODERATOR = 'moderator',
-  USER = 'user',
-  CREATOR = 'creator',
-}
+import { UserRole } from './user-role.enum';
+export { UserRole } from './user-role.enum';
 
 @Entity('roles')
 export class Role {

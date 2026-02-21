@@ -2,7 +2,9 @@ import { IsNotEmpty, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateConfigDto {
-  @ApiProperty({ description: 'New config value (string, number, boolean, or object)' })
+  @ApiProperty({
+    description: 'New config value (string, number, boolean, or object)',
+  })
   @IsNotEmpty()
   value: any;
 

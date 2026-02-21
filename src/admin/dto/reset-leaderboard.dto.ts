@@ -6,7 +6,9 @@ export class ResetLeaderboardDto {
   @IsString()
   reason: string;
 
-  @ApiProperty({ description: 'Whether to snapshot current state before reset' })
+  @ApiProperty({
+    description: 'Whether to snapshot current state before reset',
+  })
   @IsBoolean()
   snapshotBeforeReset: boolean;
 

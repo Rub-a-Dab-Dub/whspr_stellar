@@ -7,7 +7,10 @@ export class DeleteUserDto {
   @IsNotEmpty()
   reason: string;
 
-  @ApiProperty({ example: 'admin@example.com', description: 'Admin email for confirmation' })
+  @ApiProperty({
+    example: 'admin@example.com',
+    description: 'Admin email for confirmation',
+  })
   @IsEmail()
   @IsNotEmpty()
   confirmEmail: string;

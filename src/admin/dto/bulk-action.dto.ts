@@ -1,4 +1,10 @@
-import { IsArray, IsString, IsEnum, IsOptional, MaxLength } from 'class-validator';
+import {
+  IsArray,
+  IsString,
+  IsEnum,
+  IsOptional,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum BulkActionType {
@@ -27,7 +33,10 @@ export class BulkActionDto {
   @MaxLength(500)
   reason?: string;
 
-  @ApiPropertyOptional({ example: '2025-03-01T00:00:00Z', description: 'Required for SUSPEND action' })
+  @ApiPropertyOptional({
+    example: '2025-03-01T00:00:00Z',
+    description: 'Required for SUSPEND action',
+  })
   @IsString()
   @IsOptional()
   suspendedUntil?: string;
