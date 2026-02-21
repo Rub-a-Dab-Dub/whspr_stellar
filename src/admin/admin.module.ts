@@ -55,6 +55,8 @@ import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
       PlatformConfig,
       ModerationQueue,   
       FlaggedMessage,
+      PlatformWalletWithdrawal,
+      WithdrawalWhitelist,
     ]),
   ],
   controllers: [AdminController, IpWhitelistController],
