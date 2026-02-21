@@ -22,12 +22,14 @@ import { RoomPayment } from '../room/entities/room-payment.entity';
 import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
 import { LeaderboardModule } from '../leaderboard/leaderboard.module';
+import { AdminAuthModule } from './auth/admin-auth.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     JwtModule.register({}),
     forwardRef(() => TransferModule),
+    forwardRef(() => AdminAuthModule),
     LeaderboardModule,
     TypeOrmModule.forFeature([
       User,
@@ -51,6 +53,6 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
     AuditLogRetentionJob,
     AdminEventStreamGateway,
   ],
-  exports: [AdminService, AuditLogService],
+  exports: [AdminService, AuditLogService, AdminAuthModule],
 })
-export class AdminModule {}
+export class AdminModule { }
