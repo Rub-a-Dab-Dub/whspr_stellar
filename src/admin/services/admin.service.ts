@@ -18,6 +18,7 @@ import {
   AuditSeverity,
 } from '../entities/audit-log.entity';
 import { GetUsersDto, UserFilterStatus } from '../dto/get-users.dto';
+import { GetRoomsDto, RoomFilterStatus } from '../dto/get-rooms.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto, BulkActionType } from '../dto/bulk-action.dto';
