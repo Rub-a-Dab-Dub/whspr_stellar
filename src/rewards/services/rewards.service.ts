@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, In, MoreThanOrEqual } from 'typeorm';
 import { Reward } from '../entities/reward.entity';
@@ -59,7 +64,8 @@ export class RewardsService {
    * Grant a reward to a user
    */
   async grantReward(grantRewardDto: GrantRewardDto): Promise<UserReward> {
-    const { userId, rewardId, grantedByUserId, eventName, metadata } = grantRewardDto;
+    const { userId, rewardId, grantedByUserId, eventName, metadata } =
+      grantRewardDto;
 
     // Verify user exists
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -68,7 +74,9 @@ export class RewardsService {
     }
 
     // Verify reward exists and is active
-    const reward = await this.rewardRepository.findOne({ where: { id: rewardId } });
+    const reward = await this.rewardRepository.findOne({
+      where: { id: rewardId },
+    });
     if (!reward) {
       throw new NotFoundException(`Reward with ID ${rewardId} not found`);
     }
@@ -110,7 +118,10 @@ export class RewardsService {
   /**
    * Check stacking rules before granting reward
    */
-  private async checkStackingRules(userId: string, reward: Reward): Promise<void> {
+  private async checkStackingRules(
+    userId: string,
+    reward: Reward,
+  ): Promise<void> {
     if (reward.stackLimit === 0) {
       // Check if user already has this reward
       const existingReward = await this.userRewardRepository.findOne({
@@ -147,21 +158,29 @@ export class RewardsService {
   /**
    * Apply reward effect based on type
    */
-  private async applyRewardEffect(userId: string, reward: Reward): Promise<void> {
+  private async applyRewardEffect(
+    userId: string,
+    reward: Reward,
+  ): Promise<void> {
     switch (reward.type) {
       case RewardType.XP_BOOST:
         // Apply XP multiplier boost
-        const user = await this.userRepository.findOne({ where: { id: userId } });
+        const user = await this.userRepository.findOne({
+          where: { id: userId },
+        });
         if (user) {
           const boostMultiplier = parseFloat(reward.value.toString());
-          user.xpMultiplier = parseFloat(user.xpMultiplier.toString()) * boostMultiplier;
+          user.xpMultiplier =
+            parseFloat(user.xpMultiplier.toString()) * boostMultiplier;
           await this.userRepository.save(user);
         }
         break;
 
       case RewardType.PREMIUM_DAYS:
         // Grant premium days
-        const premiumUser = await this.userRepository.findOne({ where: { id: userId } });
+        const premiumUser = await this.userRepository.findOne({
+          where: { id: userId },
+        });
         if (premiumUser) {
           premiumUser.isPremium = true;
           // Store premium expiration in metadata or separate table
@@ -251,14 +270,19 @@ export class RewardsService {
   /**
    * Redeem a reward
    */
-  async redeemReward(userId: string, userRewardId: string): Promise<UserReward> {
+  async redeemReward(
+    userId: string,
+    userRewardId: string,
+  ): Promise<UserReward> {
     const userReward = await this.userRewardRepository.findOne({
       where: { id: userRewardId, userId },
       relations: ['reward'],
     });
 
     if (!userReward) {
-      throw new NotFoundException(`User reward with ID ${userRewardId} not found`);
+      throw new NotFoundException(
+        `User reward with ID ${userRewardId} not found`,
+      );
     }
 
     if (userReward.status !== UserRewardStatus.ACTIVE) {
@@ -289,7 +313,10 @@ export class RewardsService {
   /**
    * Apply redemption effect
    */
-  private async applyRedemptionEffect(userId: string, reward: Reward): Promise<void> {
+  private async applyRedemptionEffect(
+    userId: string,
+    reward: Reward,
+  ): Promise<void> {
     // For most rewards, the effect is already applied on grant
     // This method can be used for rewards that need activation on redemption
     switch (reward.type) {
@@ -317,7 +344,9 @@ export class RewardsService {
     });
 
     if (!userReward) {
-      throw new NotFoundException(`User reward with ID ${userRewardId} not found`);
+      throw new NotFoundException(
+        `User reward with ID ${userRewardId} not found`,
+      );
     }
 
     if (userReward.status !== UserRewardStatus.ACTIVE) {
@@ -331,9 +360,13 @@ export class RewardsService {
     }
 
     // Verify target user exists
-    const targetUser = await this.userRepository.findOne({ where: { id: targetUserId } });
+    const targetUser = await this.userRepository.findOne({
+      where: { id: targetUserId },
+    });
     if (!targetUser) {
-      throw new NotFoundException(`Target user with ID ${targetUserId} not found`);
+      throw new NotFoundException(
+        `Target user with ID ${targetUserId} not found`,
+      );
     }
 
     // Check stacking rules for target user
@@ -355,7 +388,9 @@ export class RewardsService {
       message: `You received a reward via trade`,
     });
 
-    this.logger.log(`Reward ${userRewardId} traded from user ${userId} to ${targetUserId}`);
+    this.logger.log(
+      `Reward ${userRewardId} traded from user ${userId} to ${targetUserId}`,
+    );
     return userReward;
   }
 
@@ -373,7 +408,9 @@ export class RewardsService {
     });
 
     if (!userReward) {
-      throw new NotFoundException(`User reward with ID ${userRewardId} not found`);
+      throw new NotFoundException(
+        `User reward with ID ${userRewardId} not found`,
+      );
     }
 
     if (userReward.status !== UserRewardStatus.ACTIVE) {
@@ -387,9 +424,13 @@ export class RewardsService {
     }
 
     // Verify recipient exists
-    const recipient = await this.userRepository.findOne({ where: { id: recipientUserId } });
+    const recipient = await this.userRepository.findOne({
+      where: { id: recipientUserId },
+    });
     if (!recipient) {
-      throw new NotFoundException(`Recipient user with ID ${recipientUserId} not found`);
+      throw new NotFoundException(
+        `Recipient user with ID ${recipientUserId} not found`,
+      );
     }
 
     // Check stacking rules for recipient
@@ -411,7 +452,9 @@ export class RewardsService {
       message: `You received a gift reward`,
     });
 
-    this.logger.log(`Reward ${userRewardId} gifted from user ${userId} to ${recipientUserId}`);
+    this.logger.log(
+      `Reward ${userRewardId} gifted from user ${userId} to ${recipientUserId}`,
+    );
     return userReward;
   }
 
@@ -452,14 +495,20 @@ export class RewardsService {
   /**
    * Revert reward effect when expired
    */
-  private async revertRewardEffect(userId: string, reward: Reward): Promise<void> {
+  private async revertRewardEffect(
+    userId: string,
+    reward: Reward,
+  ): Promise<void> {
     switch (reward.type) {
       case RewardType.XP_BOOST:
         // Revert XP multiplier
-        const user = await this.userRepository.findOne({ where: { id: userId } });
+        const user = await this.userRepository.findOne({
+          where: { id: userId },
+        });
         if (user) {
           const boostMultiplier = parseFloat(reward.value.toString());
-          user.xpMultiplier = parseFloat(user.xpMultiplier.toString()) / boostMultiplier;
+          user.xpMultiplier =
+            parseFloat(user.xpMultiplier.toString()) / boostMultiplier;
           // Ensure multiplier doesn't go below 1.0
           if (user.xpMultiplier < 1.0) {
             user.xpMultiplier = 1.0;

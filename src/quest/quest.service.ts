@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Quest, QuestType, RewardType } from './entities/quest.entity';
@@ -39,7 +44,10 @@ export class QuestService {
   }
 
   // Get user's quest progress
-  async getUserQuestProgress(userId: string, questId?: string): Promise<UserQuestProgress[]> {
+  async getUserQuestProgress(
+    userId: string,
+    questId?: string,
+  ): Promise<UserQuestProgress[]> {
     const where: any = { userId };
     if (questId) {
       where.questId = questId;
@@ -88,7 +96,10 @@ export class QuestService {
     progress.currentProgress += progressIncrement;
 
     // Check completion
-    if (progress.currentProgress >= quest.requirementCount && !progress.isCompleted) {
+    if (
+      progress.currentProgress >= quest.requirementCount &&
+      !progress.isCompleted
+    ) {
       progress.isCompleted = true;
       progress.completedAt = new Date();
     }
@@ -97,7 +108,10 @@ export class QuestService {
   }
 
   // Check quest completion
-  async checkQuestCompletion(userId: string, questId: string): Promise<boolean> {
+  async checkQuestCompletion(
+    userId: string,
+    questId: string,
+  ): Promise<boolean> {
     const progress = await this.progressRepository.findOne({
       where: { userId, questId },
       relations: ['quest'],
@@ -111,7 +125,10 @@ export class QuestService {
   }
 
   // Claim quest reward
-  async claimQuestReward(userId: string, questId: string): Promise<{
+  async claimQuestReward(
+    userId: string,
+    questId: string,
+  ): Promise<{
     success: boolean;
     rewardType: RewardType;
     rewardAmount: number;
@@ -153,13 +170,19 @@ export class QuestService {
       rewardAmount: quest.rewardAmount,
     };
 
-    if (quest.rewardType === RewardType.XP || quest.rewardType === RewardType.BOTH) {
+    if (
+      quest.rewardType === RewardType.XP ||
+      quest.rewardType === RewardType.BOTH
+    ) {
       result.xpGained = quest.rewardAmount;
       // Here you would call your user service to add XP
       // await this.userService.addXP(userId, quest.rewardAmount);
     }
 
-    if (quest.rewardType === RewardType.TOKEN || quest.rewardType === RewardType.BOTH) {
+    if (
+      quest.rewardType === RewardType.TOKEN ||
+      quest.rewardType === RewardType.BOTH
+    ) {
       result.tokensGained = quest.rewardAmount;
       // Here you would call your token service to add tokens
       // await this.tokenService.addTokens(userId, quest.rewardAmount);
@@ -285,18 +308,22 @@ export class QuestService {
 
   // Get quest statistics for admin
   async getQuestStats(questId: string) {
-    const quest = await this.questRepository.findOne({ where: { id: questId } });
-    
+    const quest = await this.questRepository.findOne({
+      where: { id: questId },
+    });
+
     if (!quest) {
       throw new NotFoundException('Quest not found');
     }
 
-    const totalUsers = await this.progressRepository.count({ where: { questId } });
-    const completedUsers = await this.progressRepository.count({ 
-      where: { questId, isCompleted: true } 
+    const totalUsers = await this.progressRepository.count({
+      where: { questId },
     });
-    const claimedUsers = await this.progressRepository.count({ 
-      where: { questId, isClaimed: true } 
+    const completedUsers = await this.progressRepository.count({
+      where: { questId, isCompleted: true },
+    });
+    const claimedUsers = await this.progressRepository.count({
+      where: { questId, isClaimed: true },
     });
 
     return {

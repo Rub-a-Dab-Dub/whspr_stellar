@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Room } from './entities/room.entity';
@@ -21,7 +26,8 @@ export class RoomsService {
     creatorId: string,
     createTimedRoomDto: CreateTimedRoomDto,
   ): Promise<Room> {
-    const expiryTimestamp = Date.now() + (createTimedRoomDto.durationMinutes * 60 * 1000);
+    const expiryTimestamp =
+      Date.now() + createTimedRoomDto.durationMinutes * 60 * 1000;
 
     const room = this.roomsRepository.create({
       name: createTimedRoomDto.name,
@@ -35,9 +41,11 @@ export class RoomsService {
     const savedRoom = await this.roomsRepository.save(room);
 
     await this.userStatsService.recordRoomCreated(creatorId);
-    
-    this.logger.log(`Timed room created: ${savedRoom.id}, expires at ${new Date(expiryTimestamp)}`);
-    
+
+    this.logger.log(
+      `Timed room created: ${savedRoom.id}, expires at ${new Date(expiryTimestamp)}`,
+    );
+
     // Emit event for Stellar contract interaction if needed
     this.eventEmitter.emit('room.created', {
       roomId: savedRoom.id,
@@ -48,7 +56,9 @@ export class RoomsService {
     return savedRoom;
   }
 
-  async checkRoomExpiry(roomId: string): Promise<{ isExpired: boolean; timeRemaining: number }> {
+  async checkRoomExpiry(
+    roomId: string,
+  ): Promise<{ isExpired: boolean; timeRemaining: number }> {
     const room = await this.roomsRepository.findOne({ where: { id: roomId } });
 
     if (!room) {
@@ -96,8 +106,10 @@ export class RoomsService {
 
     const updatedRoom = await this.roomsRepository.save(room);
 
-    this.logger.log(`Room ${roomId} extended by ${extendRoomDto.additionalMinutes} minutes`);
-    
+    this.logger.log(
+      `Room ${roomId} extended by ${extendRoomDto.additionalMinutes} minutes`,
+    );
+
     this.eventEmitter.emit('room.extended', {
       roomId: updatedRoom.id,
       newExpiryTimestamp: updatedRoom.expiryTimestamp,
@@ -108,7 +120,7 @@ export class RoomsService {
 
   async findExpiringRoomsSoon(warningMinutes: number = 5): Promise<Room[]> {
     const now = Date.now();
-    const warningThreshold = now + (warningMinutes * 60 * 1000);
+    const warningThreshold = now + warningMinutes * 60 * 1000;
 
     return this.roomsRepository.find({
       where: {
@@ -149,7 +161,7 @@ export class RoomsService {
     });
 
     await this.roomsRepository.remove(room);
-    
+
     this.logger.log(`Expired room deleted: ${roomId}`);
   }
 }

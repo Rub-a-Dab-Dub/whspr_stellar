@@ -20,24 +20,27 @@ export class ArweaveStorageService {
     // This is a placeholder for the actual key loading logic
     const key = this.configService.get<string>('ARWEAVE_KEY');
     if (key) {
-        try {
-            this.jwk = JSON.parse(key);
-        } catch (e) {
-            this.logger.warn('Invalid Arweave Key format');
-        }
+      try {
+        this.jwk = JSON.parse(key);
+      } catch (e) {
+        this.logger.warn('Invalid Arweave Key format');
+      }
     }
   }
 
   async upload(buffer: Buffer, mimeType: string): Promise<{ id: string }> {
     if (!this.jwk) {
-        this.logger.warn('No Arweave key found. Cannot upload.');
-        throw new Error('Arweave wallet not configured');
+      this.logger.warn('No Arweave key found. Cannot upload.');
+      throw new Error('Arweave wallet not configured');
     }
 
     try {
-      const transaction = await this.arweave.createTransaction({
-        data: buffer,
-      }, this.jwk);
+      const transaction = await this.arweave.createTransaction(
+        {
+          data: buffer,
+        },
+        this.jwk,
+      );
 
       transaction.addTag('Content-Type', mimeType);
 
@@ -46,12 +49,13 @@ export class ArweaveStorageService {
       const response = await this.arweave.transactions.post(transaction);
 
       if (response.status === 200 || response.status === 208) {
-          this.logger.log(`File uploaded to Arweave: ${transaction.id}`);
-          return { id: transaction.id };
+        this.logger.log(`File uploaded to Arweave: ${transaction.id}`);
+        return { id: transaction.id };
       } else {
-          throw new Error(`Arweave upload failed with status: ${response.status}`);
+        throw new Error(
+          `Arweave upload failed with status: ${response.status}`,
+        );
       }
-
     } catch (error) {
       this.logger.error('Error uploading to Arweave', error);
       throw error;
@@ -59,6 +63,6 @@ export class ArweaveStorageService {
   }
 
   getGatewayUrl(id: string): string {
-      return `https://arweave.net/${id}`;
+    return `https://arweave.net/${id}`;
   }
 }

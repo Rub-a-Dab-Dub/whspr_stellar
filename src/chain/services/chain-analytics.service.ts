@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RoomPayment, PaymentStatus } from '../../room/entities/room-payment.entity';
+import {
+  RoomPayment,
+  PaymentStatus,
+} from '../../room/entities/room-payment.entity';
 import { SupportedChain } from '../enums/supported-chain.enum';
 
 export interface ChainPaymentStats {

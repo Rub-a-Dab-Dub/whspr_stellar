@@ -1,6 +1,10 @@
 // src/health/indicators/queue.indicator.ts
 import { Injectable } from '@nestjs/common';
-import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus';
+import {
+  HealthIndicator,
+  HealthIndicatorResult,
+  HealthCheckError,
+} from '@nestjs/terminus';
 import { InjectQueue } from '@nestjs/bull'; // or your queue library
 import { Queue } from 'bull';
 
@@ -15,7 +19,7 @@ export class QueueHealthIndicator extends HealthIndicator {
 
   async isHealthy(queueName: string): Promise<HealthIndicatorResult> {
     const queue = this.getQueue(queueName);
-    
+
     try {
       const [waiting, active, completed, failed, delayed] = await Promise.all([
         queue.getWaitingCount(),
@@ -46,7 +50,7 @@ export class QueueHealthIndicator extends HealthIndicator {
       const result = this.getStatus(queueName, false, {
         message: error.message,
       });
-      
+
       throw new HealthCheckError('Queue check failed', result);
     }
   }

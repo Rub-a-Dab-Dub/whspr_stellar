@@ -93,7 +93,10 @@ export class RewardsController {
     @CurrentUser() user: any,
     @Body() redeemRewardDto: RedeemRewardDto,
   ) {
-    return this.rewardsService.redeemReward(user.userId, redeemRewardDto.userRewardId);
+    return this.rewardsService.redeemReward(
+      user.userId,
+      redeemRewardDto.userRewardId,
+    );
   }
 
   /**
@@ -117,10 +120,7 @@ export class RewardsController {
    */
   @Post('gift')
   @HttpCode(HttpStatus.OK)
-  giftReward(
-    @CurrentUser() user: any,
-    @Body() giftRewardDto: GiftRewardDto,
-  ) {
+  giftReward(@CurrentUser() user: any, @Body() giftRewardDto: GiftRewardDto) {
     return this.rewardsService.giftReward(
       user.userId,
       giftRewardDto.userRewardId,
@@ -133,9 +133,7 @@ export class RewardsController {
    */
   @Post('event')
   @HttpCode(HttpStatus.CREATED)
-  grantEventReward(
-    @Body() grantRewardDto: GrantRewardDto,
-  ) {
+  grantEventReward(@Body() grantRewardDto: GrantRewardDto) {
     return this.rewardsService.grantEventReward(
       grantRewardDto.userId,
       grantRewardDto.rewardId,
@@ -164,7 +162,9 @@ export class RewardsController {
 
   @Get('analytics/top-users')
   getTopUsers(@Query('limit') limit?: number) {
-    return this.analyticsService.getTopUsersByRewards(limit ? parseInt(limit.toString()) : 10);
+    return this.analyticsService.getTopUsersByRewards(
+      limit ? parseInt(limit.toString()) : 10,
+    );
   }
 
   @Get('analytics/events')
@@ -177,10 +177,7 @@ export class RewardsController {
    */
   @Post('marketplace/list')
   @HttpCode(HttpStatus.CREATED)
-  listReward(
-    @CurrentUser() user: any,
-    @Body() listDto: MarketplaceListDto,
-  ) {
+  listReward(@CurrentUser() user: any, @Body() listDto: MarketplaceListDto) {
     return this.marketplaceService.listReward(user.userId, listDto);
   }
 

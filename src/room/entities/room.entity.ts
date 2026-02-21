@@ -110,7 +110,7 @@ export class Room {
   @Column({ type: 'timestamp', nullable: true })
   deletedAt?: Date;
 
-  @OneToMany(() => RoomPayment, payment => payment.room)
+  @OneToMany(() => RoomPayment, (payment) => payment.room)
   payments!: RoomPayment[];
 
   @OneToMany(() => RoomMember, (member) => member.room)

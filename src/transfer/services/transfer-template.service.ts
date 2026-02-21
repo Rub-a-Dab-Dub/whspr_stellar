@@ -60,7 +60,10 @@ export class TransferTemplateService {
     });
   }
 
-  async getTemplateById(templateId: string, userId: string): Promise<TransferTemplate> {
+  async getTemplateById(
+    templateId: string,
+    userId: string,
+  ): Promise<TransferTemplate> {
     const template = await this.templateRepository.findOne({
       where: { id: templateId, userId },
     });
@@ -93,7 +96,8 @@ export class TransferTemplateService {
     if (dto.description !== undefined) template.description = dto.description;
     if (dto.memo !== undefined) template.memo = dto.memo;
     if (dto.note !== undefined) template.note = dto.note;
-    if (dto.blockchainNetwork) template.blockchainNetwork = dto.blockchainNetwork;
+    if (dto.blockchainNetwork)
+      template.blockchainNetwork = dto.blockchainNetwork;
 
     return await this.templateRepository.save(template);
   }
@@ -103,18 +107,17 @@ export class TransferTemplateService {
     await this.templateRepository.remove(template);
   }
 
-  async toggleFavorite(templateId: string, userId: string): Promise<TransferTemplate> {
+  async toggleFavorite(
+    templateId: string,
+    userId: string,
+  ): Promise<TransferTemplate> {
     const template = await this.getTemplateById(templateId, userId);
     template.isFavorite = !template.isFavorite;
     return await this.templateRepository.save(template);
   }
 
   async incrementUseCount(templateId: string): Promise<void> {
-    await this.templateRepository.increment(
-      { id: templateId },
-      'useCount',
-      1,
-    );
+    await this.templateRepository.increment({ id: templateId }, 'useCount', 1);
     await this.templateRepository.update(
       { id: templateId },
       { lastUsedAt: new Date() },

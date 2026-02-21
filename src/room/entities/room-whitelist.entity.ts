@@ -1,13 +1,13 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    ManyToOne,
-    CreateDateColumn,
-    UpdateDateColumn,
-    Index,
-    JoinColumn,
-    Unique,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+  JoinColumn,
+  Unique,
 } from 'typeorm';
 import { Room } from './room.entity';
 import { User } from '../../user/entities/user.entity';
@@ -17,36 +17,36 @@ import { User } from '../../user/entities/user.entity';
 @Index(['roomId'])
 @Index(['userId'])
 export class RoomWhitelist {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column('uuid')
-    roomId: string;
+  @Column('uuid')
+  roomId: string;
 
-    @Column('uuid')
-    userId: string;
+  @Column('uuid')
+  userId: string;
 
-    @Column('uuid')
-    addedBy: string;
+  @Column('uuid')
+  addedBy: string;
 
-    @Column({ type: 'text', nullable: true })
-    notes: string;
+  @Column({ type: 'text', nullable: true })
+  notes: string;
 
-    @CreateDateColumn()
-    addedAt: Date;
+  @CreateDateColumn()
+  addedAt: Date;
 
-    @UpdateDateColumn()
-    updatedAt: Date;
+  @UpdateDateColumn()
+  updatedAt: Date;
 
-    @ManyToOne(() => Room, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'roomId' })
-    room: Room;
+  @ManyToOne(() => Room, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'roomId' })
+  room: Room;
 
-    @ManyToOne(() => User, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'userId' })
-    user: User;
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
-    @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
-    @JoinColumn({ name: 'addedBy' })
-    addedByUser: User;
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'addedBy' })
+  addedByUser: User;
 }

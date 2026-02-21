@@ -1,4 +1,13 @@
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Min, IsDateString } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  IsDateString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { MessageType } from '../enums/message-type.enum';
 

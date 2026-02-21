@@ -7,7 +7,13 @@ import { SystemConfigService } from './system-config.service';
 import { SystemConfigController } from './system-config.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([SystemConfig, SystemConfigVersion, SystemConfigAudit])],
+  imports: [
+    TypeOrmModule.forFeature([
+      SystemConfig,
+      SystemConfigVersion,
+      SystemConfigAudit,
+    ]),
+  ],
   providers: [SystemConfigService],
   controllers: [SystemConfigController],
   exports: [SystemConfigService],

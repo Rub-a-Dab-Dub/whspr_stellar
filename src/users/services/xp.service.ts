@@ -201,7 +201,14 @@ export class XpService {
     const skip = (page - 1) * limit;
 
     const [users, total] = await this.userRepository.findAndCount({
-      select: ['id', 'username', 'displayName', 'avatarUrl', 'level', 'currentXp'],
+      select: [
+        'id',
+        'username',
+        'displayName',
+        'avatarUrl',
+        'level',
+        'currentXp',
+      ],
       order: {
         level: 'DESC',
         currentXp: 'DESC',

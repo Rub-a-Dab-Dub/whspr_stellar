@@ -44,7 +44,7 @@ export class SpamDetectionService {
     // Factor 5: Repetitive words (0-0.15)
     const words = text.toLowerCase().split(/\s+/);
     const uniqueWords = new Set(words);
-    const repetitionRatio = 1 - (uniqueWords.size / words.length);
+    const repetitionRatio = 1 - uniqueWords.size / words.length;
     factors.push(Math.min(repetitionRatio, 0.15));
 
     score = factors.reduce((sum, factor) => sum + factor, 0);
@@ -56,14 +56,14 @@ export class SpamDetectionService {
    */
   isLinkSpam(text: string, whitelistedDomains: string[] = []): boolean {
     const urls = text.match(this.URL_REGEX) || [];
-    
+
     if (urls.length === 0) return false;
     if (urls.length > 3) return true; // More than 3 links = spam
 
     // Check against whitelisted domains
     for (const url of urls) {
-      const isWhitelisted = whitelistedDomains.some(domain => 
-        url.includes(domain)
+      const isWhitelisted = whitelistedDomains.some((domain) =>
+        url.includes(domain),
       );
       if (!isWhitelisted) return true;
     }

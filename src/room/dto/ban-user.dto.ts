@@ -1,13 +1,13 @@
 import { IsUUID, IsString, IsOptional, IsDateString } from 'class-validator';
 
 export class BanUserDto {
-    @IsUUID()
-    userId: string;
+  @IsUUID()
+  userId: string;
 
-    @IsString()
-    reason: string;
+  @IsString()
+  reason: string;
 
-    @IsOptional()
-    @IsDateString()
-    expiresAt?: string;
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
 }

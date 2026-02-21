@@ -340,6 +340,213 @@ fn test_transfer_claim_window_disabled() {
     assert!(res.is_err());
 }
 
+// ==================== CLAIM QUERY (READ-ONLY) TESTS ====================
+
+#[test]
+fn test_get_pending_claim_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &500);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    client.transfer_with_claim(&sender, &recipient, &token_id, &100);
+
+    let claim = client.get_pending_claim(&1).unwrap();
+    assert_eq!(claim.id, 1);
+    assert_eq!(claim.creator, sender);
+    assert_eq!(claim.recipient, recipient);
+    assert_eq!(claim.amount, 100);
+    assert_eq!(claim.status, ClaimStatus::Pending);
+}
+
+#[test]
+fn test_get_pending_claim_not_found() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let res = client.try_get_pending_claim(&999);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ContractError::ClaimNotFound);
+}
+
+#[test]
+fn test_get_claims_by_recipient() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &1000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    client.transfer_with_claim(&sender, &recipient, &token_id, &100);
+    client.transfer_with_claim(&sender, &recipient, &token_id, &80);
+
+    let claims = client.get_claims_by_recipient(&recipient, &10, &None);
+    assert_eq!(claims.len(), 2);
+
+    let pending_only = client.get_claims_by_recipient(&recipient, &10, &Some(true));
+    assert_eq!(pending_only.len(), 2);
+}
+
+#[test]
+fn test_get_claims_by_creator() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &1000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    client.transfer_with_claim(&sender, &recipient, &token_id, &100);
+
+    let claims = client.get_claims_by_creator(&sender, &10, &None);
+    assert_eq!(claims.len(), 1);
+    assert_eq!(claims.get(0).unwrap().amount, 100);
+}
+
+#[test]
+fn test_get_claim_window_config() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let config_before = client.get_claim_window_config();
+    assert_eq!(config_before.enabled, false);
+    assert_eq!(config_before.claim_validity_ledgers, 0);
+
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 50,
+    });
+
+    let config_after = client.get_claim_window_config();
+    assert_eq!(config_after.enabled, true);
+    assert_eq!(config_after.claim_validity_ledgers, 50);
+}
+
+#[test]
+fn test_get_claims_pagination_max_page_size() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &1000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    client.transfer_with_claim(&sender, &recipient, &token_id, &10);
+
+    // Request more than MAX_PAGE_SIZE (50) - should cap at 50
+    let claims = client.get_claims_by_recipient(&recipient, &100, &None);
+    assert!(claims.len() <= 50);
+}
+
 #[test]
 fn test_tip_message_success() {
     let env = Env::default();
@@ -1293,5 +1500,327 @@ fn test_admin_cancel_multiple_expired_claims() {
         .get(&DataKey::Claim(3))
         .unwrap();
     assert_eq!(updated_claim3.status, ClaimStatus::Cancelled);
+}
+
+// ==================== CLAIM (BENEFICIARY CLAIM) TESTS ====================
+
+#[test]
+fn test_claim_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token = token::Client::new(&env, &token_id);
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &1000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    // Create pending claim
+    client.transfer_with_claim(&sender, &recipient, &token_id, &250);
+
+    assert_eq!(token.balance(&recipient), 0);
+    assert_eq!(token.balance(&contract_id), 250);
+
+    // Recipient claims
+    client.claim(&1, &recipient);
+
+    assert_eq!(token.balance(&recipient), 250);
+    assert_eq!(token.balance(&contract_id), 0);
+
+    let claim: Claim = env
+        .storage()
+        .instance()
+        .get(&DataKey::Claim(1))
+        .unwrap();
+    assert_eq!(claim.status, ClaimStatus::Claimed);
+    assert_eq!(claim.claimed_by, Some(recipient.clone()));
+}
+
+#[test]
+fn test_claim_wrong_recipient() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let wrong_recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &1000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    client.transfer_with_claim(&sender, &recipient, &token_id, &100);
+
+    let res = client.try_claim(&1, &wrong_recipient);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ContractError::Unauthorized);
+}
+
+#[test]
+fn test_claim_expired() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_address = Address::from_contract_id(&env, &token_id);
+    let token_client = token::Client::new(&env, &token_address);
+    token_client.mint(&contract_id, &500);
+
+    let current_seq = env.ledger().sequence();
+    let claim = Claim {
+        id: 1,
+        creator: creator.clone(),
+        recipient: recipient.clone(),
+        token: token_address.clone(),
+        amount: 500,
+        status: ClaimStatus::Pending,
+        created_at: env.ledger().timestamp(),
+        expires_at: env.ledger().timestamp() + 86400,
+        expiry_ledger: Some(current_seq + 5),
+        claimed_by: None,
+        claimed_at: None,
+    };
+    env.storage().instance().set(&DataKey::Claim(1), &claim);
+
+    // Advance ledger past expiry
+    env.ledger().with_mut(|li| li.sequence = current_seq + 10);
+
+    let client = BaseContractClient::new(&env, &contract_id);
+    let res = client.try_claim(&1, &recipient);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ContractError::ClaimExpired);
+}
+
+#[test]
+fn test_claim_already_claimed() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_address = Address::from_contract_id(&env, &token_id);
+
+    let claim = Claim {
+        id: 1,
+        creator: creator.clone(),
+        recipient: recipient.clone(),
+        token: token_address.clone(),
+        amount: 1000,
+        status: ClaimStatus::Claimed,
+        created_at: env.ledger().timestamp(),
+        expires_at: env.ledger().timestamp() + 86400,
+        expiry_ledger: Some(env.ledger().sequence() + 100),
+        claimed_by: Some(recipient.clone()),
+        claimed_at: Some(env.ledger().timestamp()),
+    };
+    env.storage().instance().set(&DataKey::Claim(1), &claim);
+
+    let client = BaseContractClient::new(&env, &contract_id);
+    let res = client.try_claim(&1, &recipient);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ContractError::ClaimAlreadyClaimed);
+}
+
+#[test]
+fn test_claim_already_cancelled() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_id = env.register_stellar_asset_contract(token_admin.clone());
+    let token_address = Address::from_contract_id(&env, &token_id);
+
+    let claim = Claim {
+        id: 1,
+        creator: creator.clone(),
+        recipient: recipient.clone(),
+        token: token_address.clone(),
+        amount: 1000,
+        status: ClaimStatus::Cancelled,
+        created_at: env.ledger().timestamp(),
+        expires_at: env.ledger().timestamp() + 86400,
+        expiry_ledger: Some(env.ledger().sequence() + 100),
+        claimed_by: None,
+        claimed_at: None,
+    };
+    env.storage().instance().set(&DataKey::Claim(1), &claim);
+
+    let client = BaseContractClient::new(&env, &contract_id);
+    let res = client.try_claim(&1, &recipient);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ContractError::ClaimAlreadyCancelled);
+}
+
+#[test]
+fn test_claim_not_found() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let contract_id = env.register_contract(None, BaseContract);
+
+    BaseContractClient::new(&env, &contract_id).init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let client = BaseContractClient::new(&env, &contract_id);
+    let res = client.try_claim(&999, &recipient);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ContractError::ClaimNotFound);
+}
+
+#[test]
+fn test_claim_tokens_transferred_correctly() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token = token::Client::new(&env, &token_id);
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &5000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    let amount = 1234i128;
+    client.transfer_with_claim(&sender, &recipient, &token_id, &amount);
+
+    client.claim(&1, &recipient);
+
+    assert_eq!(token.balance(&recipient), amount);
+    assert_eq!(token.balance(&contract_id), 0);
+}
+
+#[test]
+fn test_claim_status_updated_atomically() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_id = token_contract.address();
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
+    token_admin_client.mint(&sender, &1000);
+
+    let config = RateLimitConfig {
+        message_cooldown: 0,
+        tip_cooldown: 0,
+        transfer_cooldown: 0,
+        daily_message_limit: 100,
+        daily_tip_limit: 100,
+        daily_transfer_limit: 10,
+    };
+    client.set_config(&config);
+    client.set_claim_config(&ClaimConfig {
+        claim_window_enabled: true,
+        claim_validity_ledgers: 100,
+    });
+
+    client.transfer_with_claim(&sender, &recipient, &token_id, &100);
+    client.claim(&1, &recipient);
+
+    // Verify claim_processed was emitted (claim status is Claimed)
+    let claim: Claim = env
+        .storage()
+        .instance()
+        .get(&DataKey::Claim(1))
+        .unwrap();
+    assert_eq!(claim.status, ClaimStatus::Claimed);
+    assert_eq!(claim.claimed_by, Some(recipient));
 }
 

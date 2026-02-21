@@ -2,7 +2,10 @@ import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
 import { LeaderboardService } from '../leaderboard.service';
 import { GetLeaderboardDto } from '../dto/get-leaderboard.dto';
 import { UpdateLeaderboardDto } from '../dto/update-leaderboard.dto';
-import { LeaderboardCategory, LeaderboardPeriod } from '../leaderboard.interface';
+import {
+  LeaderboardCategory,
+  LeaderboardPeriod,
+} from '../leaderboard.interface';
 
 @Controller('leaderboard')
 export class LeaderboardController {
@@ -20,7 +23,12 @@ export class LeaderboardController {
     @Query('period') period: LeaderboardPeriod,
     @Query('roomId') roomId?: string,
   ) {
-    return this.leaderboardService.getUserRank(userId, category, period, roomId);
+    return this.leaderboardService.getUserRank(
+      userId,
+      category,
+      period,
+      roomId,
+    );
   }
 
   @Get('stats')
@@ -29,7 +37,11 @@ export class LeaderboardController {
     @Query('period') period: LeaderboardPeriod,
     @Query('roomId') roomId?: string,
   ) {
-    return this.leaderboardService.getLeaderboardStats(category, period, roomId);
+    return this.leaderboardService.getLeaderboardStats(
+      category,
+      period,
+      roomId,
+    );
   }
 
   @Post('update')

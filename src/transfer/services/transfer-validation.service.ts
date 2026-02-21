@@ -13,7 +13,10 @@ export class TransferValidationService {
     private readonly balanceService: TransferBalanceService,
   ) {}
 
-  async validateRecipient(recipientId: string, senderId: string): Promise<void> {
+  async validateRecipient(
+    recipientId: string,
+    senderId: string,
+  ): Promise<void> {
     if (recipientId === senderId) {
       throw new BadRequestException('Cannot transfer to yourself');
     }
@@ -27,7 +30,10 @@ export class TransferValidationService {
       throw new BadRequestException('Recipient account is banned');
     }
 
-    if (recipient.suspendedUntil && new Date(recipient.suspendedUntil) > new Date()) {
+    if (
+      recipient.suspendedUntil &&
+      new Date(recipient.suspendedUntil) > new Date()
+    ) {
       throw new BadRequestException('Recipient account is suspended');
     }
   }
@@ -38,7 +44,7 @@ export class TransferValidationService {
     network: string,
   ): Promise<void> {
     const balance = await this.balanceService.getBalance(senderId, network);
-    
+
     if (balance < amount) {
       throw new BadRequestException(
         `Insufficient balance. Available: ${balance}, Required: ${amount}`,
@@ -52,12 +58,14 @@ export class TransferValidationService {
     network: string,
   ): Promise<void> {
     const totalAmount = recipients.reduce((sum, r) => sum + r.amount, 0);
-    
+
     await this.validateBalance(senderId, totalAmount, network);
 
-    const uniqueRecipients = new Set(recipients.map(r => r.recipientId));
+    const uniqueRecipients = new Set(recipients.map((r) => r.recipientId));
     if (uniqueRecipients.size !== recipients.length) {
-      throw new BadRequestException('Duplicate recipients found in bulk transfer');
+      throw new BadRequestException(
+        'Duplicate recipients found in bulk transfer',
+      );
     }
 
     if (uniqueRecipients.has(senderId)) {
@@ -80,7 +88,9 @@ export class TransferValidationService {
 
     const decimalPlaces = (amount.toString().split('.')[1] || '').length;
     if (decimalPlaces > 8) {
-      throw new BadRequestException('Amount cannot have more than 8 decimal places');
+      throw new BadRequestException(
+        'Amount cannot have more than 8 decimal places',
+      );
     }
   }
 }

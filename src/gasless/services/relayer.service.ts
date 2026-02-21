@@ -9,10 +9,7 @@ export class RelayerService {
   );
 
   async relay(xdr: string): Promise<string> {
-    const tx = new StellarSdk.Transaction(
-      xdr,
-      StellarSdk.Networks.PUBLIC,
-    );
+    const tx = new StellarSdk.Transaction(xdr, StellarSdk.Networks.PUBLIC);
 
     tx.sign(this.relayerKeypair);
 

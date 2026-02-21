@@ -11,8 +11,15 @@ import {
   AuditSeverity,
 } from '../entities/audit-log.entity';
 import { AuditLogArchive } from '../entities/audit-log-archive.entity';
-import { DataAccessLog, DataAccessAction } from '../entities/data-access-log.entity';
-import { AuditAlert, AuditAlertType, AuditAlertSeverity } from '../entities/audit-alert.entity';
+import {
+  DataAccessLog,
+  DataAccessAction,
+} from '../entities/data-access-log.entity';
+import {
+  AuditAlert,
+  AuditAlertType,
+  AuditAlertSeverity,
+} from '../entities/audit-alert.entity';
 import { ConfigService } from '@nestjs/config';
 
 export type AuditLogInput = {
@@ -283,7 +290,8 @@ export class AuditLogService {
         .map((row) =>
           row
             .map((value) => {
-              const stringValue = value === null || value === undefined ? '' : String(value);
+              const stringValue =
+                value === null || value === undefined ? '' : String(value);
               return `"${stringValue.replace(/"/g, '""')}"`;
             })
             .join(','),
@@ -306,8 +314,12 @@ export class AuditLogService {
       10,
     );
 
-    const archiveBefore = new Date(Date.now() - archiveAfterDays * 24 * 60 * 60 * 1000);
-    const retentionBefore = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+    const archiveBefore = new Date(
+      Date.now() - archiveAfterDays * 24 * 60 * 60 * 1000,
+    );
+    const retentionBefore = new Date(
+      Date.now() - retentionDays * 24 * 60 * 60 * 1000,
+    );
 
     let archived = 0;
     const batchSize = 500;
@@ -415,10 +427,13 @@ export class AuditLogService {
       if (obj && typeof obj === 'object') {
         return Object.keys(obj)
           .sort()
-          .reduce((acc, key) => {
-            acc[key] = sortKeys(obj[key]);
-            return acc;
-          }, {} as Record<string, any>);
+          .reduce(
+            (acc, key) => {
+              acc[key] = sortKeys(obj[key]);
+              return acc;
+            },
+            {} as Record<string, any>,
+          );
       }
       return obj;
     };
@@ -516,7 +531,10 @@ export class AuditLogService {
             alertType: AuditAlertType.DATA_EXPORT,
             severity: AuditAlertSeverity.MEDIUM,
             details: 'User data export performed',
-            metadata: { actorUserId: log.actorUserId, targetUserId: log.targetUserId },
+            metadata: {
+              actorUserId: log.actorUserId,
+              targetUserId: log.targetUserId,
+            },
             ipAddress: log.ipAddress,
           }),
         );
