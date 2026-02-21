@@ -9,7 +9,10 @@ import {
   Unique,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
-import { NotificationType, NotificationChannel } from '../enums/notification-type.enum';
+import {
+  NotificationType,
+  NotificationChannel,
+} from '../enums/notification-type.enum';
 
 @Entity('notification_preferences')
 @Unique(['userId', 'type', 'channel'])

@@ -9,7 +9,11 @@ export interface TransferAnalytics {
   totalVolume: string;
   successRate: number;
   averageAmount: string;
-  topRecipients: Array<{ recipientId: string; count: number; totalAmount: string }>;
+  topRecipients: Array<{
+    recipientId: string;
+    count: number;
+    totalAmount: string;
+  }>;
   dailyVolume: Array<{ date: string; volume: string; count: number }>;
 }
 
@@ -24,7 +28,10 @@ export class TransferAnalyticsService {
     private readonly bulkTransferRepository: Repository<BulkTransfer>,
   ) {}
 
-  async getUserAnalytics(userId: string, days: number = 30): Promise<TransferAnalytics> {
+  async getUserAnalytics(
+    userId: string,
+    days: number = 30,
+  ): Promise<TransferAnalytics> {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
@@ -35,14 +42,31 @@ export class TransferAnalyticsService {
       .getMany();
 
     const totalTransfers = transfers.length;
-    const completedTransfers = transfers.filter(t => t.status === TransferStatus.COMPLETED);
-    const totalVolume = completedTransfers.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    const successRate = totalTransfers > 0 ? (completedTransfers.length / totalTransfers) * 100 : 0;
-    const averageAmount = completedTransfers.length > 0 ? totalVolume / completedTransfers.length : 0;
+    const completedTransfers = transfers.filter(
+      (t) => t.status === TransferStatus.COMPLETED,
+    );
+    const totalVolume = completedTransfers.reduce(
+      (sum, t) => sum + parseFloat(t.amount),
+      0,
+    );
+    const successRate =
+      totalTransfers > 0
+        ? (completedTransfers.length / totalTransfers) * 100
+        : 0;
+    const averageAmount =
+      completedTransfers.length > 0
+        ? totalVolume / completedTransfers.length
+        : 0;
 
-    const recipientMap = new Map<string, { count: number; totalAmount: number }>();
-    completedTransfers.forEach(transfer => {
-      const existing = recipientMap.get(transfer.recipientId) || { count: 0, totalAmount: 0 };
+    const recipientMap = new Map<
+      string,
+      { count: number; totalAmount: number }
+    >();
+    completedTransfers.forEach((transfer) => {
+      const existing = recipientMap.get(transfer.recipientId) || {
+        count: 0,
+        totalAmount: 0,
+      };
       recipientMap.set(transfer.recipientId, {
         count: existing.count + 1,
         totalAmount: existing.totalAmount + parseFloat(transfer.amount),
@@ -59,7 +83,7 @@ export class TransferAnalyticsService {
       .slice(0, 10);
 
     const dailyVolumeMap = new Map<string, { volume: number; count: number }>();
-    completedTransfers.forEach(transfer => {
+    completedTransfers.forEach((transfer) => {
       const date = transfer.createdAt.toISOString().split('T')[0];
       const existing = dailyVolumeMap.get(date) || { volume: 0, count: 0 };
       dailyVolumeMap.set(date, {
@@ -93,8 +117,14 @@ export class TransferAnalyticsService {
     const result = await this.transferRepository
       .createQueryBuilder('transfer')
       .select('COUNT(*)', 'totalTransfers')
-      .addSelect('SUM(CASE WHEN status = :completed THEN CAST(amount AS DECIMAL) ELSE 0 END)', 'totalVolume')
-      .addSelect('COUNT(CASE WHEN status = :completed THEN 1 END)', 'completedTransfers')
+      .addSelect(
+        'SUM(CASE WHEN status = :completed THEN CAST(amount AS DECIMAL) ELSE 0 END)',
+        'totalVolume',
+      )
+      .addSelect(
+        'COUNT(CASE WHEN status = :completed THEN 1 END)',
+        'completedTransfers',
+      )
       .where('transfer.createdAt >= :startDate', { startDate })
       .setParameter('completed', TransferStatus.COMPLETED)
       .getRawOne();
@@ -103,9 +133,12 @@ export class TransferAnalyticsService {
       totalTransfers: parseInt(result.totalTransfers) || 0,
       totalVolume: parseFloat(result.totalVolume || '0').toFixed(8),
       completedTransfers: parseInt(result.completedTransfers) || 0,
-      successRate: result.totalTransfers > 0 
-        ? ((result.completedTransfers / result.totalTransfers) * 100).toFixed(2)
-        : '0.00',
+      successRate:
+        result.totalTransfers > 0
+          ? ((result.completedTransfers / result.totalTransfers) * 100).toFixed(
+              2,
+            )
+          : '0.00',
     };
   }
 }

@@ -42,24 +42,24 @@ export class LoggingInterceptor implements NestInterceptor {
         const { statusCode } = res;
 
         this.logger.log({
-            message: `Outgoing Response: ${method} ${originalUrl} ${statusCode} - ${delay}ms`,
-            context: 'HTTP',
-            correlationId,
-            method,
-            url: originalUrl,
-            statusCode,
-            duration: `${delay}ms`,
+          message: `Outgoing Response: ${method} ${originalUrl} ${statusCode} - ${delay}ms`,
+          context: 'HTTP',
+          correlationId,
+          method,
+          url: originalUrl,
+          statusCode,
+          duration: `${delay}ms`,
         });
       }),
     );
   }
 
   private sanitize(body: any): any {
-      if (!body) return body;
-      const sanitized = { ...body };
-      // Redact sensitive fields
-      if (sanitized.password) sanitized.password = '***';
-      if (sanitized.token) sanitized.token = '***';
-      return sanitized;
+    if (!body) return body;
+    const sanitized = { ...body };
+    // Redact sensitive fields
+    if (sanitized.password) sanitized.password = '***';
+    if (sanitized.token) sanitized.token = '***';
+    return sanitized;
   }
 }

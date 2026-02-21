@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ModerationService } from './moderation.service';
 import { RoomModerationSettings } from './entities/room-moderation-settings.entity';
 import { FlaggedMessage } from './entities/flagged-message.entity';
@@ -13,31 +22,35 @@ export class ModerationController {
   }
 
   @Post('report')
-  async reportMessage(@Body() body: {
-    messageId: string;
-    roomId: string;
-    userId: string;
-    content: string;
-    reason: string;
-    reportedBy: string;
-  }) {
+  async reportMessage(
+    @Body()
+    body: {
+      messageId: string;
+      roomId: string;
+      userId: string;
+      content: string;
+      reason: string;
+      reportedBy: string;
+    },
+  ) {
     return await this.moderationService.reportMessage(body);
   }
 
   @Put('review/:flaggedId')
   async reviewMessage(
     @Param('flaggedId') flaggedId: string,
-    @Body() body: {
+    @Body()
+    body: {
       reviewerId: string;
       approved: boolean;
       notes?: string;
-    }
+    },
   ) {
     return await this.moderationService.reviewFlaggedMessage(
       flaggedId,
       body.reviewerId,
       body.approved,
-      body.notes
+      body.notes,
     );
   }
 
@@ -49,7 +62,7 @@ export class ModerationController {
   @Put('settings/:roomId')
   async updateSettings(
     @Param('roomId') roomId: string,
-    @Body() updates: Partial<RoomModerationSettings>
+    @Body() updates: Partial<RoomModerationSettings>,
   ) {
     return await this.moderationService.updateSettings(roomId, updates);
   }
@@ -57,7 +70,7 @@ export class ModerationController {
   @Get('actions/:userId')
   async getUserActions(
     @Param('userId') userId: string,
-    @Query('roomId') roomId?: string
+    @Query('roomId') roomId?: string,
   ) {
     return await this.moderationService.getUserActions(userId, roomId);
   }

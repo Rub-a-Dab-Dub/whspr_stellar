@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { TransferLimit, LimitPeriod } from '../entities/transfer-limit.entity';
@@ -145,7 +141,10 @@ export class TransferLimitService {
     );
   }
 
-  private calculatePeriod(period: LimitPeriod): { periodStart: Date; periodEnd: Date } {
+  private calculatePeriod(period: LimitPeriod): {
+    periodStart: Date;
+    periodEnd: Date;
+  } {
     const now = new Date();
     const periodStart = new Date(now);
     const periodEnd = new Date(now);

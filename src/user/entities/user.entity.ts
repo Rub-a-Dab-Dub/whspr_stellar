@@ -130,8 +130,6 @@ export class User {
   }
 
   get isSuspended(): boolean {
-    return !!(
-      this.suspendedUntil && this.suspendedUntil > new Date()
-    );
+    return !!(this.suspendedUntil && this.suspendedUntil > new Date());
   }
 }

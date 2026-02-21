@@ -8,7 +8,10 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
-import { NotificationType, NotificationPriority } from '../enums/notification-type.enum';
+import {
+  NotificationType,
+  NotificationPriority,
+} from '../enums/notification-type.enum';
 
 @Entity('notifications')
 @Index(['recipientId', 'isRead', 'createdAt'])

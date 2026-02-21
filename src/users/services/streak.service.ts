@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Streak } from '../entities/streak.entity';
-import { StreakReward, StreakRewardType } from '../entities/streak-reward.entity';
+import {
+  StreakReward,
+  StreakRewardType,
+} from '../entities/streak-reward.entity';
 import { StreakBadge, BadgeType } from '../entities/streak-badge.entity';
 import { StreakHistory, StreakAction } from '../entities/streak-history.entity';
 import { User } from '../entities/user.entity';
@@ -117,10 +124,7 @@ export class StreakService {
     let milestone: number | undefined;
 
     // Check if this is a consecutive day
-    if (
-      lastLoginDate &&
-      lastLoginDate.getTime() === yesterday.getTime()
-    ) {
+    if (lastLoginDate && lastLoginDate.getTime() === yesterday.getTime()) {
       // Consecutive day - increment streak
       streak.currentStreak += 1;
       incremented = true;
@@ -138,16 +142,22 @@ export class StreakService {
       }
 
       // Check for badge eligibility
-      await this.checkAndAwardBadges(userId, streak.currentStreak, streak.longestStreak);
+      await this.checkAndAwardBadges(
+        userId,
+        streak.currentStreak,
+        streak.longestStreak,
+      );
 
       // Update streak multiplier based on current streak
-      streak.streakMultiplier = this.calculateStreakMultiplier(streak.currentStreak);
-    } else if (
-      lastLoginDate &&
-      lastLoginDate.getTime() < yesterday.getTime()
-    ) {
+      streak.streakMultiplier = this.calculateStreakMultiplier(
+        streak.currentStreak,
+      );
+    } else if (lastLoginDate && lastLoginDate.getTime() < yesterday.getTime()) {
       // Missed day(s) - check grace period or freeze
-      const canRecover = await this.checkGracePeriodOrFreeze(streak, lastLoginDate);
+      const canRecover = await this.checkGracePeriodOrFreeze(
+        streak,
+        lastLoginDate,
+      );
 
       if (canRecover) {
         // Recovered using grace period or freeze
@@ -164,8 +174,14 @@ export class StreakService {
           rewardClaimed = true;
         }
 
-        await this.checkAndAwardBadges(userId, streak.currentStreak, streak.longestStreak);
-        streak.streakMultiplier = this.calculateStreakMultiplier(streak.currentStreak);
+        await this.checkAndAwardBadges(
+          userId,
+          streak.currentStreak,
+          streak.longestStreak,
+        );
+        streak.streakMultiplier = this.calculateStreakMultiplier(
+          streak.currentStreak,
+        );
       } else {
         // Reset streak
         await this.resetStreak(userId, streak);
@@ -193,14 +209,18 @@ export class StreakService {
     // Log history
     await this.logStreakHistory(
       userId,
-      incremented ? StreakAction.INCREMENT : reset ? StreakAction.RESET : StreakAction.LOGIN,
+      incremented
+        ? StreakAction.INCREMENT
+        : reset
+          ? StreakAction.RESET
+          : StreakAction.LOGIN,
       reset ? 0 : streak.currentStreak - (incremented ? 1 : 0),
       streak.currentStreak,
       incremented
         ? `Streak incremented to ${streak.currentStreak}`
         : reset
-        ? 'Streak reset due to missed day'
-        : 'Daily login tracked',
+          ? 'Streak reset due to missed day'
+          : 'Daily login tracked',
     );
 
     // Send notification if needed
@@ -239,7 +259,7 @@ export class StreakService {
   ): Promise<boolean> {
     const now = new Date();
     const lastLogin = new Date(lastLoginDate);
-    
+
     // Calculate the grace period end: 6 hours after midnight of the day after last login
     const gracePeriodEnd = new Date(lastLogin);
     gracePeriodEnd.setUTCDate(gracePeriodEnd.getUTCDate() + 1);
@@ -296,7 +316,10 @@ export class StreakService {
   /**
    * Claim milestone reward
    */
-  private async claimMilestoneReward(userId: string, milestone: number): Promise<void> {
+  private async claimMilestoneReward(
+    userId: string,
+    milestone: number,
+  ): Promise<void> {
     // Check if already claimed
     const existing = await this.streakRewardRepository.findOne({
       where: { userId, milestone, claimedAt: MoreThan(new Date(0)) },
@@ -385,11 +408,12 @@ export class StreakService {
 
     // Check longest streak badges
     if (longestStreak >= 10) {
-      const badgeType = longestStreak >= 100
-        ? BadgeType.LONGEST_STREAK_100
-        : longestStreak >= 30
-        ? BadgeType.LONGEST_STREAK_30
-        : BadgeType.LONGEST_STREAK_10;
+      const badgeType =
+        longestStreak >= 100
+          ? BadgeType.LONGEST_STREAK_100
+          : longestStreak >= 30
+            ? BadgeType.LONGEST_STREAK_30
+            : BadgeType.LONGEST_STREAK_10;
 
       const existing = await this.streakBadgeRepository.findOne({
         where: { userId, badgeType },
@@ -452,9 +476,9 @@ export class StreakService {
     const streak = await this.getOrCreateStreak(userId);
 
     // Find next milestone
-    const nextMilestone = STREAK_MILESTONES.find(
-      (milestone) => milestone > streak.currentStreak,
-    ) || null;
+    const nextMilestone =
+      STREAK_MILESTONES.find((milestone) => milestone > streak.currentStreak) ||
+      null;
 
     const daysUntilNextMilestone = nextMilestone
       ? nextMilestone - streak.currentStreak
@@ -612,11 +636,13 @@ export class StreakService {
     const totalUsersWithStreaks = allStreaks.length;
     const averageCurrentStreak =
       totalUsersWithStreaks > 0
-        ? allStreaks.reduce((sum, s) => sum + s.currentStreak, 0) / totalUsersWithStreaks
+        ? allStreaks.reduce((sum, s) => sum + s.currentStreak, 0) /
+          totalUsersWithStreaks
         : 0;
     const averageLongestStreak =
       totalUsersWithStreaks > 0
-        ? allStreaks.reduce((sum, s) => sum + s.longestStreak, 0) / totalUsersWithStreaks
+        ? allStreaks.reduce((sum, s) => sum + s.longestStreak, 0) /
+          totalUsersWithStreaks
         : 0;
 
     // Count freeze items used (total freeze items - current freeze items)

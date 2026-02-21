@@ -93,6 +93,7 @@ pub enum ContractError {
     NotClaimCreator = 28,
     ClaimAlreadyCancelled = 29,
     ClaimWindowDisabled = 30,
+    ClaimExpired = 31,
 }
 
 #[derive(Clone)]

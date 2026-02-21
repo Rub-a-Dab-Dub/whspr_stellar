@@ -2,7 +2,9 @@ import * as Joi from 'joi';
 
 export const validationSchema = Joi.object({
   PORT: Joi.number().default(3000),
-  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+  NODE_ENV: Joi.string()
+    .valid('development', 'production', 'test')
+    .default('development'),
   DATABASE_HOST: Joi.string().required(),
   DATABASE_PORT: Joi.number().default(5432),
   DATABASE_USER: Joi.string().required(),
@@ -30,6 +32,12 @@ export const validationSchema = Joi.object({
   CHAIN_BASE_CONTRACT_ADDRESS: Joi.string().optional(),
   GGPAY_CONTRACT_ADDRESS: Joi.string().optional(),
 
-  // Admin event stream
+  // Admin config
+  ADMIN_JWT_SECRET: Joi.string().required(),
+  ADMIN_JWT_EXPIRES_IN: Joi.string().default('2h'),
+  ADMIN_JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
+  ADMIN_MAX_LOGIN_ATTEMPTS: Joi.number().default(5),
+  ADMIN_LOCKOUT_DURATION_MS: Joi.number().default(1800000),
+  ADMIN_RATE_LIMIT_PER_MINUTE: Joi.number().default(60),
   ADMIN_LARGE_TRANSACTION_THRESHOLD: Joi.number().default(10000),
 });

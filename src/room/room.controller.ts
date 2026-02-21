@@ -51,10 +51,7 @@ export class RoomController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteRoom(
-    @Param('id') roomId: string,
-    @CurrentUser() user: any,
-  ) {
+  async deleteRoom(@Param('id') roomId: string, @CurrentUser() user: any) {
     await this.roomService.softDeleteRoom(roomId, user.id);
   }
 }
@@ -112,16 +109,13 @@ export class RoomPaymentController {
       roomId,
       user.id,
       user.walletAddress,
-      payEntryDto
+      payEntryDto,
     );
   }
 
   @Get(':id/access-status')
   @UseGuards(JwtAuthGuard)
-  async checkAccess(
-    @Param('id') roomId: string,
-    @CurrentUser() user: any,
-  ) {
+  async checkAccess(@Param('id') roomId: string, @CurrentUser() user: any) {
     return this.roomPaymentService.checkUserAccess(user.id, roomId);
   }
 

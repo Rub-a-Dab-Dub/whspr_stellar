@@ -6,7 +6,10 @@ import {
   IsArray,
   Matches,
 } from 'class-validator';
-import { NotificationType, NotificationChannel } from '../enums/notification-type.enum';
+import {
+  NotificationType,
+  NotificationChannel,
+} from '../enums/notification-type.enum';
 
 export class UpdateNotificationPreferenceDto {
   @IsEnum(NotificationType)

@@ -45,11 +45,15 @@ export class ScheduledTransferService {
     // Validate recurrence settings
     if (dto.isRecurring) {
       if (!dto.recurrenceFrequency) {
-        throw new BadRequestException('Recurrence frequency is required for recurring transfers');
+        throw new BadRequestException(
+          'Recurrence frequency is required for recurring transfers',
+        );
       }
 
       if (dto.recurrenceEndDate && dto.recurrenceEndDate <= dto.scheduledDate) {
-        throw new BadRequestException('Recurrence end date must be after scheduled date');
+        throw new BadRequestException(
+          'Recurrence end date must be after scheduled date',
+        );
       }
     }
 
@@ -98,10 +102,15 @@ export class ScheduledTransferService {
     userId: string,
     reason?: string,
   ): Promise<ScheduledTransfer> {
-    const scheduledTransfer = await this.getScheduledTransferById(scheduledTransferId, userId);
+    const scheduledTransfer = await this.getScheduledTransferById(
+      scheduledTransferId,
+      userId,
+    );
 
     if (scheduledTransfer.status !== ScheduledTransferStatus.PENDING) {
-      throw new BadRequestException('Can only cancel pending scheduled transfers');
+      throw new BadRequestException(
+        'Can only cancel pending scheduled transfers',
+      );
     }
 
     scheduledTransfer.status = ScheduledTransferStatus.CANCELLED;
@@ -175,7 +184,9 @@ export class ScheduledTransferService {
 
       await this.scheduledTransferRepository.save(scheduledTransfer);
 
-      this.logger.log(`Successfully executed scheduled transfer ${scheduledTransfer.id}`);
+      this.logger.log(
+        `Successfully executed scheduled transfer ${scheduledTransfer.id}`,
+      );
     } catch (error) {
       scheduledTransfer.status = ScheduledTransferStatus.FAILED;
       await this.scheduledTransferRepository.save(scheduledTransfer);
@@ -183,7 +194,9 @@ export class ScheduledTransferService {
     }
   }
 
-  private shouldContinueRecurrence(scheduledTransfer: ScheduledTransfer): boolean {
+  private shouldContinueRecurrence(
+    scheduledTransfer: ScheduledTransfer,
+  ): boolean {
     // Check max executions
     if (
       scheduledTransfer.maxExecutions &&

@@ -9,7 +9,10 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { InvitationStatus, RoomInvitation } from '../entities/room-invitation.entity';
+import {
+  InvitationStatus,
+  RoomInvitation,
+} from '../entities/room-invitation.entity';
 import { MemberRole } from '../entities/room-member.entity';
 
 describe('RoomInvitationService', () => {
@@ -99,7 +102,9 @@ describe('RoomInvitationService', () => {
     }).compile();
 
     service = module.get<RoomInvitationService>(RoomInvitationService);
-    invitationRepository = module.get(RoomInvitationRepository) as jest.Mocked<RoomInvitationRepository>;
+    invitationRepository = module.get(
+      RoomInvitationRepository,
+    ) as jest.Mocked<RoomInvitationRepository>;
     queueService = module.get(QueueService) as jest.Mocked<QueueService>;
     redisService = module.get(RedisService) as jest.Mocked<RedisService>;
     dataSource = module.get(DataSource) as jest.Mocked<DataSource>;
@@ -161,7 +166,10 @@ describe('RoomInvitationService', () => {
   describe('getPendingInvitations', () => {
     it('should get pending invitations for user', async () => {
       const invitations = [mockInvitation as any];
-      invitationRepository.findPendingInvitations.mockResolvedValue([invitations, 1]);
+      invitationRepository.findPendingInvitations.mockResolvedValue([
+        invitations,
+        1,
+      ]);
 
       const result = await service.getPendingInvitations('user-2');
 
@@ -188,7 +196,9 @@ describe('RoomInvitationService', () => {
         rollbackTransaction: jest.fn(),
         release: jest.fn(),
         manager: {
-          save: jest.fn().mockResolvedValue({ userId: 'user-2', roomId: 'room-1' }),
+          save: jest
+            .fn()
+            .mockResolvedValue({ userId: 'user-2', roomId: 'room-1' }),
         },
       };
 
@@ -210,9 +220,9 @@ describe('RoomInvitationService', () => {
       };
       invitationRepository.findOne.mockResolvedValue(acceptedInvitation as any);
 
-      await expect(
-        service.acceptInvitation('inv-1', 'user-2'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.acceptInvitation('inv-1', 'user-2')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw error if invitation expired', async () => {
@@ -222,17 +232,17 @@ describe('RoomInvitationService', () => {
       };
       invitationRepository.findOne.mockResolvedValue(expiredInvitation as any);
 
-      await expect(
-        service.acceptInvitation('inv-1', 'user-2'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.acceptInvitation('inv-1', 'user-2')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw error if not the invited user', async () => {
       invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
 
-      await expect(
-        service.acceptInvitation('inv-1', 'user-3'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.acceptInvitation('inv-1', 'user-3')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -251,9 +261,9 @@ describe('RoomInvitationService', () => {
     it('should throw error if not invited user', async () => {
       invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
 
-      await expect(
-        service.rejectInvitation('inv-1', 'user-3'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.rejectInvitation('inv-1', 'user-3')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -312,9 +322,9 @@ describe('RoomInvitationService', () => {
     it('should throw error if not invitation sender', async () => {
       invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
 
-      await expect(
-        service.resendInvitation('inv-1', 'user-3'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.resendInvitation('inv-1', 'user-3')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

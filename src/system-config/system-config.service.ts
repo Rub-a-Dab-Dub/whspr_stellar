@@ -10,7 +10,10 @@ import {
   SystemConfigAudit,
   SystemConfigAuditAction,
 } from './entities/system-config-audit.entity';
-import { FeatureFlagConfig, FeatureFlagVariant } from './interfaces/feature-flag.interface';
+import {
+  FeatureFlagConfig,
+  FeatureFlagVariant,
+} from './interfaces/feature-flag.interface';
 import { SystemConfigUpdateItemDto } from './dto/system-config-update.dto';
 
 const CONFIG_CACHE_KEY = 'system_config:all';
@@ -111,7 +114,9 @@ export class SystemConfigService {
       existing.value = update.value;
       existing.description = update.description ?? existing.description;
       existing.isFeatureFlag =
-        update.isFeatureFlag === undefined ? existing.isFeatureFlag : update.isFeatureFlag;
+        update.isFeatureFlag === undefined
+          ? existing.isFeatureFlag
+          : update.isFeatureFlag;
       existing.version = existing.version + 1;
       existing.updatedBy = adminId;
 
@@ -153,7 +158,9 @@ export class SystemConfigService {
     });
 
     if (!targetVersion) {
-      throw new NotFoundException(`Version ${version} not found for config ${key}`);
+      throw new NotFoundException(
+        `Version ${version} not found for config ${key}`,
+      );
     }
 
     const previousValue = config.value;
@@ -178,7 +185,10 @@ export class SystemConfigService {
     return saved;
   }
 
-  async isFeatureEnabled(flagKey: string, userId?: string | null): Promise<boolean> {
+  async isFeatureEnabled(
+    flagKey: string,
+    userId?: string | null,
+  ): Promise<boolean> {
     if (await this.isKillSwitchEnabled()) {
       return false;
     }
@@ -237,12 +247,17 @@ export class SystemConfigService {
     }
 
     const variants = flag.variants.filter((variant) => variant.weight > 0);
-    const totalWeight = variants.reduce((sum, variant) => sum + variant.weight, 0);
+    const totalWeight = variants.reduce(
+      (sum, variant) => sum + variant.weight,
+      0,
+    );
     if (totalWeight <= 0) {
       return { name: 'control', weight: 100 };
     }
 
-    const bucket = this.getDeterministicBucket(`${flagKey}:variant:${userId || 'anon'}`);
+    const bucket = this.getDeterministicBucket(
+      `${flagKey}:variant:${userId || 'anon'}`,
+    );
     const scaledBucket = (bucket / 100) * totalWeight;
     let cumulative = 0;
 
@@ -326,8 +341,12 @@ export class SystemConfigService {
     return {
       enabled: Boolean(value.enabled),
       rolloutPercent,
-      targetUsers: Array.isArray(value.targetUsers) ? value.targetUsers : undefined,
-      excludedUsers: Array.isArray(value.excludedUsers) ? value.excludedUsers : undefined,
+      targetUsers: Array.isArray(value.targetUsers)
+        ? value.targetUsers
+        : undefined,
+      excludedUsers: Array.isArray(value.excludedUsers)
+        ? value.excludedUsers
+        : undefined,
       variants: Array.isArray(value.variants) ? value.variants : undefined,
       killSwitch: Boolean(value.killSwitch),
     };

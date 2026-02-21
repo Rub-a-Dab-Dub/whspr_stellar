@@ -16,11 +16,7 @@ import { RetryService } from './services/retry.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      GaslessTransaction,
-      SessionKey,
-      GasBudget,
-    ]),
+    TypeOrmModule.forFeature([GaslessTransaction, SessionKey, GasBudget]),
   ],
   controllers: [GaslessController],
   providers: [
