@@ -4,7 +4,9 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { AdminController } from './controllers/admin.controller';
+import { AdminAccountsController } from './controllers/admin-accounts.controller';
 import { AdminService } from './services/admin.service';
+import { AdminAccountService } from './services/admin-account.service';
 import { User } from '../user/entities/user.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { AuditLogArchive } from './entities/audit-log-archive.entity';
@@ -46,13 +48,14 @@ import { AdminAuthModule } from './auth/admin-auth.module';
       PlatformConfig,
     ]),
   ],
-  controllers: [AdminController],
+  controllers: [AdminController, AdminAccountsController],
   providers: [
     AdminService,
+    AdminAccountService,
     AuditLogService,
     AuditLogRetentionJob,
     AdminEventStreamGateway,
   ],
-  exports: [AdminService, AuditLogService, AdminAuthModule],
+  exports: [AdminService, AuditLogService, AdminAccountService, AdminAuthModule],
 })
 export class AdminModule { }

@@ -39,6 +39,12 @@ export enum AuditAction {
   AUDIT_LOG_EXPORTED = 'audit.logs.exported',
   DATA_EXPORT = 'data.exported',
   PLATFORM_CONFIG_UPDATED = 'platform.config.updated',
+  // Admin team management
+  ADMIN_LISTED = 'admin.listed',
+  ADMIN_INVITED = 'admin.invited',
+  ADMIN_ROLE_CHANGED = 'admin.role_changed',
+  ADMIN_DEACTIVATED = 'admin.deactivated',
+  ADMIN_REACTIVATED = 'admin.reactivated',
 }
 
 export enum AuditEventType {
