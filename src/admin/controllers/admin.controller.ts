@@ -150,6 +150,48 @@ export class AdminController {
     return await this.adminService.getUserActivity(userId, currentUser.userId, req);
   }
 
+  @Get('users/:id/sessions')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  async getUserSessions(
+    @Param('id') userId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.getUserSessions(userId);
+  }
+
+  @Delete('users/:id/sessions/:sessionId')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async terminateSession(
+    @Param('id') userId: string,
+    @Param('sessionId') sessionId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.terminateSession(
+      userId,
+      sessionId,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Delete('users/:id/sessions')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async terminateAllUserSessions(
+    @Param('id') userId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.terminateAllUserSessions(
+      userId,
+      currentUser.userId,
+      req,
+    );
+  }
+
   @Get('statistics')
   async getStatistics(@CurrentUser() currentUser: any, @Req() req: Request) {
     return await this.adminService.getUserStatistics(currentUser.userId, req);

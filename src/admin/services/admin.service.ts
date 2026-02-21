@@ -1245,4 +1245,107 @@ export class AdminService {
 
     return { message: `User pinned status updated successfully` };
   }
+
+  async getUserSessions(userId: string): Promise<Session[]> {
+    // Verify user exists
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Return all sessions (active and inactive) for forensic investigation
+    return await this.sessionRepository.find({
+      where: { userId },
+      order: { lastActivity: 'DESC' },
+    });
+  }
+
+  async terminateSession(
+    userId: string,
+    sessionId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    // Verify user exists
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Find and verify session belongs to user
+    const session = await this.sessionRepository.findOne({
+      where: { id: sessionId, userId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    // Terminate the session
+    await this.sessionRepository.revokeSession(sessionId);
+
+    // Log audit action
+    await this.logAudit(
+      adminId,
+      AuditAction.AUTH_LOGOUT,
+      userId,
+      `Terminated user session: ${sessionId}`,
+      {
+        sessionId,
+        ipAddress: session.ipAddress,
+        userAgent: session.userAgent,
+        deviceName: session.deviceName,
+      },
+      req,
+      AuditSeverity.MEDIUM,
+      'session',
+      sessionId,
+    );
+
+    return { message: 'Session terminated successfully' };
+  }
+
+  async terminateAllUserSessions(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string; terminatedCount: number }> {
+    // Verify user exists
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Get active sessions to count them
+    const activeSessions = await this.sessionRepository.find({
+      where: { userId, isActive: true },
+    });
+
+    const terminatedCount = activeSessions.length;
+
+    // Terminate all sessions for the user
+    await this.sessionRepository.revokeAllUserSessions(userId);
+
+    // Log audit action
+    await this.logAudit(
+      adminId,
+      AuditAction.AUTH_LOGOUT,
+      userId,
+      `Terminated all user sessions (${terminatedCount} sessions)`,
+      {
+        terminatedCount,
+        sessions: activeSessions.map((s) => ({
+          sessionId: s.id,
+          ipAddress: s.ipAddress,
+          deviceName: s.deviceName,
+        })),
+      },
+      req,
+      AuditSeverity.MEDIUM,
+      'user',
+      userId,
+    );
+
+    return { message: 'All sessions terminated successfully', terminatedCount };
+  }
 }
