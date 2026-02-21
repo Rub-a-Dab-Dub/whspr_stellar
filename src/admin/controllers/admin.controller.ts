@@ -506,4 +506,19 @@ export class AdminController {
       req,
     );
   }
+
+  @Post('users/:userId/reset-password')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  async resetUserPassword(
+    @Param('userId') userId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.adminResetPassword(
+      userId,
+      currentUser.userId,
+      req,
+    );
+  }
 }
