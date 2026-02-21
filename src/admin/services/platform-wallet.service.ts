@@ -109,22 +109,21 @@ export class PlatformWalletService {
     });
 
     if (!isWhitelisted) {
-      await this.auditLogService.logAudit(
-        adminId,
-        AuditAction.PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED,
-        null,
-        `Withdrawal attempt to non-whitelisted address: ${withdrawDto.toAddress}`,
-        {
+      await this.auditLogService.createAuditLog({
+        actorUserId: adminId,
+        action: AuditAction.PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED,
+        eventType: AuditEventType.ADMIN,
+        details: `Withdrawal attempt to non-whitelisted address: ${withdrawDto.toAddress}`,
+        metadata: {
           chain: withdrawDto.chain,
           amount: withdrawDto.amount,
           toAddress: withdrawDto.toAddress,
           reason: withdrawDto.reason,
         },
+        severity: AuditSeverity.HIGH,
+        resourceType: 'platform_wallet',
         req,
-        AuditSeverity.HIGH,
-        'platform_wallet',
-        null,
-      );
+      });
 
       throw new ForbiddenException(
         'Withdrawal address is not whitelisted',
@@ -152,22 +151,21 @@ export class PlatformWalletService {
     const withdrawalAmount = parseFloat(withdrawDto.amount);
 
     if (withdrawalAmount > availableBalance) {
-      await this.auditLogService.logAudit(
-        adminId,
-        AuditAction.PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED,
-        null,
-        `Withdrawal amount exceeds available balance`,
-        {
+      await this.auditLogService.createAuditLog({
+        actorUserId: adminId,
+        action: AuditAction.PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED,
+        eventType: AuditEventType.ADMIN,
+        details: `Withdrawal amount exceeds available balance`,
+        metadata: {
           chain: withdrawDto.chain,
           requestedAmount: withdrawDto.amount,
           availableBalance: availableBalance.toString(),
           reserveAmount: reserveAmount.toString(),
         },
+        severity: AuditSeverity.HIGH,
+        resourceType: 'platform_wallet',
         req,
-        AuditSeverity.HIGH,
-        'platform_wallet',
-        null,
-      );
+      });
 
       throw new BadRequestException(
         `Withdrawal amount exceeds available balance. Available: ${availableBalance}, Reserve: ${reserveAmount}`,
@@ -211,12 +209,12 @@ export class PlatformWalletService {
     await this.withdrawalRepository.save(savedWithdrawal);
 
     // Log audit
-    await this.auditLogService.logAudit(
-      adminId,
-      AuditAction.PLATFORM_WALLET_WITHDRAWAL_INITIATED,
-      null,
-      `Platform wallet withdrawal initiated: ${withdrawDto.amount} ${withdrawDto.chain} to ${withdrawDto.toAddress}`,
-      {
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      action: AuditAction.PLATFORM_WALLET_WITHDRAWAL_INITIATED,
+      eventType: 'admin' as any,
+      details: `Platform wallet withdrawal initiated: ${withdrawDto.amount} ${withdrawDto.chain} to ${withdrawDto.toAddress}`,
+      metadata: {
         withdrawalId: savedWithdrawal.id,
         chain: withdrawDto.chain,
         amount: withdrawDto.amount,
@@ -224,11 +222,11 @@ export class PlatformWalletService {
         reason: withdrawDto.reason,
         jobId: job.id.toString(),
       },
+      severity: AuditSeverity.HIGH,
+      resourceType: 'platform_wallet',
+      resourceId: savedWithdrawal.id,
       req,
-      AuditSeverity.HIGH,
-      'platform_wallet',
-      savedWithdrawal.id,
-    );
+    });
 
     return {
       jobId: job.id.toString(),
