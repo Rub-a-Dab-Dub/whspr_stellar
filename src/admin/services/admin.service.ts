@@ -22,6 +22,8 @@ import { GetUsersDto, UserFilterStatus } from '../dto/get-users.dto';
 import { GetRoomsDto, RoomFilterStatus } from '../dto/get-rooms.dto';
 import { GetRoomDetailsDto } from '../dto/get-room-details.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
+import { BanUserDto, BanType } from '../dto/ban-user.dto';
+import { UnbanUserDto } from '../dto/unban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto, BulkActionType } from '../dto/bulk-action.dto';
 import { DeleteUserDto } from '../dto/delete-user.dto';
@@ -59,6 +61,12 @@ import {
   AnalyticsPeriod,
 } from '../dto/get-overview-analytics.dto';
 import { CacheService } from '../../cache/cache.service';
+import { SessionService } from '../../sessions/services/sessions.service';
+import { MessagesGateway } from '../../message/gateways/messages.gateway';
+import { NotificationGateway } from '../../notifications/gateways/notification.gateway';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { QUEUE_NAMES } from '../../queue/queue.constants';
 
 @Injectable()
 export class AdminService {
@@ -89,7 +97,159 @@ export class AdminService {
     private readonly eventEmitter: EventEmitter2,
     private readonly leaderboardService: LeaderboardService,
     private readonly cacheService: CacheService,
+    private readonly sessionService: SessionService,
+    private readonly messagesGateway: MessagesGateway,
+    private readonly notificationGateway: NotificationGateway,
+    @InjectQueue(QUEUE_NAMES.NOTIFICATIONS)
+    private readonly notificationsQueue: Queue,
   ) {}
+
+  async getTransactions(
+    query: any,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ transactions: any[]; total: number; page: number; limit: number }> {
+    const {
+      type,
+      status,
+      userId,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      chainId,
+      page = 1,
+      limit = 20,
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    // Fetch relevant records per type
+    const results: any[] = [];
+
+    // 1) P2P transfers
+    if (!type || type === 'p2p_transfer') {
+      const transferQ = this.transferRepository.createQueryBuilder('t');
+      if (status) transferQ.andWhere('t.status = :status', { status });
+      if (userId) transferQ.andWhere('(t.senderId = :userId OR t.recipientId = :userId)', { userId });
+      if (chainId) transferQ.andWhere('t.blockchainNetwork = :chainId', { chainId });
+      if (startDate) transferQ.andWhere('t.createdAt >= :startDate', { startDate: new Date(startDate) });
+      if (endDate) transferQ.andWhere('t.createdAt <= :endDate', { endDate: new Date(endDate) });
+      if (minAmount) transferQ.andWhere('CAST(t.amount AS DECIMAL) >= :minAmount', { minAmount });
+      if (maxAmount) transferQ.andWhere('CAST(t.amount AS DECIMAL) <= :maxAmount', { maxAmount });
+      transferQ.orderBy('t.createdAt', 'DESC');
+      const transfers = await transferQ.getMany();
+
+      for (const t of transfers) {
+        results.push({
+          txHash: t.transactionHash || null,
+          type: 'p2p_transfer',
+          fromUser: t.senderId,
+          toUser: t.recipientId,
+          amount: t.amount,
+          platformFee: null,
+          netAmount: t.amount,
+          chain: t.blockchainNetwork,
+          status: t.status,
+          blockNumber: null,
+          confirmedAt: t.completedAt || null,
+          createdAt: t.createdAt,
+        });
+      }
+    }
+
+    // 2) Room payments (room_entry)
+    if (!type || type === 'room_entry') {
+      const rpQ = this.roomPaymentRepository.createQueryBuilder('p').leftJoinAndSelect('p.room', 'room');
+      if (status) rpQ.andWhere('p.status = :status', { status });
+      if (userId) rpQ.andWhere('p.userId = :userId', { userId });
+      if (chainId) rpQ.andWhere('p.blockchainNetwork = :chainId', { chainId });
+      if (startDate) rpQ.andWhere('p.createdAt >= :startDate', { startDate: new Date(startDate) });
+      if (endDate) rpQ.andWhere('p.createdAt <= :endDate', { endDate: new Date(endDate) });
+      if (minAmount) rpQ.andWhere('CAST(p.amount AS DECIMAL) >= :minAmount', { minAmount });
+      if (maxAmount) rpQ.andWhere('CAST(p.amount AS DECIMAL) <= :maxAmount', { maxAmount });
+      rpQ.orderBy('p.createdAt', 'DESC');
+      const payments = await rpQ.getMany();
+
+      for (const p of payments) {
+        results.push({
+          txHash: p.transactionHash || null,
+          type: 'room_entry',
+          fromUser: p.userId,
+          toUser: p.room ? (p.room.ownerId || null) : null,
+          amount: p.amount,
+          platformFee: p.platformFee,
+          netAmount: p.creatorAmount,
+          chain: p.blockchainNetwork,
+          status: p.status,
+          blockNumber: null,
+          confirmedAt: p.refundedAt || p.updatedAt || null,
+          createdAt: p.createdAt,
+        });
+      }
+    }
+
+    // 3) Tips (messages of type TIP)
+    if (!type || type === 'tip') {
+      const msgQ = this.messageRepository.createQueryBuilder('m').leftJoinAndSelect('m.author', 'author');
+      msgQ.where("m.type = 'tip'");
+      if (userId) msgQ.andWhere('(m.authorId = :userId OR (m.metadata->>\'toUser\') = :userId)', { userId });
+      if (startDate) msgQ.andWhere('m.createdAt >= :startDate', { startDate: new Date(startDate) });
+      if (endDate) msgQ.andWhere('m.createdAt <= :endDate', { endDate: new Date(endDate) });
+      if (chainId) msgQ.andWhere("(m.metadata->> 'blockchainNetwork') = :chainId", { chainId });
+      msgQ.orderBy('m.createdAt', 'DESC');
+      const tips = await msgQ.getMany();
+
+      for (const t of tips) {
+        const amount = t.metadata?.amount || null;
+        const fee = t.metadata?.platformFee || null;
+        results.push({
+          txHash: t.metadata?.txHash || null,
+          type: 'tip',
+          fromUser: t.authorId,
+          toUser: t.metadata?.toUser || null,
+          amount,
+          platformFee: fee,
+          netAmount: amount ? (parseFloat(amount) - parseFloat(fee || '0')).toString() : null,
+          chain: t.metadata?.blockchainNetwork || null,
+          status: t.metadata?.status || (t.metadata?.txHash ? 'confirmed' : 'pending'),
+          blockNumber: t.metadata?.blockNumber || null,
+          confirmedAt: t.metadata?.confirmedAt ? new Date(t.metadata.confirmedAt) : null,
+          createdAt: t.createdAt,
+        });
+      }
+    }
+
+    // 4) Withdrawals & refunds: attempt to include as room payments with refunded status or special transfer types
+    // Refunds from room payments already included via status = 'refunded' if filter applied.
+
+    // Sort merged results by createdAt desc
+    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    const total = results.length;
+    const pageItems = results.slice(skip, skip + limit);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      `Viewed transactions (${pageItems.length})`,
+      { filters: query },
+      req,
+      AuditSeverity.LOW,
+    );
+
+    await this.safeLogDataAccess({
+      actorUserId: adminId,
+      action: DataAccessAction.VIEW,
+      resourceType: 'transactions',
+      details: 'Viewed transactions ledger',
+      metadata: { filters: query, count: pageItems.length },
+      req,
+    });
+
+    return { transactions: pageItems, total, page, limit };
+  }
 
   private async logAudit(
     actorUserId: string | null,
@@ -284,7 +444,26 @@ export class AdminService {
     banDto: BanUserDto,
     req?: Request,
   ): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    // Get admin user to check role
+    const adminUser = await this.userRepository.findOne({
+      where: { id: adminId },
+      relations: ['roles'],
+    });
+
+    if (!adminUser) {
+      throw new NotFoundException(`Admin user with ID ${adminId} not found`);
+    }
+
+    const adminRoles = adminUser.roles || [];
+    const adminRoleNames = adminRoles.map((r) => r.name);
+    const isSuperAdmin = adminRoleNames.includes(UserRole.SUPER_ADMIN);
+    const isAdmin = adminRoleNames.includes(UserRole.ADMIN);
+
+    // Get target user
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
@@ -294,13 +473,15 @@ export class AdminService {
       throw new BadRequestException('User is already banned');
     }
 
-    // Prevent banning admins - load roles if not already loaded
-    let userWithRoles = user;
-    if (!user.roles || user.roles.length === 0) {
-      userWithRoles = await this.userRepository.findOne({
-        where: { id: userId },
-        relations: ['roles'],
-      });
+    // Check role-based permissions
+    const userRoles = user.roles || [];
+    const userRoleNames = userRoles.map((r) => r.name);
+    const targetIsSuperAdmin = userRoleNames.includes(UserRole.SUPER_ADMIN);
+    const targetIsAdmin = userRoleNames.includes(UserRole.ADMIN);
+
+    // SUPER_ADMIN can ban ADMIN users; ADMIN can ban regular users; MODERATOR cannot ban
+    if (targetIsSuperAdmin) {
+      throw new ForbiddenException('Cannot ban super admin users');
     }
     const userRoles = userWithRoles?.roles || [];
     const isAdmin = userRoles.some(
@@ -309,22 +490,139 @@ export class AdminService {
     );
     if (isAdmin) {
       throw new ForbiddenException('Cannot ban admin users');
+
+    if (targetIsAdmin && !isSuperAdmin) {
+      throw new ForbiddenException(
+        'Only super admins can ban admin users',
+      );
     }
 
+    // Validate temporary ban expiration
+    if (banDto.type === BanType.TEMPORARY) {
+      if (!banDto.expiresAt) {
+        throw new BadRequestException(
+          'expiresAt is required for temporary bans',
+        );
+      }
+      const expiresAt = new Date(banDto.expiresAt);
+      if (expiresAt <= new Date()) {
+        throw new BadRequestException(
+          'expiresAt must be in the future',
+        );
+      }
+      user.banExpiresAt = expiresAt;
+    } else {
+      user.banExpiresAt = null;
+    }
+
+    // Set ban fields
     user.isBanned = true;
     user.bannedAt = new Date();
     user.bannedBy = adminId;
-    user.banReason = banDto.reason || null;
+    user.banReason = banDto.reason;
 
     const savedUser = await this.userRepository.save(user);
 
+    // Invalidate all active JWT sessions for that user immediately
+    try {
+      await this.sessionService.revokeAllSessions(userId);
+      this.logger.log(`Revoked all sessions for banned user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to revoke sessions for user ${userId}:`,
+        error,
+      );
+    }
+
+    // Kick the user from all active WebSocket connections
+    try {
+      // Disconnect from messages gateway
+      const userSockets = (this.messagesGateway as any).userSockets?.get(
+        userId,
+      );
+      if (userSockets) {
+        userSockets.forEach((socketId: string) => {
+          (this.messagesGateway as any).server
+            .to(socketId)
+            .emit('user-banned', {
+              reason: banDto.reason,
+              type: banDto.type,
+              expiresAt: user.banExpiresAt,
+            });
+          (this.messagesGateway as any).server.sockets.sockets
+            .get(socketId)
+            ?.disconnect(true);
+        });
+      }
+
+      // Disconnect from notifications gateway
+      const notificationSockets = (this.notificationGateway as any).userSockets?.get(
+        userId,
+      );
+      if (notificationSockets) {
+        notificationSockets.forEach((socketId: string) => {
+          (this.notificationGateway as any).server
+            .to(socketId)
+            .emit('user-banned', {
+              reason: banDto.reason,
+              type: banDto.type,
+              expiresAt: user.banExpiresAt,
+            });
+          (this.notificationGateway as any).server.sockets.sockets
+            .get(socketId)
+            ?.disconnect(true);
+        });
+      }
+      this.logger.log(`Disconnected WebSocket connections for banned user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to disconnect WebSocket for user ${userId}:`,
+        error,
+      );
+    }
+
+    // Schedule auto-lift job for temporary bans
+    if (banDto.type === BanType.TEMPORARY && user.banExpiresAt) {
+      try {
+        await this.notificationsQueue.add(
+          'auto-unban-user',
+          {
+            userId,
+            expiresAt: user.banExpiresAt,
+          },
+          {
+            delay: user.banExpiresAt.getTime() - Date.now(),
+            attempts: 1,
+          },
+        );
+        this.logger.log(
+          `Scheduled auto-unban job for user ${userId} at ${user.banExpiresAt}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to schedule auto-unban job for user ${userId}:`,
+          error,
+        );
+      }
+    }
+
+    // Audit log entry with full metadata
     await this.logAudit(
       adminId,
       AuditAction.USER_BANNED,
       userId,
-      banDto.reason || 'User banned',
-      { reason: banDto.reason },
+      `User banned: ${banDto.reason}`,
+      {
+        reason: banDto.reason,
+        type: banDto.type,
+        expiresAt: user.banExpiresAt?.toISOString(),
+        adminRole: isSuperAdmin ? UserRole.SUPER_ADMIN : UserRole.ADMIN,
+        targetUserRole: targetIsAdmin ? UserRole.ADMIN : UserRole.USER,
+      },
       req,
+      AuditSeverity.HIGH,
+      'user',
+      userId,
     );
 
     this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_BANNED, {
@@ -334,7 +632,9 @@ export class AdminService {
         userId: user.id,
         email: user.email,
         bannedBy: adminId,
-        reason: banDto.reason ?? undefined,
+        reason: banDto.reason,
+        type: banDto.type,
+        expiresAt: user.banExpiresAt?.toISOString(),
       },
     });
 
@@ -344,6 +644,7 @@ export class AdminService {
   async unbanUser(
     userId: string,
     adminId: string,
+    unbanDto: UnbanUserDto,
     req?: Request,
   ): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -356,21 +657,68 @@ export class AdminService {
       throw new BadRequestException('User is not banned');
     }
 
+    // Clear ban fields
     user.isBanned = false;
     user.bannedAt = null;
     user.bannedBy = null;
     user.banReason = null;
+    user.banExpiresAt = null;
 
     const savedUser = await this.userRepository.save(user);
 
+    // Send notification to user if configured
+    try {
+      await this.notificationsQueue.add(
+        'user-unbanned-notification',
+        {
+          userId,
+          reason: unbanDto.reason,
+          unbannedBy: adminId,
+        },
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      );
+      this.logger.log(`Queued unban notification for user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to queue unban notification for user ${userId}:`,
+        error,
+      );
+    }
+
+    // Audit log entry with full metadata
     await this.logAudit(
       adminId,
       AuditAction.USER_UNBANNED,
       userId,
-      'User unbanned',
-      null,
+      `User unbanned: ${unbanDto.reason}`,
+      {
+        reason: unbanDto.reason,
+        previousBanReason: user.banReason,
+        previousBanType: user.banExpiresAt ? 'temporary' : 'permanent',
+        previousBanExpiresAt: user.banExpiresAt?.toISOString(),
+      },
       req,
+      AuditSeverity.MEDIUM,
+      'user',
+      userId,
     );
+
+    this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_UNBANNED, {
+      type: 'user.unbanned',
+      timestamp: new Date().toISOString(),
+      entity: {
+        userId: user.id,
+        email: user.email,
+        unbannedBy: adminId,
+        reason: unbanDto.reason,
+      },
+    });
 
     return savedUser;
   }

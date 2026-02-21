@@ -1133,6 +1133,48 @@ impl BaseContract {
             })
     }
 
+    pub fn set_claim_window_config(env: Env, config: ClaimWindowConfig) {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
+        admin.require_auth();
+
+        // Validate input: must be > 0 and reasonably bounded
+        let validity = config.claim_validity_ledgers;
+        if validity == 0 || validity >= 1_000_000 {
+            panic!("claim_validity_ledgers must be > 0 and < 1_000_000");
+        }
+
+        // Build new ClaimConfig to persist (storage uses u32)
+        let new_cfg = ClaimConfig {
+            claim_window_enabled: config.enabled,
+            claim_validity_ledgers: validity as u32,
+        };
+
+        // Read old for event emission
+        let old_cfg_opt: Option<ClaimConfig> = env.storage().instance().get(&DataKey::ClaimConfig);
+        let old_window = old_cfg_opt
+            .map(|c: ClaimConfig| ClaimWindowConfig {
+                claim_validity_ledgers: c.claim_validity_ledgers as u64,
+                enabled: c.claim_window_enabled,
+            })
+            .unwrap_or(ClaimWindowConfig {
+                claim_validity_ledgers: 0,
+                enabled: false,
+            });
+
+        // Persist
+        env.storage().instance().set(&DataKey::ClaimConfig, &new_cfg);
+
+        // Emit event with old and new window config
+        env.events().publish(
+            (Symbol::new(&env, "claim_config_updated"), admin),
+            (old_window, config, env.ledger().timestamp()),
+        );
+    }
+
     pub fn update_admin(env: Env, new_admin: Address) {
         let admin: Address = env
             .storage()

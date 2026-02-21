@@ -31,12 +31,14 @@ import { AdminService } from '../services/admin.service';
 import { GetUsersDto } from '../dto/get-users.dto';
 import { GetRoomsDto } from '../dto/get-rooms.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
+import { UnbanUserDto } from '../dto/unban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto } from '../dto/bulk-action.dto';
 import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
 import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
 import { GetRevenueAnalyticsDto } from '../dto/get-revenue-analytics.dto';
 import { GetOverviewAnalyticsDto } from '../dto/get-overview-analytics.dto';
+import { GetTransactionsDto } from '../dto/get-transactions.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
 import { UpdateConfigDto } from '../dto/update-config.dto';
@@ -48,6 +50,9 @@ import {
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
 import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
+import { PlatformWalletService } from '../services/platform-wallet.service';
+import { PlatformWalletWithdrawDto } from '../dto/platform-wallet-withdraw.dto';
+import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -55,7 +60,10 @@ import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
 @IsAdmin()
 @UseGuards(RoleGuard, PermissionGuard)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly platformWalletService: PlatformWalletService,
+  ) {}
 
   @Get('health')
   @HttpCode(HttpStatus.OK)
@@ -123,10 +131,16 @@ export class AdminController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async unbanUser(
     @Param('id') userId: string,
+    @Body() unbanDto: UnbanUserDto,
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.unbanUser(userId, currentUser.userId, req);
+    return await this.adminService.unbanUser(
+      userId,
+      currentUser.userId,
+      unbanDto,
+      req,
+    );
   }
 
   @Post('users/:id/suspend')
@@ -497,6 +511,17 @@ export class AdminController {
     );
   }
 
+  @Get('transactions')
+  @ApiOperation({ summary: 'Get on-chain transactions ledger (paginated & filterable)' })
+  @ApiResponse({ status: 200, description: 'Paginated transactions list' })
+  async getTransactions(
+    @Query() query: GetTransactionsDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.getTransactions(query, currentUser.userId, req);
+  }
+
   @Get('leaderboards')
   @ApiOperation({ summary: 'Get available leaderboard types' })
   @ApiResponse({ status: 200, description: 'List of leaderboard categories' })
@@ -588,6 +613,10 @@ export class AdminController {
     @Query() query: GetRoomDetailsDto,
     @CurrentUser() currentUser: any,
     @Req() req: Request,
+  @Param('roomId') roomId: string,
+  @Query() query: any,
+  @CurrentUser() currentUser: any,
+  @Req() req: Request,
   ) {
     return await this.adminService.getRoomDetails(
       roomId,
@@ -596,4 +625,37 @@ export class AdminController {
       req,
     );
   }
+
+  @Get('platform-wallet')
+  @ApiOperation({ summary: 'Get platform wallet information' })
+  @ApiResponse({ status: 200, description: 'Platform wallet info' })
+  async getPlatformWallet(@CurrentUser() currentUser: any) {
+    return await this.platformWalletService.getPlatformWalletInfo();
+  }
+
+  @Post('platform-wallet/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Initiate platform wallet withdrawal (super admin only)' })
+  @ApiResponse({ status: 200, description: 'Withdrawal initiated' })
+  @ApiResponse({ status: 403, description: 'Super admin role required' })
+  async withdrawFromPlatformWallet(
+    @Body() withdrawDto: PlatformWalletWithdrawDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.platformWalletService.initiateWithdrawal(
+      withdrawDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Get('platform-wallet/withdrawals')
+  @ApiOperation({ summary: 'Get platform wallet withdrawal history' })
+  @ApiResponse({ status: 200, description: 'Withdrawal history' })
+  async getWithdrawals(@Query() query: GetWithdrawalsDto) {
+    return await this.platformWalletService.getWithdrawals(query);
+  }
+
 }

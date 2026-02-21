@@ -46,6 +46,10 @@ export enum AuditAction {
   ADMIN_ROLE_CHANGED = 'admin.role.changed',
   ADMIN_DEACTIVATED = 'admin.deactivated',
   ADMIN_REACTIVATED = 'admin.reactivated',
+  PLATFORM_WALLET_WITHDRAWAL_INITIATED = 'platform.wallet.withdrawal.initiated',
+  PLATFORM_WALLET_WITHDRAWAL_COMPLETED = 'platform.wallet.withdrawal.completed',
+  PLATFORM_WALLET_WITHDRAWAL_FAILED = 'platform.wallet.withdrawal.failed',
+  PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED = 'platform.wallet.withdrawal.attempted',
 }
 
 export enum AuditEventType {
