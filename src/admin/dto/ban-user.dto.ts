@@ -1,10 +1,23 @@
-import { IsString, IsOptional, MaxLength } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, MaxLength, IsEnum, IsDateString } from 'class-validator';
+import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
+
+export enum BanType {
+  PERMANENT = 'permanent',
+  TEMPORARY = 'temporary',
+}
 
 export class BanUserDto {
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiProperty({ maxLength: 500, description: 'Reason for banning the user' })
   @IsString()
-  @IsOptional()
   @MaxLength(500)
-  reason?: string;
+  reason: string;
+
+  @ApiProperty({ enum: BanType, description: 'Type of ban: permanent or temporary' })
+  @IsEnum(BanType)
+  type: BanType;
+
+  @ApiPropertyOptional({ description: 'Expiration date for temporary bans (ISO date string)' })
+  @IsDateString()
+  @IsOptional()
+  expiresAt?: string;
 }

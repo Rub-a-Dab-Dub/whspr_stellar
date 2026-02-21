@@ -19,7 +19,8 @@ import {
 } from '../entities/audit-log.entity';
 import { GetUsersDto, UserFilterStatus } from '../dto/get-users.dto';
 import { GetRoomsDto, RoomFilterStatus } from '../dto/get-rooms.dto';
-import { BanUserDto } from '../dto/ban-user.dto';
+import { BanUserDto, BanType } from '../dto/ban-user.dto';
+import { UnbanUserDto } from '../dto/unban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto, BulkActionType } from '../dto/bulk-action.dto';
 import { DeleteUserDto } from '../dto/delete-user.dto';
@@ -54,6 +55,12 @@ import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
 import { GetOverviewAnalyticsDto, AnalyticsPeriod } from '../dto/get-overview-analytics.dto';
 import { CacheService } from '../../cache/cache.service';
+import { SessionService } from '../../sessions/services/sessions.service';
+import { MessagesGateway } from '../../message/gateways/messages.gateway';
+import { NotificationGateway } from '../../notifications/gateways/notification.gateway';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { QUEUE_NAMES } from '../../queue/queue.constants';
 
 @Injectable()
 export class AdminService {
@@ -84,6 +91,11 @@ export class AdminService {
     private readonly eventEmitter: EventEmitter2,
     private readonly leaderboardService: LeaderboardService,
     private readonly cacheService: CacheService,
+    private readonly sessionService: SessionService,
+    private readonly messagesGateway: MessagesGateway,
+    private readonly notificationGateway: NotificationGateway,
+    @InjectQueue(QUEUE_NAMES.NOTIFICATIONS)
+    private readonly notificationsQueue: Queue,
   ) {}
 
   private async logAudit(
@@ -279,7 +291,26 @@ export class AdminService {
     banDto: BanUserDto,
     req?: Request,
   ): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    // Get admin user to check role
+    const adminUser = await this.userRepository.findOne({
+      where: { id: adminId },
+      relations: ['roles'],
+    });
+
+    if (!adminUser) {
+      throw new NotFoundException(`Admin user with ID ${adminId} not found`);
+    }
+
+    const adminRoles = adminUser.roles || [];
+    const adminRoleNames = adminRoles.map((r) => r.name);
+    const isSuperAdmin = adminRoleNames.includes(UserRole.SUPER_ADMIN);
+    const isAdmin = adminRoleNames.includes(UserRole.ADMIN);
+
+    // Get target user
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
@@ -289,34 +320,149 @@ export class AdminService {
       throw new BadRequestException('User is already banned');
     }
 
-    // Prevent banning admins - load roles if not already loaded
-    let userWithRoles = user;
-    if (!user.roles || user.roles.length === 0) {
-      userWithRoles = await this.userRepository.findOne({
-        where: { id: userId },
-        relations: ['roles'],
-      });
-    }
-    const userRoles = userWithRoles?.roles || [];
-    const isAdmin = userRoles.some((role) => role.name === 'admin');
-    if (isAdmin) {
-      throw new ForbiddenException('Cannot ban admin users');
+    // Check role-based permissions
+    const userRoles = user.roles || [];
+    const userRoleNames = userRoles.map((r) => r.name);
+    const targetIsSuperAdmin = userRoleNames.includes(UserRole.SUPER_ADMIN);
+    const targetIsAdmin = userRoleNames.includes(UserRole.ADMIN);
+
+    // SUPER_ADMIN can ban ADMIN users; ADMIN can ban regular users; MODERATOR cannot ban
+    if (targetIsSuperAdmin) {
+      throw new ForbiddenException('Cannot ban super admin users');
     }
 
+    if (targetIsAdmin && !isSuperAdmin) {
+      throw new ForbiddenException(
+        'Only super admins can ban admin users',
+      );
+    }
+
+    // Validate temporary ban expiration
+    if (banDto.type === BanType.TEMPORARY) {
+      if (!banDto.expiresAt) {
+        throw new BadRequestException(
+          'expiresAt is required for temporary bans',
+        );
+      }
+      const expiresAt = new Date(banDto.expiresAt);
+      if (expiresAt <= new Date()) {
+        throw new BadRequestException(
+          'expiresAt must be in the future',
+        );
+      }
+      user.banExpiresAt = expiresAt;
+    } else {
+      user.banExpiresAt = null;
+    }
+
+    // Set ban fields
     user.isBanned = true;
     user.bannedAt = new Date();
     user.bannedBy = adminId;
-    user.banReason = banDto.reason || null;
+    user.banReason = banDto.reason;
 
     const savedUser = await this.userRepository.save(user);
 
+    // Invalidate all active JWT sessions for that user immediately
+    try {
+      await this.sessionService.revokeAllSessions(userId);
+      this.logger.log(`Revoked all sessions for banned user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to revoke sessions for user ${userId}:`,
+        error,
+      );
+    }
+
+    // Kick the user from all active WebSocket connections
+    try {
+      // Disconnect from messages gateway
+      const userSockets = (this.messagesGateway as any).userSockets?.get(
+        userId,
+      );
+      if (userSockets) {
+        userSockets.forEach((socketId: string) => {
+          (this.messagesGateway as any).server
+            .to(socketId)
+            .emit('user-banned', {
+              reason: banDto.reason,
+              type: banDto.type,
+              expiresAt: user.banExpiresAt,
+            });
+          (this.messagesGateway as any).server.sockets.sockets
+            .get(socketId)
+            ?.disconnect(true);
+        });
+      }
+
+      // Disconnect from notifications gateway
+      const notificationSockets = (this.notificationGateway as any).userSockets?.get(
+        userId,
+      );
+      if (notificationSockets) {
+        notificationSockets.forEach((socketId: string) => {
+          (this.notificationGateway as any).server
+            .to(socketId)
+            .emit('user-banned', {
+              reason: banDto.reason,
+              type: banDto.type,
+              expiresAt: user.banExpiresAt,
+            });
+          (this.notificationGateway as any).server.sockets.sockets
+            .get(socketId)
+            ?.disconnect(true);
+        });
+      }
+      this.logger.log(`Disconnected WebSocket connections for banned user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to disconnect WebSocket for user ${userId}:`,
+        error,
+      );
+    }
+
+    // Schedule auto-lift job for temporary bans
+    if (banDto.type === BanType.TEMPORARY && user.banExpiresAt) {
+      try {
+        await this.notificationsQueue.add(
+          'auto-unban-user',
+          {
+            userId,
+            expiresAt: user.banExpiresAt,
+          },
+          {
+            delay: user.banExpiresAt.getTime() - Date.now(),
+            attempts: 1,
+          },
+        );
+        this.logger.log(
+          `Scheduled auto-unban job for user ${userId} at ${user.banExpiresAt}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to schedule auto-unban job for user ${userId}:`,
+          error,
+        );
+      }
+    }
+
+    // Audit log entry with full metadata
     await this.logAudit(
       adminId,
       AuditAction.USER_BANNED,
       userId,
-      banDto.reason || 'User banned',
-      { reason: banDto.reason },
+      `User banned: ${banDto.reason}`,
+      {
+        reason: banDto.reason,
+        type: banDto.type,
+        expiresAt: user.banExpiresAt?.toISOString(),
+        adminRole: isSuperAdmin ? UserRole.SUPER_ADMIN : UserRole.ADMIN,
+        targetUserRole: targetIsAdmin ? UserRole.ADMIN : UserRole.USER,
+      },
       req,
+      AuditSeverity.HIGH,
+      'user',
+      userId,
     );
 
     this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_BANNED, {
@@ -326,7 +472,9 @@ export class AdminService {
         userId: user.id,
         email: user.email,
         bannedBy: adminId,
-        reason: banDto.reason ?? undefined,
+        reason: banDto.reason,
+        type: banDto.type,
+        expiresAt: user.banExpiresAt?.toISOString(),
       },
     });
 
@@ -336,6 +484,7 @@ export class AdminService {
   async unbanUser(
     userId: string,
     adminId: string,
+    unbanDto: UnbanUserDto,
     req?: Request,
   ): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -348,21 +497,68 @@ export class AdminService {
       throw new BadRequestException('User is not banned');
     }
 
+    // Clear ban fields
     user.isBanned = false;
     user.bannedAt = null;
     user.bannedBy = null;
     user.banReason = null;
+    user.banExpiresAt = null;
 
     const savedUser = await this.userRepository.save(user);
 
+    // Send notification to user if configured
+    try {
+      await this.notificationsQueue.add(
+        'user-unbanned-notification',
+        {
+          userId,
+          reason: unbanDto.reason,
+          unbannedBy: adminId,
+        },
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      );
+      this.logger.log(`Queued unban notification for user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to queue unban notification for user ${userId}:`,
+        error,
+      );
+    }
+
+    // Audit log entry with full metadata
     await this.logAudit(
       adminId,
       AuditAction.USER_UNBANNED,
       userId,
-      'User unbanned',
-      null,
+      `User unbanned: ${unbanDto.reason}`,
+      {
+        reason: unbanDto.reason,
+        previousBanReason: user.banReason,
+        previousBanType: user.banExpiresAt ? 'temporary' : 'permanent',
+        previousBanExpiresAt: user.banExpiresAt?.toISOString(),
+      },
       req,
+      AuditSeverity.MEDIUM,
+      'user',
+      userId,
     );
+
+    this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_UNBANNED, {
+      type: 'user.unbanned',
+      timestamp: new Date().toISOString(),
+      entity: {
+        userId: user.id,
+        email: user.email,
+        unbannedBy: adminId,
+        reason: unbanDto.reason,
+      },
+    });
 
     return savedUser;
   }
