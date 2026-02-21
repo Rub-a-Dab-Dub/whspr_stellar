@@ -20,8 +20,10 @@ export class WalletCreationProcessor {
       // Example: Generate keypair, store in database, etc.
       const { userId, walletType } = job.data;
 
-      this.logger.log(`Creating wallet for user ${userId} of type ${walletType}`);
-      
+      this.logger.log(
+        `Creating wallet for user ${userId} of type ${walletType}`,
+      );
+
       // Simulate wallet creation process
       await this.simulateWalletCreation(job);
 

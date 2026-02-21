@@ -44,8 +44,11 @@ export class NotificationController {
     @CurrentUser() user: User,
     @Query() query: GetNotificationsDto,
   ) {
-    const result = await this.notificationService.getNotifications(user.id, query);
-    
+    const result = await this.notificationService.getNotifications(
+      user.id,
+      query,
+    );
+
     return {
       success: true,
       data: result,
@@ -57,11 +60,11 @@ export class NotificationController {
    */
   @Get('unread-count')
   async getUnreadCount(@CurrentUser() user: User) {
-    const result = await this.notificationService.getNotifications(user.id, { 
+    const result = await this.notificationService.getNotifications(user.id, {
       unreadOnly: true,
       limit: '1',
     });
-    
+
     return {
       success: true,
       data: {
@@ -88,7 +91,7 @@ export class NotificationController {
   @Put('mark-all-read')
   async markAllAsRead(@CurrentUser() user: User) {
     const markedCount = await this.notificationService.markAllAsRead(user.id);
-    
+
     return {
       success: true,
       data: {
@@ -122,8 +125,10 @@ export class NotificationController {
       createNotificationDto.senderId = user.id;
     }
 
-    const notification = await this.notificationService.createNotification(createNotificationDto);
-    
+    const notification = await this.notificationService.createNotification(
+      createNotificationDto,
+    );
+
     return {
       success: true,
       data: notification,
@@ -137,8 +142,10 @@ export class NotificationController {
    */
   @Get('preferences')
   async getPreferences(@CurrentUser() user: User) {
-    const preferences = await this.preferenceService.getUserPreferences(user.id);
-    
+    const preferences = await this.preferenceService.getUserPreferences(
+      user.id,
+    );
+
     return {
       success: true,
       data: preferences,
@@ -153,8 +160,11 @@ export class NotificationController {
     @Body() updateDto: UpdateNotificationPreferenceDto,
     @CurrentUser() user: User,
   ) {
-    const preference = await this.preferenceService.updatePreference(user.id, updateDto);
-    
+    const preference = await this.preferenceService.updatePreference(
+      user.id,
+      updateDto,
+    );
+
     return {
       success: true,
       data: preference,
@@ -169,8 +179,11 @@ export class NotificationController {
     @Body() bulkUpdateDto: BulkUpdatePreferencesDto,
     @CurrentUser() user: User,
   ) {
-    const preferences = await this.preferenceService.bulkUpdatePreferences(user.id, bulkUpdateDto);
-    
+    const preferences = await this.preferenceService.bulkUpdatePreferences(
+      user.id,
+      bulkUpdateDto,
+    );
+
     return {
       success: true,
       data: preferences,
@@ -182,8 +195,9 @@ export class NotificationController {
    */
   @Post('preferences/initialize')
   async initializePreferences(@CurrentUser() user: User) {
-    const preferences = await this.preferenceService.initializeDefaultPreferences(user.id);
-    
+    const preferences =
+      await this.preferenceService.initializeDefaultPreferences(user.id);
+
     return {
       success: true,
       data: preferences,
@@ -197,10 +211,7 @@ export class NotificationController {
    */
   @Post('mute/user')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async muteUser(
-    @Body() muteUserDto: MuteUserDto,
-    @CurrentUser() user: User,
-  ) {
+  async muteUser(@Body() muteUserDto: MuteUserDto, @CurrentUser() user: User) {
     await this.preferenceService.muteUser(user.id, muteUserDto.userId);
   }
 
@@ -209,10 +220,7 @@ export class NotificationController {
    */
   @Delete('mute/user/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async unmuteUser(
-    @Param('userId') userId: string,
-    @CurrentUser() user: User,
-  ) {
+  async unmuteUser(@Param('userId') userId: string, @CurrentUser() user: User) {
     await this.preferenceService.unmuteUser(user.id, userId);
   }
 
@@ -221,10 +229,7 @@ export class NotificationController {
    */
   @Post('mute/room')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async muteRoom(
-    @Body() muteRoomDto: MuteRoomDto,
-    @CurrentUser() user: User,
-  ) {
+  async muteRoom(@Body() muteRoomDto: MuteRoomDto, @CurrentUser() user: User) {
     await this.preferenceService.muteRoom(user.id, muteRoomDto.roomId);
   }
 
@@ -233,10 +238,7 @@ export class NotificationController {
    */
   @Delete('mute/room/:roomId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async unmuteRoom(
-    @Param('roomId') roomId: string,
-    @CurrentUser() user: User,
-  ) {
+  async unmuteRoom(@Param('roomId') roomId: string, @CurrentUser() user: User) {
     await this.preferenceService.unmuteRoom(user.id, roomId);
   }
 
@@ -246,7 +248,7 @@ export class NotificationController {
   @Get('muted/users')
   async getMutedUsers(@CurrentUser() user: User) {
     const mutedUsers = await this.preferenceService.getMutedUsers(user.id);
-    
+
     return {
       success: true,
       data: mutedUsers,
@@ -259,7 +261,7 @@ export class NotificationController {
   @Get('muted/rooms')
   async getMutedRooms(@CurrentUser() user: User) {
     const mutedRooms = await this.preferenceService.getMutedRooms(user.id);
-    
+
     return {
       success: true,
       data: mutedRooms,
@@ -276,8 +278,11 @@ export class NotificationController {
     @Body() subscriptionDto: CreatePushSubscriptionDto,
     @CurrentUser() user: User,
   ) {
-    const subscription = await this.pushService.subscribe(user.id, subscriptionDto);
-    
+    const subscription = await this.pushService.subscribe(
+      user.id,
+      subscriptionDto,
+    );
+
     return {
       success: true,
       data: subscription,
@@ -302,7 +307,7 @@ export class NotificationController {
   @Get('push/subscriptions')
   async getPushSubscriptions(@CurrentUser() user: User) {
     const subscriptions = await this.pushService.getUserSubscriptions(user.id);
-    
+
     return {
       success: true,
       data: subscriptions,
@@ -315,7 +320,7 @@ export class NotificationController {
   @Post('push/test')
   async testPushNotification(@CurrentUser() user: User) {
     const result = await this.pushService.testPushNotification(user.id);
-    
+
     return {
       success: true,
       data: result,

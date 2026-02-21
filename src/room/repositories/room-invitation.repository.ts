@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
-import { RoomInvitation, InvitationStatus } from '../entities/room-invitation.entity';
+import {
+  RoomInvitation,
+  InvitationStatus,
+} from '../entities/room-invitation.entity';
 
 @Injectable()
 export class RoomInvitationRepository extends Repository<RoomInvitation> {
@@ -62,7 +65,10 @@ export class RoomInvitationRepository extends Repository<RoomInvitation> {
       .getMany();
   }
 
-  async findByUserAndRoom(userId: string, roomId: string): Promise<RoomInvitation | null> {
+  async findByUserAndRoom(
+    userId: string,
+    roomId: string,
+  ): Promise<RoomInvitation | null> {
     return await this.createQueryBuilder('ri')
       .where('ri.invitedUserId = :userId', { userId })
       .andWhere('ri.roomId = :roomId', { roomId })
@@ -70,7 +76,10 @@ export class RoomInvitationRepository extends Repository<RoomInvitation> {
       .getOne();
   }
 
-  async findByEmail(email: string, roomId: string): Promise<RoomInvitation | null> {
+  async findByEmail(
+    email: string,
+    roomId: string,
+  ): Promise<RoomInvitation | null> {
     return await this.createQueryBuilder('ri')
       .where('ri.invitedEmail = :email', { email })
       .andWhere('ri.roomId = :roomId', { roomId })

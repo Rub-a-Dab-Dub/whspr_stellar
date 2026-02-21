@@ -1,10 +1,10 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  UseGuards, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
   Request,
   HttpCode,
   HttpStatus,
@@ -50,10 +50,7 @@ export class QuestController {
 
   @Get('my-progress/:questId')
   // @UseGuards(JwtAuthGuard)
-  async getMyQuestProgress(
-    @Request() req,
-    @Param('questId') questId: string,
-  ) {
+  async getMyQuestProgress(@Request() req, @Param('questId') questId: string) {
     const userId = req.user?.id || 'test-user';
     return await this.questService.getUserQuestProgress(userId, questId);
   }
@@ -75,24 +72,20 @@ export class QuestController {
 
   @Get('check-completion/:questId')
   // @UseGuards(JwtAuthGuard)
-  async checkCompletion(
-    @Request() req,
-    @Param('questId') questId: string,
-  ) {
+  async checkCompletion(@Request() req, @Param('questId') questId: string) {
     const userId = req.user?.id || 'test-user';
-    const isCompleted = await this.questService.checkQuestCompletion(userId, questId);
+    const isCompleted = await this.questService.checkQuestCompletion(
+      userId,
+      questId,
+    );
     return { questId, isCompleted };
   }
 
   @Post('claim-reward/:questId')
   // @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async claimReward(
-    @Request() req,
-    @Param('questId') questId: string,
-  ) {
+  async claimReward(@Request() req, @Param('questId') questId: string) {
     const userId = req.user?.id || 'test-user';
     return await this.questService.claimQuestReward(userId, questId);
   }
 }
-

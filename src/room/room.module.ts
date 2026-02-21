@@ -122,4 +122,4 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     RoomAccessGuard,
   ],
 })
-export class RoomModule { }
+export class RoomModule {}

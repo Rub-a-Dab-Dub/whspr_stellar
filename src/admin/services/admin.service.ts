@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Repository, In } from 'typeorm';
+import { Repository, In, MoreThanOrEqual, LessThan, Between } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import {
   AuditLog,
@@ -31,20 +31,28 @@ import { Session } from '../../sessions/entities/session.entity';
 import { Message } from '../../message/entities/message.entity';
 import { Room } from '../../room/entities/room.entity';
 import { RoomMember } from '../../room/entities/room-member.entity';
-import { RoomPayment, PaymentStatus } from '../../room/entities/room-payment.entity';
+import {
+  RoomPayment,
+  PaymentStatus,
+} from '../../room/entities/room-payment.entity';
 import { TransferBalanceService } from '../../transfer/services/transfer-balance.service';
 import { UserRole } from '../../roles/entities/role.entity';
 import { PlatformConfig } from '../entities/platform-config.entity';
 import { UpdateConfigDto } from '../dto/update-config.dto';
 import { RedisService } from '../../redis/redis.service';
-import { GetRevenueAnalyticsDto, RevenuePeriod } from '../dto/get-revenue-analytics.dto';
+import {
+  GetRevenueAnalyticsDto,
+  RevenuePeriod,
+} from '../dto/get-revenue-analytics.dto';
 import { LeaderboardService } from '../../leaderboard/leaderboard.service';
-import { LeaderboardCategory, LeaderboardPeriod } from '../../leaderboard/leaderboard.interface';
+import {
+  LeaderboardCategory,
+  LeaderboardPeriod,
+} from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
-import { ModerationQueue } from '../../moderation/moderation-queue.entity';
-import { FlaggedMessage } from '../../moderation/flagged-message.entity';
-import { GetRoomDetailsDto } from '../dto/get-room-details.dto';
+import { GetOverviewAnalyticsDto, AnalyticsPeriod } from '../dto/get-overview-analytics.dto';
+import { CacheService } from '../../cache/cache.service';
 
 @Injectable()
 export class AdminService {
@@ -74,10 +82,7 @@ export class AdminService {
     private readonly redisService: RedisService,
     private readonly eventEmitter: EventEmitter2,
     private readonly leaderboardService: LeaderboardService,
-    @InjectRepository(ModerationQueue)
-    private readonly moderationQueueRepository: Repository<ModerationQueue>,
-    @InjectRepository(FlaggedMessage)
-    private readonly flaggedMessageRepository: Repository<FlaggedMessage>,
+    private readonly cacheService: CacheService,
   ) {}
 
   private async logAudit(
@@ -144,10 +149,9 @@ export class AdminService {
 
     // Search
     if (search) {
-      queryBuilder.andWhere(
-        '(user.email ILIKE :search)',
-        { search: `%${search}%` },
-      );
+      queryBuilder.andWhere('(user.email ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
 
     // Status filter
@@ -155,7 +159,9 @@ export class AdminService {
       if (status === UserFilterStatus.BANNED) {
         queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned: true });
       } else if (status === UserFilterStatus.SUSPENDED) {
-        queryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+        queryBuilder.andWhere('user.suspendedUntil > :now', {
+          now: new Date(),
+        });
       }
     }
 
@@ -166,7 +172,9 @@ export class AdminService {
 
     if (isSuspended !== undefined) {
       if (isSuspended) {
-        queryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+        queryBuilder.andWhere('user.suspendedUntil > :now', {
+          now: new Date(),
+        });
       } else {
         queryBuilder.andWhere(
           '(user.suspendedUntil IS NULL OR user.suspendedUntil <= :now)',
@@ -227,7 +235,11 @@ export class AdminService {
     };
   }
 
-  async getUserDetail(userId: string, adminId: string, req?: Request): Promise<User> {
+  async getUserDetail(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['roles'],
@@ -646,9 +658,15 @@ export class AdminService {
     recentRegistrations: number;
   }> {
     const total = await this.userRepository.count();
-    const banned = await this.userRepository.count({ where: { isBanned: true } });
-    const verified = await this.userRepository.count({ where: { isVerified: true } });
-    const unverified = await this.userRepository.count({ where: { isVerified: false } });
+    const banned = await this.userRepository.count({
+      where: { isBanned: true },
+    });
+    const verified = await this.userRepository.count({
+      where: { isVerified: true },
+    });
+    const unverified = await this.userRepository.count({
+      where: { isVerified: false },
+    });
 
     const now = new Date();
     const suspended = await this.userRepository
@@ -810,12 +828,13 @@ export class AdminService {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    const [sessions, transfersSent, transfersReceived, messages] = await Promise.all([
-      this.sessionRepository.find({ where: { userId } }),
-      this.transferRepository.find({ where: { senderId: userId } }),
-      this.transferRepository.find({ where: { recipientId: userId } }),
-      this.messageRepository.find({ where: { authorId: userId } }),
-    ]);
+    const [sessions, transfersSent, transfersReceived, messages] =
+      await Promise.all([
+        this.sessionRepository.find({ where: { userId } }),
+        this.transferRepository.find({ where: { senderId: userId } }),
+        this.transferRepository.find({ where: { recipientId: userId } }),
+        this.messageRepository.find({ where: { authorId: userId } }),
+      ]);
 
     const auditLogs = await this.auditLogRepository.find({
       where: [{ actorUserId: userId }, { targetUserId: userId }],
@@ -823,7 +842,8 @@ export class AdminService {
       take: 500,
     });
 
-    const dataAccessLogs = await this.auditLogService.getDataAccessLogsForUser(userId);
+    const dataAccessLogs =
+      await this.auditLogService.getDataAccessLogsForUser(userId);
 
     await this.auditLogService.createAuditLog({
       actorUserId: adminId,
@@ -893,7 +913,9 @@ export class AdminService {
 
     // Verify confirmEmail
     if (dto.confirmEmail !== user.email) {
-      throw new BadRequestException('Confirmation email does not match user email');
+      throw new BadRequestException(
+        'Confirmation email does not match user email',
+      );
     }
 
     // Check balance
@@ -994,7 +1016,9 @@ export class AdminService {
     adminId: string,
     req?: Request,
   ): Promise<PlatformConfig> {
-    const config = await this.platformConfigRepository.findOne({ where: { key } });
+    const config = await this.platformConfigRepository.findOne({
+      where: { key },
+    });
 
     if (!config) {
       throw new NotFoundException(`Configuration with key ${key} not found`);
@@ -1042,7 +1066,9 @@ export class AdminService {
       return JSON.parse(cached) as T;
     }
 
-    const config = await this.platformConfigRepository.findOne({ where: { key } });
+    const config = await this.platformConfigRepository.findOne({
+      where: { key },
+    });
     if (!config) {
       return defaultValue;
     }
@@ -1184,7 +1210,12 @@ export class AdminService {
 
   async getLeaderboardEntries(
     type: LeaderboardCategory,
-    query: { period?: LeaderboardPeriod; roomId?: string; page?: number; limit?: number },
+    query: {
+      period?: LeaderboardPeriod;
+      roomId?: string;
+      page?: number;
+      limit?: number;
+    },
   ) {
     return await this.leaderboardService.getTopUsers({
       category: type,
@@ -1223,7 +1254,10 @@ export class AdminService {
   }
 
   async getLeaderboardHistory(page: number = 1, limit: number = 20) {
-    const snapshots = await this.leaderboardService.getHistory(limit, (page - 1) * limit);
+    const snapshots = await this.leaderboardService.getHistory(
+      limit,
+      (page - 1) * limit,
+    );
     return snapshots;
   }
 
@@ -1253,222 +1287,259 @@ export class AdminService {
     return { message: `User pinned status updated successfully` };
   }
 
-
-  async getRoomDetails(
-  roomId: string,
-  query: GetRoomDetailsDto,
-  adminId: string,
-  req?: Request,
+  async getOverviewAnalytics(
+    query: GetOverviewAnalyticsDto,
+    adminId: string,
+    req?: Request,
   ) {
-    const { page = 1, limit = 20 } = query;
-    const skip = (page - 1) * limit;
+    const { period = AnalyticsPeriod.MONTH } = query;
+    const cacheKey = `admin:overview:${period}`;
 
-    // 1. Fetch room metadata — throw if not found
-    const room = await this.roomRepository.findOne({
-      where: { id: roomId, isDeleted: false },
-      relations: ['owner', 'creator'],
-    });
-
-    if (!room) {
-      throw new NotFoundException(`Room with ID ${roomId} not found`);
+    // Try to get from cache
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Returning cached overview analytics for period: ${period}`);
+      return cached;
     }
 
-    // 2. Member list (paginated) with message count per member
-    const [memberRows, totalMembers] = await this.roomMemberRepository
-      .createQueryBuilder('rm')
-      .leftJoinAndSelect('rm.user', 'user')
-      .where('rm.roomId = :roomId', { roomId })
-      .orderBy('rm.joinedAt', 'ASC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+    // Calculate date range
+    const now = new Date();
+    const startDate = new Date();
+    const previousPeriodStart = new Date();
+    const previousPeriodEnd = new Date();
 
-    // Get message counts per member in one query
-    const memberIds = memberRows.map((m) => m.userId);
-    let messageCountMap: Record<string, number> = {};
+    switch (period) {
+      case AnalyticsPeriod.DAY:
+        startDate.setHours(0, 0, 0, 0);
+        previousPeriodStart.setDate(startDate.getDate() - 1);
+        previousPeriodStart.setHours(0, 0, 0, 0);
+        previousPeriodEnd.setDate(startDate.getDate() - 1);
+        previousPeriodEnd.setHours(23, 59, 59, 999);
+        break;
+      case AnalyticsPeriod.WEEK:
+        startDate.setDate(startDate.getDate() - 7);
+        previousPeriodStart.setDate(startDate.getDate() - 7);
+        previousPeriodEnd.setTime(startDate.getTime() - 1);
+        break;
+      case AnalyticsPeriod.MONTH:
+        startDate.setMonth(startDate.getMonth() - 1);
+        previousPeriodStart.setMonth(startDate.getMonth() - 1);
+        previousPeriodEnd.setTime(startDate.getTime() - 1);
+        break;
+      case AnalyticsPeriod.YEAR:
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        previousPeriodStart.setFullYear(startDate.getFullYear() - 1);
+        previousPeriodEnd.setTime(startDate.getTime() - 1);
+        break;
+    }
 
-    if (memberIds.length > 0) {
-      const messageCounts = await this.messageRepository
-        .createQueryBuilder('msg')
-        .select('msg.authorId', 'authorId')
-        .addSelect('COUNT(*)', 'count')
-        .where('msg.roomId = :roomId', { roomId })
-        .andWhere('msg.authorId IN (:...memberIds)', { memberIds })
-        .andWhere('msg.isDeleted = false')
-        .groupBy('msg.authorId')
-        .getRawMany();
+    // User metrics
+    const [totalUsers, bannedUsers] = await Promise.all([
+      this.userRepository.count(),
+      this.userRepository.count({ where: { isBanned: true } }),
+    ]);
 
-      messageCountMap = messageCounts.reduce(
-        (acc, row) => {
-          acc[row.authorId] = parseInt(row.count, 10);
-          return acc;
+    const newUsersThisPeriod = await this.userRepository.count({
+      where: { createdAt: MoreThanOrEqual(startDate) },
+    });
+
+    const newUsersPreviousPeriod = await this.userRepository.count({
+      where: {
+        createdAt: Between(previousPeriodStart, previousPeriodEnd),
+      },
+    });
+
+    // Active users (users with sessions in the period)
+    const activeUsersThisPeriod = await this.sessionRepository
+      .createQueryBuilder('session')
+      .select('COUNT(DISTINCT session.userId)', 'count')
+      .where('session.createdAt >= :startDate', { startDate })
+      .getRawOne();
+
+    const activeUserCount = parseInt(activeUsersThisPeriod?.count || '0', 10);
+
+    // Calculate growth rate
+    const growthRate = newUsersPreviousPeriod > 0
+      ? (newUsersThisPeriod - newUsersPreviousPeriod) / newUsersPreviousPeriod
+      : newUsersThisPeriod > 0 ? 1 : 0;
+
+    // Room metrics
+    const [totalRooms, activeRoomsThisPeriod, roomsCreatedThisPeriod] = await Promise.all([
+      this.roomRepository.count({ where: { isDeleted: false } }),
+      this.roomRepository
+        .createQueryBuilder('room')
+        .innerJoin('room.members', 'member')
+        .where('room.isDeleted = :isDeleted', { isDeleted: false })
+        .andWhere('member.lastActiveAt >= :startDate', { startDate })
+        .select('COUNT(DISTINCT room.id)', 'count')
+        .getRawOne()
+        .then(result => parseInt(result?.count || '0', 10)),
+      this.roomRepository.count({
+        where: {
+          createdAt: MoreThanOrEqual(startDate),
+          isDeleted: false,
         },
-        {} as Record<string, number>,
-      );
-    }
+      }),
+    ]);
 
-    const members = memberRows.map((rm) => ({
-      userId: rm.userId,
-      username: rm.user?.username ?? null,
-      email: rm.user?.email ?? null,
-      role: rm.role,
-      status: rm.status,
-      joinedAt: rm.joinedAt,
-      messageCount: messageCountMap[rm.userId] ?? 0,
-    }));
-
-    // 3. Last 20 messages with sender info and deletion flags
-    const [recentMessages] = await this.messageRepository.findAndCount({
-      where: { roomId },
-      relations: ['author'],
-      order: { createdAt: 'DESC' },
-      take: 20,
+    // Expired rooms in period
+    const timedExpiredRooms = await this.roomRepository.count({
+      where: {
+        isExpired: true,
+        updatedAt: MoreThanOrEqual(startDate),
+      },
     });
 
-    const messages = recentMessages.map((msg) => ({
-      id: msg.id,
-      content: msg.isDeleted ? '[deleted]' : msg.content,
-      type: msg.type,
-      senderId: msg.authorId,
-      senderUsername: msg.author?.username ?? null,
-      createdAt: msg.createdAt,
-      isDeleted: msg.isDeleted,
-      deletedAt: msg.deletedAt ?? null,
-      deletedBy: msg.deletedBy ?? null,
-      isEdited: msg.isEdited,
-      editedAt: msg.editedAt ?? null,
-    }));
+    // Message metrics
+    const messagesThisPeriod = await this.messageRepository.count({
+      where: {
+        createdAt: MoreThanOrEqual(startDate),
+        isDeleted: false,
+      },
+    });
 
-    // 4. Financial summary
-    const payments = await this.roomPaymentRepository
+    const avgMessagesPerActiveUser = activeUserCount > 0
+      ? messagesThisPeriod / activeUserCount
+      : 0;
+
+    // Transaction metrics (room payments + tips)
+    const roomPayments = await this.roomPaymentRepository
       .createQueryBuilder('payment')
-      .where('payment.roomId = :roomId', { roomId })
-      .andWhere('payment.status = :status', { status: 'completed' })
+      .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere('payment.createdAt >= :startDate', { startDate })
       .getMany();
 
-    let totalEntryFees = 0;
-    let totalPlatformFeesFromEntry = 0;
-
-    for (const p of payments) {
-      totalEntryFees += parseFloat(p.amount);
-      totalPlatformFeesFromEntry += parseFloat(p.platformFee);
-    }
-
-    // Tips sent within room
     const tips = await this.messageRepository
-      .createQueryBuilder('msg')
-      .where('msg.roomId = :roomId', { roomId })
-      .andWhere("msg.type = 'tip'")
-      .andWhere('msg.isDeleted = false')
+      .createQueryBuilder('message')
+      .where("message.type = 'tip'")
+      .andWhere('message.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('message.createdAt >= :startDate', { startDate })
       .getMany();
 
-    let totalTipsAmount = 0;
-    let totalPlatformFeesFromTips = 0;
+    let totalVolume = 0;
+    let platformRevenue = 0;
 
-    for (const tip of tips) {
-      const amount = parseFloat(tip.metadata?.amount ?? '0');
-      const fee = parseFloat(tip.metadata?.platformFee ?? '0');
-      totalTipsAmount += amount;
-      totalPlatformFeesFromTips += fee;
+    // Process room payments
+    for (const payment of roomPayments) {
+      const amount = parseFloat(payment.amount || '0');
+      const fee = parseFloat(payment.platformFee || '0');
+      totalVolume += amount;
+      platformRevenue += fee;
     }
 
-    const financialSummary = {
-      totalEntryFeesCollected: totalEntryFees.toFixed(8),
-      totalTipsSent: totalTipsAmount.toFixed(8),
-      totalPlatformFeesEarned: (totalPlatformFeesFromEntry + totalPlatformFeesFromTips).toFixed(8),
-      entryPaymentCount: payments.length,
-      tipCount: tips.length,
+    // Process tips
+    for (const tip of tips) {
+      const amount = parseFloat(tip.metadata?.amount || '0');
+      const fee = parseFloat(tip.metadata?.platformFee || '0');
+      totalVolume += amount;
+      platformRevenue += fee;
+    }
+
+    const transactionCount = roomPayments.length + tips.length;
+    const avgTransactionValue = transactionCount > 0
+      ? totalVolume / transactionCount
+      : 0;
+
+    // Top rooms by activity
+    const topRooms = await this.roomRepository
+      .createQueryBuilder('room')
+      .leftJoin('room.members', 'member')
+      .leftJoinAndSelect('room.owner', 'owner')
+      .where('room.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('member.lastActiveAt >= :startDate', { startDate })
+      .select([
+        'room.id',
+        'room.name',
+        'room.memberCount',
+        'owner.id',
+        'owner.username',
+        'owner.email',
+      ])
+      .addSelect('COUNT(DISTINCT member.id)', 'activeMembers')
+      .groupBy('room.id')
+      .addGroupBy('owner.id')
+      .orderBy('activeMembers', 'DESC')
+      .limit(10)
+      .getRawAndEntities();
+
+    const topRoomsFormatted = topRooms.entities.map((room, index) => ({
+      id: room.id,
+      name: room.name,
+      memberCount: room.memberCount,
+      activeMembers: parseInt(topRooms.raw[index]?.activeMembers || '0', 10),
+      owner: room.owner ? {
+        id: room.owner.id,
+        username: room.owner.username || room.owner.email,
+      } : null,
+    }));
+
+    // Top tippers
+    const topTippers = await this.messageRepository
+      .createQueryBuilder('message')
+      .leftJoinAndSelect('message.author', 'author')
+      .where("message.type = 'tip'")
+      .andWhere('message.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('message.createdAt >= :startDate', { startDate })
+      .select([
+        'author.id',
+        'author.username',
+        'author.email',
+      ])
+      .addSelect('COUNT(message.id)', 'tipCount')
+      .addSelect('SUM(CAST(message.metadata->>\'amount\' AS DECIMAL))', 'totalAmount')
+      .groupBy('author.id')
+      .orderBy('totalAmount', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    const topTippersFormatted = topTippers.map(tipper => ({
+      userId: tipper.author_id,
+      username: tipper.author_username || tipper.author_email,
+      tipCount: parseInt(tipper.tipCount || '0', 10),
+      totalAmount: parseFloat(tipper.totalAmount || '0').toFixed(2),
+    }));
+
+    const response = {
+      users: {
+        total: totalUsers,
+        newThisPeriod: newUsersThisPeriod,
+        activeThisPeriod: activeUserCount,
+        banned: bannedUsers,
+        growthRate: parseFloat(growthRate.toFixed(3)),
+      },
+      rooms: {
+        total: totalRooms,
+        activeThisPeriod: activeRoomsThisPeriod,
+        created: roomsCreatedThisPeriod,
+        timedExpired: timedExpiredRooms,
+      },
+      messages: {
+        totalThisPeriod: messagesThisPeriod,
+        avgPerActiveUser: parseFloat(avgMessagesPerActiveUser.toFixed(1)),
+      },
+      transactions: {
+        totalVolume: totalVolume.toFixed(2),
+        platformRevenue: platformRevenue.toFixed(2),
+        count: transactionCount,
+        avgValue: avgTransactionValue.toFixed(2),
+      },
+      topRooms: topRoomsFormatted,
+      topTippers: topTippersFormatted,
     };
 
-    // 5. Moderation history — flags and admin actions for this room
-    const flags = await this.flaggedMessageRepository.find({
-      where: { roomId },
-      order: { createdAt: 'DESC' },
-      take: 50,
-    });
+    // Cache for 5 minutes (300 seconds)
+    await this.cacheService.set(cacheKey, response, 300);
 
-    const moderationQueueItems = await this.moderationQueueRepository.find({
-      where: { contentId: roomId, contentType: 'room' as any },
-      relations: ['decisions'],
-      order: { createdAt: 'DESC' },
-      take: 50,
-    });
-
-    const moderationHistory = {
-      flags: flags.map((f) => ({
-        id: f.id,
-        messageId: f.messageId,
-        reason: f.reason,
-        reportedBy: f.reportedBy,
-        status: f.status,
-        moderatorNotes: f.moderatorNotes ?? null,
-        reviewedBy: f.reviewedBy ?? null,
-        createdAt: f.createdAt,
-      })),
-      adminActions: moderationQueueItems.map((q) => ({
-        id: q.id,
-        reason: q.reason,
-        status: q.status,
-        priority: q.priority,
-        isAutoFlagged: q.isAutoFlagged,
-        reportCount: q.reportCount,
-        decisions: (q.decisions ?? []).map((d) => ({
-          action: d.action,
-          moderatorId: d.moderatorId,
-          reason: d.reason,
-          createdAt: d.createdAt,
-        })),
-        createdAt: q.createdAt,
-        resolvedAt: q.resolvedAt ?? null,
-      })),
-    };
-
-    // Audit log
-    await this.auditLogService.createAuditLog({
-      actorUserId: adminId,
-      action: AuditAction.VIEW_ROOM_DETAILS,
-      eventType: AuditEventType.ADMIN,
-      outcome: AuditOutcome.SUCCESS,
-      severity: AuditSeverity.LOW,
-      resourceType: 'room',
-      resourceId: roomId,
-      details: `Admin viewed room details: ${room.name}`,
-      metadata: { roomId, roomName: room.name },
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      'Viewed overview analytics',
+      { period },
       req,
-    });
+      AuditSeverity.LOW,
+    );
 
-    return {
-      room: {
-        id: room.id,
-        name: room.name,
-        description: room.description ?? null,
-        roomType: room.roomType,
-        isPrivate: room.isPrivate,
-        isTokenGated: room.isTokenGated,
-        isActive: room.isActive,
-        isExpired: room.isExpired,
-        entryFee: room.entryFee,
-        paymentRequired: room.paymentRequired,
-        maxMembers: room.maxMembers,
-        memberCount: room.memberCount,
-        ownerId: room.ownerId,
-        ownerUsername: room.owner?.username ?? null,
-        creatorId: room.creatorId,
-        creatorUsername: room.creator?.username ?? null,
-        createdAt: room.createdAt,
-        updatedAt: room.updatedAt,
-        expiryTimestamp: room.expiryTimestamp ?? null,
-      },
-      members: {
-        data: members,
-        total: totalMembers,
-        page,
-        limit,
-      },
-      recentMessages: messages,
-      financialSummary,
-      moderationHistory,
-    };
+    return response;
   }
-
 }

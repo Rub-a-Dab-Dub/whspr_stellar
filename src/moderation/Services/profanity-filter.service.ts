@@ -34,8 +34,8 @@ export class ProfanityFilterService {
    */
   getProfanityScore(text: string, customWords: string[] = []): number {
     const words = text.toLowerCase().split(/\s+/);
-    const profaneWords = words.filter(word => 
-      this.isProfane(word, customWords)
+    const profaneWords = words.filter((word) =>
+      this.isProfane(word, customWords),
     );
     return profaneWords.length / Math.max(words.length, 1);
   }

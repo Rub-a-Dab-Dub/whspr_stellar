@@ -28,7 +28,12 @@ import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Message, MessageEditHistory, MessageReaction, Attachment]),
+    TypeOrmModule.forFeature([
+      Message,
+      MessageEditHistory,
+      MessageReaction,
+      Attachment,
+    ]),
     StorageModule,
     RedisModule,
     CacheModule,

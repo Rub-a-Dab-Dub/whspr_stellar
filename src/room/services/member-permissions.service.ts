@@ -46,7 +46,8 @@ export class MemberPermissionsService {
       await this.redisService.set(cacheKey, JSON.stringify(member), 300);
     }
 
-    const permissions = member.permissions || this.getDefaultPermissions(member.role);
+    const permissions =
+      member.permissions || this.getDefaultPermissions(member.role);
     return permissions.includes(action);
   }
 
@@ -77,7 +78,10 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
+    if (
+      !initiator ||
+      ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)
+    ) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -108,7 +112,10 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
+    if (
+      !initiator ||
+      ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)
+    ) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -120,7 +127,8 @@ export class MemberPermissionsService {
       throw new NotFoundException(ERROR_MESSAGES.USER_NOT_IN_ROOM);
     }
 
-    const permissions = member.permissions || this.getDefaultPermissions(member.role);
+    const permissions =
+      member.permissions || this.getDefaultPermissions(member.role);
     member.permissions = permissions.filter((p) => p !== permission);
     const updated = await this.memberRepository.save(member);
 
@@ -140,7 +148,10 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
+    if (
+      !initiator ||
+      ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)
+    ) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -152,7 +163,8 @@ export class MemberPermissionsService {
       throw new NotFoundException(ERROR_MESSAGES.USER_NOT_IN_ROOM);
     }
 
-    const permissions = member.permissions || this.getDefaultPermissions(member.role);
+    const permissions =
+      member.permissions || this.getDefaultPermissions(member.role);
     if (!permissions.includes(permission)) {
       permissions.push(permission);
       member.permissions = permissions;
@@ -177,7 +189,10 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
+    if (
+      !initiator ||
+      ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)
+    ) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 
@@ -206,7 +221,11 @@ export class MemberPermissionsService {
   ): Promise<Record<string, boolean>> {
     const permissions = await this.memberRepository
       .findOne({ where: { userId, roomId } })
-      .then((m) => m?.permissions || this.getDefaultPermissions(m?.role || MemberRole.MEMBER));
+      .then(
+        (m) =>
+          m?.permissions ||
+          this.getDefaultPermissions(m?.role || MemberRole.MEMBER),
+      );
 
     return {
       canSendMessage: permissions.includes(MemberPermission.SEND_MESSAGE),
@@ -215,10 +234,14 @@ export class MemberPermissionsService {
       canKickMembers: permissions.includes(MemberPermission.KICK_MEMBERS),
       canInviteMembers: permissions.includes(MemberPermission.INVITE_MEMBERS),
       canManageRoles: permissions.includes(MemberPermission.MANAGE_ROLES),
-      canChangeSettings: permissions.includes(MemberPermission.CHANGE_ROOM_SETTINGS),
+      canChangeSettings: permissions.includes(
+        MemberPermission.CHANGE_ROOM_SETTINGS,
+      ),
       canViewAnalytics: permissions.includes(MemberPermission.VIEW_ANALYTICS),
       canPinMessage: permissions.includes(MemberPermission.PIN_MESSAGE),
-      canManageInvitations: permissions.includes(MemberPermission.MANAGE_INVITATIONS),
+      canManageInvitations: permissions.includes(
+        MemberPermission.MANAGE_INVITATIONS,
+      ),
     };
   }
 
@@ -231,7 +254,10 @@ export class MemberPermissionsService {
       where: { userId: initiatorId, roomId },
     });
 
-    if (!initiator || ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)) {
+    if (
+      !initiator ||
+      ![MemberRole.ADMIN, MemberRole.OWNER].includes(initiator.role)
+    ) {
       throw new ForbiddenException(ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS);
     }
 

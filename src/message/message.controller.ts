@@ -145,7 +145,11 @@ export class MessageController {
 
     // Broadcast edit via WebSocket
     const message = await this.messageService.findByIdOrFail(messageId);
-    this.messagesGateway.broadcastToRoom(message.roomId, 'message-updated', updatedMessage);
+    this.messagesGateway.broadcastToRoom(
+      message.roomId,
+      'message-updated',
+      updatedMessage,
+    );
 
     return updatedMessage;
   }
@@ -195,15 +199,21 @@ export class MessageController {
     @Param('id') messageId: string,
     @Request() req,
   ): Promise<MessageResponseDto> {
-    const restoredMessage = await this.messageService.restoreMessage(messageId, req.user.id);
+    const restoredMessage = await this.messageService.restoreMessage(
+      messageId,
+      req.user.id,
+    );
 
     // Broadcast restoration via WebSocket
     const message = await this.messageService.findByIdOrFail(messageId);
-    this.messagesGateway.broadcastToRoom(message.roomId, 'message-restored', restoredMessage);
+    this.messagesGateway.broadcastToRoom(
+      message.roomId,
+      'message-restored',
+      restoredMessage,
+    );
 
     return restoredMessage;
   }
-
 
   @Post(':id/upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -217,7 +227,12 @@ export class MessageController {
     if (!file) {
       throw new Error('No file provided');
     }
-    return this.messageService.uploadFile(messageId, file, req.user.id, storage);
+    return this.messageService.uploadFile(
+      messageId,
+      file,
+      req.user.id,
+      storage,
+    );
   }
 
   @Get('attachments/:id')

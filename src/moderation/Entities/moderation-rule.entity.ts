@@ -1,17 +1,23 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export enum RuleType {
   PROFANITY = 'profanity',
   SPAM = 'spam',
   LINK_SPAM = 'link_spam',
-  CUSTOM = 'custom'
+  CUSTOM = 'custom',
 }
 
 export enum RuleAction {
   WARN = 'warn',
   DELETE = 'delete',
   MUTE = 'mute',
-  BAN = 'ban'
+  BAN = 'ban',
 }
 
 @Entity('moderation_rules')

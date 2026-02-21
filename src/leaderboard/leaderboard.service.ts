@@ -36,7 +36,14 @@ export class LeaderboardService {
     ];
 
     for (const period of periods) {
-      await this.updateEntry(userId, category, scoreIncrement, period, roomId, username);
+      await this.updateEntry(
+        userId,
+        category,
+        scoreIncrement,
+        period,
+        roomId,
+        username,
+      );
     }
 
     await this.recalculateRanks(category, roomId);
@@ -85,7 +92,7 @@ export class LeaderboardService {
       skip: offset,
     });
 
-    return entries.map(entry => ({
+    return entries.map((entry) => ({
       userId: entry.userId,
       username: entry.username,
       score: Number(entry.score),
@@ -133,10 +140,14 @@ export class LeaderboardService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async resetDailyLeaderboards(): Promise<void> {
-    await this.adminResetLeaderboard(LeaderboardCategory.XP, LeaderboardPeriod.DAILY, {
-      reason: 'Scheduled daily reset',
-      snapshotBeforeReset: true,
-    });
+    await this.adminResetLeaderboard(
+      LeaderboardCategory.XP,
+      LeaderboardPeriod.DAILY,
+      {
+        reason: 'Scheduled daily reset',
+        snapshotBeforeReset: true,
+      },
+    );
   }
 
   /**
@@ -145,10 +156,21 @@ export class LeaderboardService {
   async adminResetLeaderboard(
     category: LeaderboardCategory,
     period: LeaderboardPeriod,
-    options: { reason: string; snapshotBeforeReset: boolean; adminId?: string; roomId?: string }
+    options: {
+      reason: string;
+      snapshotBeforeReset: boolean;
+      adminId?: string;
+      roomId?: string;
+    },
   ): Promise<void> {
     if (options.snapshotBeforeReset) {
-      await this.createSnapshot(category, period, options.reason, options.adminId, options.roomId);
+      await this.createSnapshot(
+        category,
+        period,
+        options.reason,
+        options.adminId,
+        options.roomId,
+      );
     }
 
     await this.leaderboardRepository.update(
@@ -156,7 +178,9 @@ export class LeaderboardService {
       { score: 0, rank: 0, lastResetAt: new Date() },
     );
 
-    this.logger.log(`Leaderboard reset for ${category} (${period}) by ${options.adminId || 'system'}`);
+    this.logger.log(
+      `Leaderboard reset for ${category} (${period}) by ${options.adminId || 'system'}`,
+    );
   }
 
   private async createSnapshot(
@@ -180,7 +204,7 @@ export class LeaderboardService {
       reason,
       resetBy: adminId,
       roomId: roomId || null,
-      data: topEntries.map(e => ({
+      data: topEntries.map((e) => ({
         userId: e.userId,
         username: e.username,
         score: e.score,
@@ -189,7 +213,10 @@ export class LeaderboardService {
     });
   }
 
-  async getHistory(limit: number = 50, offset: number = 0): Promise<LeaderboardSnapshot[]> {
+  async getHistory(
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<LeaderboardSnapshot[]> {
     return await this.snapshotRepository.find({
       order: { createdAt: 'DESC' },
       take: limit,
@@ -197,9 +224,15 @@ export class LeaderboardService {
     });
   }
 
-  async setPinnedStatus(userId: string, category: LeaderboardCategory, period: LeaderboardPeriod, isPinned: boolean, roomId?: string): Promise<void> {
+  async setPinnedStatus(
+    userId: string,
+    category: LeaderboardCategory,
+    period: LeaderboardPeriod,
+    isPinned: boolean,
+    roomId?: string,
+  ): Promise<void> {
     const entry = await this.leaderboardRepository.findOne({
-      where: { userId, category, timeframe: period, roomId: roomId || null }
+      where: { userId, category, timeframe: period, roomId: roomId || null },
     });
 
     if (!entry) {

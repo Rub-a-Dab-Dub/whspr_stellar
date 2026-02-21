@@ -46,12 +46,20 @@ export class UserStatsService {
 
     await this.applyIncrements(userId, increments, true);
 
-    if (options?.isTip && options.tipRecipientId && options.tipRecipientId !== userId) {
+    if (
+      options?.isTip &&
+      options.tipRecipientId &&
+      options.tipRecipientId !== userId
+    ) {
       const recipientIncrements: StatsIncrements = { tipsReceived: 1 };
       if (options.tipAmount) {
         recipientIncrements.tokensTransferred = options.tipAmount;
       }
-      await this.applyIncrements(options.tipRecipientId, recipientIncrements, false);
+      await this.applyIncrements(
+        options.tipRecipientId,
+        recipientIncrements,
+        false,
+      );
     }
   }
 
@@ -63,8 +71,16 @@ export class UserStatsService {
     await this.applyIncrements(userId, { roomsJoined: 1 }, true);
   }
 
-  async recordTokensTransferred(userId: string, amount: number, markActive: boolean): Promise<void> {
-    await this.applyIncrements(userId, { tokensTransferred: amount }, markActive);
+  async recordTokensTransferred(
+    userId: string,
+    amount: number,
+    markActive: boolean,
+  ): Promise<void> {
+    await this.applyIncrements(
+      userId,
+      { tokensTransferred: amount },
+      markActive,
+    );
   }
 
   async getStatsForUser(userId: string, includeComparison: boolean = true) {
@@ -300,8 +316,13 @@ export class UserStatsService {
     return this.statsRepository.save(created);
   }
 
-  private async getOrCreateDailyStats(userId: string, date: Date): Promise<UserStatsDaily> {
-    const existing = await this.dailyRepository.findOne({ where: { userId, date } });
+  private async getOrCreateDailyStats(
+    userId: string,
+    date: Date,
+  ): Promise<UserStatsDaily> {
+    const existing = await this.dailyRepository.findOne({
+      where: { userId, date },
+    });
     if (existing) return existing;
 
     const created = this.dailyRepository.create({

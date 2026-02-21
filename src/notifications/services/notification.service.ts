@@ -1,15 +1,14 @@
-import {
-  Injectable,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Notification } from '../entities/notification.entity';
 import { NotificationPreference } from '../entities/notification-preference.entity';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
 import { GetNotificationsDto } from '../dto/notification-preferences.dto';
-import { NotificationType, NotificationChannel } from '../enums/notification-type.enum';
+import {
+  NotificationType,
+  NotificationChannel,
+} from '../enums/notification-type.enum';
 import { QueueService } from '../../queue/queue.service';
 import { NotificationGateway } from '../gateways/notification.gateway';
 import { MentionDetectionService } from './mention-detection.service';
@@ -61,7 +60,8 @@ export class NotificationService {
         : null,
     });
 
-    const savedNotification = await this.notificationRepository.save(notification);
+    const savedNotification =
+      await this.notificationRepository.save(notification);
 
     // Send real-time notification
     await this.sendRealTimeNotification(savedNotification);
@@ -104,19 +104,20 @@ export class NotificationService {
     // Check for expired notifications
     where.expiresAt = null; // Include non-expiring notifications
 
-    const [notifications, total] = await this.notificationRepository.findAndCount({
-      where: [
-        where,
-        {
-          ...where,
-          expiresAt: null,
-        },
-      ],
-      relations: ['sender'],
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const [notifications, total] =
+      await this.notificationRepository.findAndCount({
+        where: [
+          where,
+          {
+            ...where,
+            expiresAt: null,
+          },
+        ],
+        relations: ['sender'],
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limit,
+      });
 
     // Get unread count
     const unreadCount = await this.notificationRepository.count({
@@ -183,7 +184,10 @@ export class NotificationService {
   /**
    * Delete notification
    */
-  async deleteNotification(notificationId: string, userId: string): Promise<void> {
+  async deleteNotification(
+    notificationId: string,
+    userId: string,
+  ): Promise<void> {
     const result = await this.notificationRepository.update(
       {
         id: notificationId,
@@ -211,15 +215,17 @@ export class NotificationService {
     conversationId: string,
   ): Promise<void> {
     // Detect mentions
-    const mentions = await this.mentionDetectionService.extractMentions(content);
-    
+    const mentions =
+      await this.mentionDetectionService.extractMentions(content);
+
     for (const mention of mentions) {
       await this.createNotification({
         recipientId: mention.userId,
         senderId: authorId,
         type: NotificationType.MENTION,
         title: `${mention.username} mentioned you`,
-        message: content.length > 100 ? `${content.substring(0, 100)}...` : content,
+        message:
+          content.length > 100 ? `${content.substring(0, 100)}...` : content,
         data: {
           messageId,
           roomId,
@@ -269,7 +275,9 @@ export class NotificationService {
   /**
    * Send real-time notification via WebSocket
    */
-  private async sendRealTimeNotification(notification: Notification): Promise<void> {
+  private async sendRealTimeNotification(
+    notification: Notification,
+  ): Promise<void> {
     try {
       await this.notificationGateway.sendNotificationToUser(
         notification.recipientId,
@@ -283,7 +291,9 @@ export class NotificationService {
   /**
    * Queue notification for delivery via other channels
    */
-  private async queueNotificationDelivery(notification: Notification): Promise<void> {
+  private async queueNotificationDelivery(
+    notification: Notification,
+  ): Promise<void> {
     try {
       // Get user preferences for this notification type
       const preferences = await this.getUserPreferences(
@@ -355,8 +365,11 @@ export class NotificationService {
       if (pref.quietHoursStart && pref.quietHoursEnd) {
         const now = new Date();
         const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        
-        if (currentTime >= pref.quietHoursStart && currentTime <= pref.quietHoursEnd) {
+
+        if (
+          currentTime >= pref.quietHoursStart &&
+          currentTime <= pref.quietHoursEnd
+        ) {
           return true;
         }
       }

@@ -17,8 +17,15 @@ import { Room } from './entities/room.entity';
 import { RoomMemberRepository } from './repositories/room-member.repository';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
-import { MemberRole, MemberStatus, RoomMember } from './entities/room-member.entity';
-import { ROLE_PERMISSIONS, ROOM_MEMBER_CONSTANTS } from './constants/room-member.constants';
+import {
+  MemberRole,
+  MemberStatus,
+  RoomMember,
+} from './entities/room-member.entity';
+import {
+  ROLE_PERMISSIONS,
+  ROOM_MEMBER_CONSTANTS,
+} from './constants/room-member.constants';
 import { RoomType } from './entities/room.entity';
 
 @Injectable()
@@ -218,7 +225,8 @@ export class RoomService {
     if (dto.roomType) {
       room.roomType = dto.roomType;
       room.isPrivate = this.resolveIsPrivate(dto.roomType, dto.isPrivate);
-      room.isTokenGated = dto.isTokenGated ?? dto.roomType === RoomType.TOKEN_GATED;
+      room.isTokenGated =
+        dto.isTokenGated ?? dto.roomType === RoomType.TOKEN_GATED;
     }
     if (dto.isPrivate !== undefined && !dto.roomType) {
       room.isPrivate = dto.isPrivate;
@@ -290,10 +298,7 @@ export class RoomService {
     return RoomType.PUBLIC;
   }
 
-  private resolveIsPrivate(
-    roomType: RoomType,
-    isPrivate?: boolean,
-  ): boolean {
+  private resolveIsPrivate(roomType: RoomType, isPrivate?: boolean): boolean {
     if (roomType === RoomType.PRIVATE || roomType === RoomType.TOKEN_GATED) {
       return true;
     }
@@ -311,7 +316,9 @@ export class RoomService {
   ): { expiryTimestamp?: number | null; durationMinutes?: number | null } {
     if (roomType !== RoomType.TIMED) {
       return {
-        expiryTimestamp: dto.expiresAt ? new Date(dto.expiresAt).getTime() : undefined,
+        expiryTimestamp: dto.expiresAt
+          ? new Date(dto.expiresAt).getTime()
+          : undefined,
         durationMinutes: dto.durationMinutes,
       };
     }
@@ -334,7 +341,9 @@ export class RoomService {
       };
     }
 
-    throw new BadRequestException('Timed rooms require expiresAt or durationMinutes');
+    throw new BadRequestException(
+      'Timed rooms require expiresAt or durationMinutes',
+    );
   }
 
   private ensureOwner(room: Room, userId: string): void {

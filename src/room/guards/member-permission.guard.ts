@@ -8,7 +8,10 @@ import { Reflector } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RoomMember } from '../entities/room-member.entity';
-import { MemberPermission, ROLE_PERMISSIONS } from '../constants/room-member.constants';
+import {
+  MemberPermission,
+  ROLE_PERMISSIONS,
+} from '../constants/room-member.constants';
 
 @Injectable()
 export class MemberPermissionGuard implements CanActivate {

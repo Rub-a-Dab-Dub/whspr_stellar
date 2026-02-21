@@ -22,7 +22,10 @@ export class TransferNotificationService {
     @InjectQueue(QUEUE_NAMES.NOTIFICATIONS) private notificationQueue: Queue,
   ) {}
 
-  async notifyTransferSent(transfer: Transfer, recipientName: string): Promise<void> {
+  async notifyTransferSent(
+    transfer: Transfer,
+    recipientName: string,
+  ): Promise<void> {
     try {
       await this.notificationQueue.add('transfer-notification', {
         userId: transfer.senderId,
@@ -33,13 +36,20 @@ export class TransferNotificationService {
         transactionHash: transfer.transactionHash,
       });
 
-      this.logger.log(`Transfer sent notification queued for user ${transfer.senderId}`);
+      this.logger.log(
+        `Transfer sent notification queued for user ${transfer.senderId}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to queue transfer sent notification: ${error.message}`);
+      this.logger.error(
+        `Failed to queue transfer sent notification: ${error.message}`,
+      );
     }
   }
 
-  async notifyTransferReceived(transfer: Transfer, senderName: string): Promise<void> {
+  async notifyTransferReceived(
+    transfer: Transfer,
+    senderName: string,
+  ): Promise<void> {
     try {
       await this.notificationQueue.add('transfer-notification', {
         userId: transfer.recipientId,
@@ -50,13 +60,20 @@ export class TransferNotificationService {
         transactionHash: transfer.transactionHash,
       });
 
-      this.logger.log(`Transfer received notification queued for user ${transfer.recipientId}`);
+      this.logger.log(
+        `Transfer received notification queued for user ${transfer.recipientId}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to queue transfer received notification: ${error.message}`);
+      this.logger.error(
+        `Failed to queue transfer received notification: ${error.message}`,
+      );
     }
   }
 
-  async notifyTransferFailed(transfer: Transfer, reason: string): Promise<void> {
+  async notifyTransferFailed(
+    transfer: Transfer,
+    reason: string,
+  ): Promise<void> {
     try {
       await this.notificationQueue.add('transfer-notification', {
         userId: transfer.senderId,
@@ -66,9 +83,13 @@ export class TransferNotificationService {
         reason,
       });
 
-      this.logger.log(`Transfer failed notification queued for user ${transfer.senderId}`);
+      this.logger.log(
+        `Transfer failed notification queued for user ${transfer.senderId}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to queue transfer failed notification: ${error.message}`);
+      this.logger.error(
+        `Failed to queue transfer failed notification: ${error.message}`,
+      );
     }
   }
 
@@ -88,7 +109,9 @@ export class TransferNotificationService {
 
       this.logger.log(`Bulk transfer notification queued for user ${senderId}`);
     } catch (error) {
-      this.logger.error(`Failed to queue bulk transfer notification: ${error.message}`);
+      this.logger.error(
+        `Failed to queue bulk transfer notification: ${error.message}`,
+      );
     }
   }
 }

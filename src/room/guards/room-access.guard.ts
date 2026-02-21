@@ -8,7 +8,7 @@ import { RoomRoleService } from '../services/room-role.service';
 
 @Injectable()
 export class RoomAccessGuard implements CanActivate {
-  constructor(private roomRoleService: RoomRoleService) { }
+  constructor(private roomRoleService: RoomRoleService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();

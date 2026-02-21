@@ -8,7 +8,10 @@ import {
   IsUrl,
   MaxLength,
 } from 'class-validator';
-import { NotificationType, NotificationPriority } from '../enums/notification-type.enum';
+import {
+  NotificationType,
+  NotificationPriority,
+} from '../enums/notification-type.enum';
 
 export class CreateNotificationDto {
   @IsString()

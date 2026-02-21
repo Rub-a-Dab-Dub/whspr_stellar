@@ -9,13 +9,13 @@ describe('User Entity', () => {
 
   it('should allow setting different roles', () => {
     const user = new User();
-    
+
     user.role = UserRole.ADMIN;
     expect(user.role).toBe(UserRole.ADMIN);
-    
+
     user.role = UserRole.SUPER_ADMIN;
     expect(user.role).toBe(UserRole.SUPER_ADMIN);
-    
+
     user.role = UserRole.MODERATOR;
     expect(user.role).toBe(UserRole.MODERATOR);
   });

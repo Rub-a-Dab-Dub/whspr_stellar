@@ -15,10 +15,12 @@ export class TransferBlockchainService {
   private networkPassphrase: string;
 
   constructor(private readonly configService: ConfigService) {
-    const horizonUrl = this.configService.get<string>('STELLAR_HORIZON_URL') || 
+    const horizonUrl =
+      this.configService.get<string>('STELLAR_HORIZON_URL') ||
       'https://horizon-testnet.stellar.org';
     this.server = new StellarSdk.Horizon.Server(horizonUrl);
-    this.networkPassphrase = this.configService.get<string>('STELLAR_NETWORK_PASSPHRASE') ||
+    this.networkPassphrase =
+      this.configService.get<string>('STELLAR_NETWORK_PASSPHRASE') ||
       StellarSdk.Networks.TESTNET;
   }
 
@@ -56,7 +58,7 @@ export class TransferBlockchainService {
       // In production, this would be signed by the user's private key
       // For gasless transactions, this would be handled by the relayer
       // For now, this is a placeholder that returns the XDR
-      
+
       return {
         transactionHash: builtTransaction.hash().toString('hex'),
         success: true,
@@ -73,7 +75,10 @@ export class TransferBlockchainService {
 
   async submitSignedTransaction(xdr: string): Promise<TransferResult> {
     try {
-      const transaction = new StellarSdk.Transaction(xdr, this.networkPassphrase);
+      const transaction = new StellarSdk.Transaction(
+        xdr,
+        this.networkPassphrase,
+      );
       const result = await this.server.submitTransaction(transaction);
 
       return {
@@ -92,10 +97,11 @@ export class TransferBlockchainService {
 
   async verifyTransaction(transactionHash: string): Promise<boolean> {
     try {
-      const transaction = await this.server.transactions()
+      const transaction = await this.server
+        .transactions()
         .transaction(transactionHash)
         .call();
-      
+
       return transaction.successful;
     } catch (error) {
       this.logger.error(`Transaction verification failed: ${error.message}`);

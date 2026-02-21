@@ -75,7 +75,9 @@ export class MemberNotificationProcessor {
 
       if (invitation && member) {
         // TODO: Notify inviter that invitation was accepted
-        this.logger.log(`User ${member.user.username} accepted invitation to ${invitation.room.name}`);
+        this.logger.log(
+          `User ${member.user.username} accepted invitation to ${invitation.room.name}`,
+        );
         // Example: await this.emailService.sendAcceptanceNotification(invitation.invitedBy.email, member.user.username);
       }
     } catch (error) {
@@ -105,7 +107,9 @@ export class MemberNotificationProcessor {
 
       if (invitation && user) {
         // TODO: Notify inviter that invitation was rejected
-        this.logger.log(`User ${user.username} rejected invitation to ${invitation.room.name}`);
+        this.logger.log(
+          `User ${user.username} rejected invitation to ${invitation.room.name}`,
+        );
       }
     } catch (error) {
       this.logger.error('Error sending rejection notification', error);

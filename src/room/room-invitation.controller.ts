@@ -39,7 +39,12 @@ export class RoomInvitationController {
     @Body() dto: InviteMemberDto,
     @CurrentUser() user: any,
   ): Promise<RoomInvitation[]> {
-    return await this.invitationService.inviteMembers(roomId, dto.userIds, user.id, dto.message);
+    return await this.invitationService.inviteMembers(
+      roomId,
+      dto.userIds,
+      user.id,
+      dto.message,
+    );
   }
 
   @Get('invitations/pending')
@@ -49,11 +54,8 @@ export class RoomInvitationController {
     @Query('take') take: number = 20,
     @CurrentUser() user: any,
   ): Promise<PendingInvitationsDto> {
-    const { invitations, total } = await this.invitationService.getPendingInvitations(
-      user.id,
-      skip,
-      take,
-    );
+    const { invitations, total } =
+      await this.invitationService.getPendingInvitations(user.id, skip, take);
     return {
       total,
       skip,
@@ -89,7 +91,10 @@ export class RoomInvitationController {
     @Param('invitationId') invitationId: string,
     @CurrentUser() user: any,
   ): Promise<any> {
-    const member = await this.invitationService.acceptInvitation(invitationId, user.id);
+    const member = await this.invitationService.acceptInvitation(
+      invitationId,
+      user.id,
+    );
     return {
       message: 'Invitation accepted',
       member,
@@ -104,7 +109,11 @@ export class RoomInvitationController {
     @Body('reason') reason: string,
     @CurrentUser() user: any,
   ): Promise<any> {
-    await this.invitationService.rejectInvitation(invitationId, user.id, reason);
+    await this.invitationService.rejectInvitation(
+      invitationId,
+      user.id,
+      reason,
+    );
     return { message: 'Invitation rejected' };
   }
 
@@ -114,7 +123,8 @@ export class RoomInvitationController {
     @Param('invitationId') invitationId: string,
     @CurrentUser() user: any,
   ): Promise<RoomInvitation> {
-    const invitation = await this.invitationService.getInvitationByToken(invitationId);
+    const invitation =
+      await this.invitationService.getInvitationByToken(invitationId);
     return invitation;
   }
 
@@ -125,7 +135,11 @@ export class RoomInvitationController {
     @Body() dto: ResendInvitationDto,
     @CurrentUser() user: any,
   ): Promise<RoomInvitation> {
-    return await this.invitationService.resendInvitation(invitationId, user.id, dto.message);
+    return await this.invitationService.resendInvitation(
+      invitationId,
+      user.id,
+      dto.message,
+    );
   }
 
   @Delete('invitations/:invitationId')
@@ -147,12 +161,13 @@ export class RoomInvitationController {
     @Query('skip') skip: number = 0,
     @Query('take') take: number = 20,
   ): Promise<any> {
-    const { invitations, total } = await this.invitationService.getRoomInvitations(
-      roomId,
-      status as any,
-      skip,
-      take,
-    );
+    const { invitations, total } =
+      await this.invitationService.getRoomInvitations(
+        roomId,
+        status as any,
+        skip,
+        take,
+      );
     return { total, skip, take, invitations };
   }
 }

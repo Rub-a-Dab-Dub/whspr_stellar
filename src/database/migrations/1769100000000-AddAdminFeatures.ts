@@ -78,10 +78,14 @@ export class AddAdminFeatures1769100000000 implements MigrationInterface {
     // Drop audit_logs table
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_audit_logs_created_at"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_audit_logs_action"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_audit_logs_target_user"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_audit_logs_target_user"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_audit_logs_admin"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "audit_logs"`);
-    await queryRunner.query(`DROP TYPE IF EXISTS "public"."audit_logs_action_enum"`);
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "public"."audit_logs_action_enum"`,
+    );
 
     // Remove ban fields from users table
     await queryRunner.query(`
