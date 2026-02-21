@@ -100,6 +100,9 @@ export class User {
   banReason: string | undefined;
 
   @Column({ type: 'timestamp', nullable: true })
+  banExpiresAt: Date | undefined;
+
+  @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | undefined;
 
   // Timestamps
