@@ -1,5 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
-import { LeaderboardCategory, LeaderboardPeriod } from '../leaderboard.interface';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  Index,
+} from 'typeorm';
+import {
+  LeaderboardCategory,
+  LeaderboardPeriod,
+} from '../leaderboard.interface';
 
 @Entity('leaderboard_snapshots')
 @Index(['category', 'period', 'createdAt'])

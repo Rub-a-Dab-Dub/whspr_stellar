@@ -1,4 +1,10 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableIndex,
+  TableForeignKey,
+} from 'typeorm';
 
 export class CreateTransferTables1706400000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -175,7 +181,13 @@ export class CreateTransferTables1706400000000 implements MigrationInterface {
           {
             name: 'status',
             type: 'enum',
-            enum: ['pending', 'processing', 'completed', 'partially_completed', 'failed'],
+            enum: [
+              'pending',
+              'processing',
+              'completed',
+              'partially_completed',
+              'failed',
+            ],
             default: "'pending'",
           },
           {
@@ -299,20 +311,22 @@ export class CreateTransferTables1706400000000 implements MigrationInterface {
 
     if (transfersTable) {
       const senderFk = transfersTable.foreignKeys.find(
-        fk => fk.columnNames.indexOf('sender_id') !== -1,
+        (fk) => fk.columnNames.indexOf('sender_id') !== -1,
       );
       const recipientFk = transfersTable.foreignKeys.find(
-        fk => fk.columnNames.indexOf('recipient_id') !== -1,
+        (fk) => fk.columnNames.indexOf('recipient_id') !== -1,
       );
       if (senderFk) await queryRunner.dropForeignKey('transfers', senderFk);
-      if (recipientFk) await queryRunner.dropForeignKey('transfers', recipientFk);
+      if (recipientFk)
+        await queryRunner.dropForeignKey('transfers', recipientFk);
     }
 
     if (bulkTransfersTable) {
       const senderFk = bulkTransfersTable.foreignKeys.find(
-        fk => fk.columnNames.indexOf('sender_id') !== -1,
+        (fk) => fk.columnNames.indexOf('sender_id') !== -1,
       );
-      if (senderFk) await queryRunner.dropForeignKey('bulk_transfers', senderFk);
+      if (senderFk)
+        await queryRunner.dropForeignKey('bulk_transfers', senderFk);
     }
 
     // Drop indexes
@@ -320,8 +334,14 @@ export class CreateTransferTables1706400000000 implements MigrationInterface {
     await queryRunner.dropIndex('transfers', 'IDX_TRANSFERS_RECIPIENT_CREATED');
     await queryRunner.dropIndex('transfers', 'IDX_TRANSFERS_STATUS_CREATED');
     await queryRunner.dropIndex('transfers', 'IDX_TRANSFERS_TRANSACTION_HASH');
-    await queryRunner.dropIndex('bulk_transfers', 'IDX_BULK_TRANSFERS_SENDER_CREATED');
-    await queryRunner.dropIndex('bulk_transfers', 'IDX_BULK_TRANSFERS_STATUS_CREATED');
+    await queryRunner.dropIndex(
+      'bulk_transfers',
+      'IDX_BULK_TRANSFERS_SENDER_CREATED',
+    );
+    await queryRunner.dropIndex(
+      'bulk_transfers',
+      'IDX_BULK_TRANSFERS_STATUS_CREATED',
+    );
 
     // Drop tables
     await queryRunner.dropTable('transfers');

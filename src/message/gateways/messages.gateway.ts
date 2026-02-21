@@ -150,9 +150,7 @@ export class MessagesGateway
       }
 
       if (
-        this.profanityFilterService.containsProfanity(
-          createMessageDto.content,
-        )
+        this.profanityFilterService.containsProfanity(createMessageDto.content)
       ) {
         throw new BadRequestException('Message contains profanity');
       }
@@ -210,19 +208,11 @@ export class MessagesGateway
     };
   }
 
-  broadcastToRoom(
-    roomId: string,
-    event: string,
-    data: any,
-  ): void {
+  broadcastToRoom(roomId: string, event: string, data: any): void {
     this.server.to(`room:${roomId}`).emit(event, data);
   }
 
-  broadcastToUser(
-    userId: string,
-    event: string,
-    data: any,
-  ): void {
+  broadcastToUser(userId: string, event: string, data: any): void {
     const userSockets = this.userSockets.get(userId);
     if (userSockets) {
       userSockets.forEach((socketId) => {

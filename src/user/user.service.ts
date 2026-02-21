@@ -38,7 +38,7 @@ export class UsersService {
   }
 
   async findById(id: string): Promise<User | null> {
-    return await this.usersRepository.findOne({ 
+    return await this.usersRepository.findOne({
       where: { id },
       relations: ['roles', 'roles.permissions'],
     });

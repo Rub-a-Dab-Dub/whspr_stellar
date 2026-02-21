@@ -1042,6 +1042,97 @@ impl BaseContract {
         env.storage().instance().get(&DataKey::ClaimConfig)
     }
 
+    /// Read-only: Get claim by ID. Returns ClaimNotFound for non-existent claims.
+    pub fn get_pending_claim(env: Env, claim_id: u64) -> Result<Claim, ContractError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Claim(claim_id))
+            .ok_or(ContractError::ClaimNotFound)
+    }
+
+    /// Read-only: Get claims for a recipient. Paginated with MAX_PAGE_SIZE cap.
+    /// When only_pending is Some(true), returns only Pending claims; otherwise all.
+    pub fn get_claims_by_recipient(
+        env: Env,
+        recipient: Address,
+        limit: u32,
+        only_pending: Option<bool>,
+    ) -> Vec<Claim> {
+        Self::get_claims_list(
+            &env,
+            &DataKey::ClaimsByRecipient(recipient),
+            limit,
+            only_pending,
+        )
+    }
+
+    /// Read-only: Get claims created by an address. Paginated with MAX_PAGE_SIZE cap.
+    /// When only_pending is Some(true), returns only Pending claims; otherwise all.
+    pub fn get_claims_by_creator(
+        env: Env,
+        creator: Address,
+        limit: u32,
+        only_pending: Option<bool>,
+    ) -> Vec<Claim> {
+        Self::get_claims_list(
+            &env,
+            &DataKey::ClaimsByCreator(creator),
+            limit,
+            only_pending,
+        )
+    }
+
+    fn get_claims_list(
+        env: &Env,
+        key: &DataKey,
+        limit: u32,
+        only_pending: Option<bool>,
+    ) -> Vec<Claim> {
+        let max = if limit > MAX_PAGE_SIZE {
+            MAX_PAGE_SIZE
+        } else {
+            limit
+        };
+
+        let claim_ids: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(key)
+            .unwrap_or(Vec::new(env));
+
+        let mut claims = Vec::new(env);
+        let filter_pending = only_pending == Some(true);
+
+        for id in claim_ids.iter() {
+            if (claims.len() as u32) >= max {
+                break;
+            }
+            if let Some(claim) = env.storage().instance().get::<_, Claim>(&DataKey::Claim(id)) {
+                if filter_pending && claim.status != ClaimStatus::Pending {
+                    continue;
+                }
+                claims.push_back(claim);
+            }
+        }
+
+        claims
+    }
+
+    /// Read-only: Get claim window config for UI. Returns default when not set.
+    pub fn get_claim_window_config(env: Env) -> ClaimWindowConfig {
+        env.storage()
+            .instance()
+            .get(&DataKey::ClaimConfig)
+            .map(|config: ClaimConfig| ClaimWindowConfig {
+                claim_validity_ledgers: config.claim_validity_ledgers as u64,
+                enabled: config.claim_window_enabled,
+            })
+            .unwrap_or(ClaimWindowConfig {
+                claim_validity_ledgers: 0,
+                enabled: false,
+            })
+    }
+
     pub fn update_admin(env: Env, new_admin: Address) {
         let admin: Address = env
             .storage()
@@ -1674,6 +1765,17 @@ impl BaseContract {
             .instance()
             .set(&DataKey::ClaimsByCreator(creator.clone()), &claims);
 
+        // Index by recipient
+        let mut recipient_claims: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::ClaimsByRecipient(recipient.clone()))
+            .unwrap_or(Vec::new(&env));
+        recipient_claims.push_back(claim_id);
+        env.storage()
+            .instance()
+            .set(&DataKey::ClaimsByRecipient(recipient.clone()), &recipient_claims);
+
         env.events().publish(
             (Symbol::new(&env, "claim_created"), claim_id),
             (
@@ -1733,6 +1835,63 @@ impl BaseContract {
         env.events().publish(
             (Symbol::new(&env, "claim_cancelled"), claim_id),
             (creator, claim.amount, env.ledger().timestamp()),
+        );
+
+        Ok(())
+    }
+
+    /// Allows beneficiaries to claim their pending transfers within the validity window.
+    /// Only the designated recipient can claim. Validates: recipient match, not expired,
+    /// not already claimed or cancelled. Transfers tokens and marks claim as claimed atomically.
+    pub fn claim(env: Env, claim_id: u64, recipient: Address) -> Result<(), ContractError> {
+        recipient.require_auth();
+
+        let mut claim: Claim = env
+            .storage()
+            .instance()
+            .get(&DataKey::Claim(claim_id))
+            .ok_or(ContractError::ClaimNotFound)?;
+
+        // Verify recipient matches the claim recipient
+        if claim.recipient != recipient {
+            return Err(ContractError::Unauthorized);
+        }
+
+        // Check claim hasn't expired (validity: current ledger <= expires_at)
+        let current_ledger = env.ledger().sequence();
+        let expired = if let Some(exp_ledger) = claim.expiry_ledger {
+            current_ledger >= exp_ledger
+        } else {
+            env.ledger().timestamp() > claim.expires_at
+        };
+        if expired {
+            return Err(ContractError::ClaimExpired);
+        }
+
+        // Check claim hasn't been claimed or cancelled
+        if claim.status == ClaimStatus::Claimed {
+            return Err(ContractError::ClaimAlreadyClaimed);
+        }
+        if claim.status == ClaimStatus::Cancelled {
+            return Err(ContractError::ClaimAlreadyCancelled);
+        }
+
+        // Transfer tokens from contract to recipient
+        let token_client = token::Client::new(&env, &claim.token);
+        token_client.transfer(&env.current_contract_address(), &recipient, &claim.amount);
+
+        // Mark claim as claimed
+        claim.status = ClaimStatus::Claimed;
+        claim.claimed_by = Some(recipient.clone());
+        claim.claimed_at = Some(env.ledger().timestamp());
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_id), &claim);
+
+        // Emit claim_processed event
+        env.events().publish(
+            (Symbol::new(&env, "claim_processed"), claim_id),
+            (recipient, claim.creator, claim.token, claim.amount, env.ledger().timestamp()),
         );
 
         Ok(())

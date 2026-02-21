@@ -147,7 +147,10 @@ export class ReactionService {
       );
     } catch (error) {
       // Log error but don't fail reaction removal
-      this.logger.error('Failed to create reaction removal notification:', error);
+      this.logger.error(
+        'Failed to create reaction removal notification:',
+        error,
+      );
     }
 
     // Invalidate caches

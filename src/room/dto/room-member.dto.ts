@@ -1,4 +1,11 @@
-import { IsUUID, IsOptional, IsString, IsEnum, IsArray, MinLength } from 'class-validator';
+import {
+  IsUUID,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsArray,
+  MinLength,
+} from 'class-validator';
 import { MemberRole } from '../entities/room-member.entity';
 
 export class JoinRoomDto {

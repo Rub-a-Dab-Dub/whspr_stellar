@@ -41,7 +41,9 @@ export class TransferDisputeService {
 
     // Only sender or recipient can create a dispute
     if (transfer.senderId !== userId && transfer.recipientId !== userId) {
-      throw new ForbiddenException('You are not authorized to dispute this transfer');
+      throw new ForbiddenException(
+        'You are not authorized to dispute this transfer',
+      );
     }
 
     // Can only dispute completed transfers
@@ -55,7 +57,9 @@ export class TransferDisputeService {
     });
 
     if (existingDispute) {
-      throw new BadRequestException('You have already created a dispute for this transfer');
+      throw new BadRequestException(
+        'You have already created a dispute for this transfer',
+      );
     }
 
     const dispute = this.disputeRepository.create({
@@ -78,7 +82,10 @@ export class TransferDisputeService {
     });
   }
 
-  async getDisputeById(disputeId: string, userId: string): Promise<TransferDispute> {
+  async getDisputeById(
+    disputeId: string,
+    userId: string,
+  ): Promise<TransferDispute> {
     const dispute = await this.disputeRepository.findOne({
       where: { id: disputeId },
       relations: ['transfer', 'initiator'],
@@ -89,8 +96,14 @@ export class TransferDisputeService {
     }
 
     // Check authorization
-    if (dispute.initiatorId !== userId && dispute.transfer.senderId !== userId && dispute.transfer.recipientId !== userId) {
-      throw new ForbiddenException('You are not authorized to view this dispute');
+    if (
+      dispute.initiatorId !== userId &&
+      dispute.transfer.senderId !== userId &&
+      dispute.transfer.recipientId !== userId
+    ) {
+      throw new ForbiddenException(
+        'You are not authorized to view this dispute',
+      );
     }
 
     return dispute;
@@ -110,8 +123,13 @@ export class TransferDisputeService {
       throw new NotFoundException('Dispute not found');
     }
 
-    if (dispute.status === DisputeStatus.RESOLVED || dispute.status === DisputeStatus.CLOSED) {
-      throw new BadRequestException('Cannot update a resolved or closed dispute');
+    if (
+      dispute.status === DisputeStatus.RESOLVED ||
+      dispute.status === DisputeStatus.CLOSED
+    ) {
+      throw new BadRequestException(
+        'Cannot update a resolved or closed dispute',
+      );
     }
 
     dispute.status = status;
@@ -119,7 +137,10 @@ export class TransferDisputeService {
       dispute.resolution = resolution;
     }
 
-    if (status === DisputeStatus.RESOLVED || status === DisputeStatus.REJECTED) {
+    if (
+      status === DisputeStatus.RESOLVED ||
+      status === DisputeStatus.REJECTED
+    ) {
       dispute.resolvedBy = adminId;
       dispute.resolvedAt = new Date();
     }
@@ -135,11 +156,18 @@ export class TransferDisputeService {
     const dispute = await this.getDisputeById(disputeId, userId);
 
     if (dispute.initiatorId !== userId) {
-      throw new ForbiddenException('Only the dispute initiator can add evidence');
+      throw new ForbiddenException(
+        'Only the dispute initiator can add evidence',
+      );
     }
 
-    if (dispute.status !== DisputeStatus.OPEN && dispute.status !== DisputeStatus.UNDER_REVIEW) {
-      throw new BadRequestException('Cannot add evidence to a resolved dispute');
+    if (
+      dispute.status !== DisputeStatus.OPEN &&
+      dispute.status !== DisputeStatus.UNDER_REVIEW
+    ) {
+      throw new BadRequestException(
+        'Cannot add evidence to a resolved dispute',
+      );
     }
 
     dispute.evidence = [...(dispute.evidence || []), ...evidence];

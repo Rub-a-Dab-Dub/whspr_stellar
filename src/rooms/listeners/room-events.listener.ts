@@ -8,16 +8,20 @@ export class RoomEventsListener {
 
   @OnEvent('room.expiring-soon')
   async handleExpiringRoom(payload: any) {
-    this.logger.log(`Room ${payload.roomId} expiring in ${payload.minutesRemaining} minutes`);
-    
+    this.logger.log(
+      `Room ${payload.roomId} expiring in ${payload.minutesRemaining} minutes`,
+    );
+
     // Send notification to creator (WebSocket, Email, Push, etc.)
     // Example: this.notificationService.sendExpiryWarning(payload);
   }
 
   @OnEvent('room.cleanup')
   async handleRoomCleanup(payload: any) {
-    this.logger.log(`Cleaning up room ${payload.roomId}, initiating gas refund process`);
-    
+    this.logger.log(
+      `Cleaning up room ${payload.roomId}, initiating gas refund process`,
+    );
+
     // Trigger Stellar smart contract cleanup and gas refund
     // Example: this.stellarService.cleanupRoom(payload);
   }

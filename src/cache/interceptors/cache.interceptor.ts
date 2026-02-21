@@ -9,7 +9,10 @@ import { Reflector } from '@nestjs/core';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { CacheService } from '../cache.service';
-import { CACHE_KEY_METADATA, CACHE_TTL_METADATA } from '../decorators/cache-key.decorator';
+import {
+  CACHE_KEY_METADATA,
+  CACHE_TTL_METADATA,
+} from '../decorators/cache-key.decorator';
 
 @Injectable()
 export class HttpCacheInterceptor implements NestInterceptor {
@@ -20,7 +23,10 @@ export class HttpCacheInterceptor implements NestInterceptor {
     private reflector: Reflector,
   ) {}
 
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
     const method = request.method;
 
@@ -30,11 +36,17 @@ export class HttpCacheInterceptor implements NestInterceptor {
     }
 
     // Get custom cache key from decorator or use URL as default
-    const customKey = this.reflector.get<string>(CACHE_KEY_METADATA, context.getHandler());
+    const customKey = this.reflector.get<string>(
+      CACHE_KEY_METADATA,
+      context.getHandler(),
+    );
     const cacheKey = customKey || `http:${request.url}`;
 
     // Get custom TTL from decorator
-    const ttl = this.reflector.get<number>(CACHE_TTL_METADATA, context.getHandler());
+    const ttl = this.reflector.get<number>(
+      CACHE_TTL_METADATA,
+      context.getHandler(),
+    );
 
     // Try to get cached response
     const cachedResponse = await this.cacheService.get(cacheKey);

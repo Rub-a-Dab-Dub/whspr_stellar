@@ -40,7 +40,7 @@ export class UsersController {
     private readonly xpService: XpService,
     private readonly streakService: StreakService,
     private readonly userStatsService: UserStatsService,
-  ) { }
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -57,7 +57,10 @@ export class UsersController {
   @Get('me/stats')
   getMyStats(@CurrentUser() user: any, @Query() query: UserStatsQueryDto) {
     const includeComparison = query.includeComparison !== 'false';
-    return this.userStatsService.getStatsForUser(user.userId, includeComparison);
+    return this.userStatsService.getStatsForUser(
+      user.userId,
+      includeComparison,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -66,7 +69,10 @@ export class UsersController {
     @CurrentUser() user: any,
     @Query() query: UserStatsExportQueryDto,
   ) {
-    return this.userStatsService.exportStats(user.userId, query.format || 'json');
+    return this.userStatsService.exportStats(
+      user.userId,
+      query.format || 'json',
+    );
   }
 
   @Get(':id/stats')
@@ -76,7 +82,10 @@ export class UsersController {
   }
 
   @Get(':id/stats/export')
-  exportUserStats(@Param('id') id: string, @Query() query: UserStatsExportQueryDto) {
+  exportUserStats(
+    @Param('id') id: string,
+    @Query() query: UserStatsExportQueryDto,
+  ) {
     return this.userStatsService.exportStats(id, query.format || 'json');
   }
 
@@ -136,10 +145,7 @@ export class UsersController {
   }
 
   @Get(':id/xp/history')
-  getUserXpHistory(
-    @Param('id') id: string,
-    @Query() query: XpHistoryQueryDto,
-  ) {
+  getUserXpHistory(@Param('id') id: string, @Query() query: XpHistoryQueryDto) {
     return this.xpService.getXpHistory(id, query.page, query.limit);
   }
 
@@ -218,6 +224,10 @@ export class UsersController {
     @CurrentUser() user: any,
     @Query() query: XpHistoryQueryDto,
   ) {
-    return this.streakService.getStreakHistory(user.userId, query.page, query.limit);
+    return this.streakService.getStreakHistory(
+      user.userId,
+      query.page,
+      query.limit,
+    );
   }
 }

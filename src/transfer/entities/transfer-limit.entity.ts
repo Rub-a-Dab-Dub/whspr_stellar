@@ -38,7 +38,12 @@ export class TransferLimit {
   @Column('decimal', { precision: 18, scale: 8, name: 'limit_amount' })
   limitAmount: string;
 
-  @Column('decimal', { precision: 18, scale: 8, name: 'used_amount', default: '0' })
+  @Column('decimal', {
+    precision: 18,
+    scale: 8,
+    name: 'used_amount',
+    default: '0',
+  })
   usedAmount: string;
 
   @Column({ name: 'transaction_count', default: 0 })

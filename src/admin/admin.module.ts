@@ -1,15 +1,23 @@
-import { Module, forwardRef } from '@nestjs/common';
+import {
+  Module,
+  forwardRef,
+  MiddlewareConsumer,
+  RequestMethod,
+} from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule } from '@nestjs/config';
+import { AdminConfigService } from '../config/admin-config.service';
 import { AdminController } from './controllers/admin.controller';
+import { IpWhitelistController } from './controllers/ip-whitelist.controller';
 import { AdminService } from './services/admin.service';
+import { IpWhitelistService } from './services/ip-whitelist.service';
 import { User } from '../user/entities/user.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { AuditLogArchive } from './entities/audit-log-archive.entity';
 import { DataAccessLog } from './entities/data-access-log.entity';
 import { AuditAlert } from './entities/audit-alert.entity';
+import { IpWhitelist } from './entities/ip-whitelist.entity';
 import { AuditLogService } from './services/audit-log.service';
 import { AuditLogRetentionJob } from './jobs/audit-log-retention.job';
 import { Transfer } from '../transfer/entities/transfer.entity';
@@ -22,12 +30,14 @@ import { RoomPayment } from '../room/entities/room-payment.entity';
 import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
 import { LeaderboardModule } from '../leaderboard/leaderboard.module';
+import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     JwtModule.register({}),
     forwardRef(() => TransferModule),
+    forwardRef(() => AdminAuthModule),
     LeaderboardModule,
     TypeOrmModule.forFeature([
       User,
@@ -35,6 +45,7 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
       AuditLogArchive,
       DataAccessLog,
       AuditAlert,
+      IpWhitelist,
       Transfer,
       Session,
       Message,
@@ -42,15 +53,25 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
       RoomMember,
       RoomPayment,
       PlatformConfig,
+      ModerationQueue,   
+      FlaggedMessage,
     ]),
   ],
-  controllers: [AdminController],
+  controllers: [AdminController, IpWhitelistController],
   providers: [
+    AdminConfigService,
     AdminService,
+    IpWhitelistService,
     AuditLogService,
     AuditLogRetentionJob,
     AdminEventStreamGateway,
   ],
-  exports: [AdminService, AuditLogService],
+  exports: [AdminConfigService, AdminService, AuditLogService],
 })
-export class AdminModule {}
+export class AdminModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(IpWhitelistMiddleware)
+      .forRoutes({ path: 'admin/*', method: RequestMethod.ALL });
+  }
+}

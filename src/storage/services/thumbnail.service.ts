@@ -7,8 +7,8 @@ export class ThumbnailService {
 
   async generateThumbnail(buffer: Buffer, mimeType: string): Promise<Buffer> {
     if (!mimeType.startsWith('image/') && !mimeType.startsWith('video/')) {
-        this.logger.warn('Unsupported mime type for thumbnail generation');
-        return buffer; // Return original if not supported? Or null?
+      this.logger.warn('Unsupported mime type for thumbnail generation');
+      return buffer; // Return original if not supported? Or null?
     }
 
     try {

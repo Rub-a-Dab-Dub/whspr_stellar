@@ -35,7 +35,7 @@ export class EmailNotificationService {
   ): Promise<boolean> {
     try {
       const emailData = this.prepareEmailData(notification, recipientEmail);
-      
+
       await this.mailerService.sendMail({
         to: emailData.recipientEmail,
         subject: emailData.subject,
@@ -43,10 +43,15 @@ export class EmailNotificationService {
         context: emailData.context,
       });
 
-      this.logger.log(`Email notification sent to ${recipientEmail} for notification ${notification.id}`);
+      this.logger.log(
+        `Email notification sent to ${recipientEmail} for notification ${notification.id}`,
+      );
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send email notification to ${recipientEmail}:`, error);
+      this.logger.error(
+        `Failed to send email notification to ${recipientEmail}:`,
+        error,
+      );
       return false;
     }
   }
@@ -61,7 +66,10 @@ export class EmailNotificationService {
     let failed = 0;
 
     for (const { notification, recipientEmail } of notifications) {
-      const success = await this.sendEmailNotification(notification, recipientEmail);
+      const success = await this.sendEmailNotification(
+        notification,
+        recipientEmail,
+      );
       if (success) {
         sent++;
       } else {
@@ -69,7 +77,9 @@ export class EmailNotificationService {
       }
     }
 
-    this.logger.log(`Batch email notifications: ${sent} sent, ${failed} failed`);
+    this.logger.log(
+      `Batch email notifications: ${sent} sent, ${failed} failed`,
+    );
     return { sent, failed };
   }
 
@@ -87,7 +97,7 @@ export class EmailNotificationService {
       });
 
       const groupedNotifications = this.groupNotificationsByType(notifications);
-      
+
       await this.mailerService.sendMail({
         to: recipientEmail,
         subject: `Your ${period} notification digest - Whspr Stellar`,
@@ -98,14 +108,22 @@ export class EmailNotificationService {
           totalCount: notifications.length,
           groupedNotifications,
           unsubscribeUrl: this.getUnsubscribeUrl(user?.id),
-          appUrl: this.configService.get<string>('APP_URL', 'https://whspr.com'),
+          appUrl: this.configService.get<string>(
+            'APP_URL',
+            'https://whspr.com',
+          ),
         },
       });
 
-      this.logger.log(`Digest email sent to ${recipientEmail} with ${notifications.length} notifications`);
+      this.logger.log(
+        `Digest email sent to ${recipientEmail} with ${notifications.length} notifications`,
+      );
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send digest email to ${recipientEmail}:`, error);
+      this.logger.error(
+        `Failed to send digest email to ${recipientEmail}:`,
+        error,
+      );
       return false;
     }
   }
@@ -122,14 +140,20 @@ export class EmailNotificationService {
         context: {
           userName: recipientEmail.split('@')[0],
           settingsUrl: `${this.configService.get<string>('APP_URL')}/settings/notifications`,
-          appUrl: this.configService.get<string>('APP_URL', 'https://whspr.com'),
+          appUrl: this.configService.get<string>(
+            'APP_URL',
+            'https://whspr.com',
+          ),
         },
       });
 
       this.logger.log(`Welcome email sent to ${recipientEmail}`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send welcome email to ${recipientEmail}:`, error);
+      this.logger.error(
+        `Failed to send welcome email to ${recipientEmail}:`,
+        error,
+      );
       return false;
     }
   }
@@ -199,7 +223,8 @@ export class EmailNotificationService {
             ...baseContext,
             reactedBy: notification.sender?.email?.split('@')[0] || 'Someone',
             reactionType: notification.data?.reactionType || '👍',
-            messageContent: notification.data?.messageContent || notification.message,
+            messageContent:
+              notification.data?.messageContent || notification.message,
           },
         };
 
@@ -229,23 +254,31 @@ export class EmailNotificationService {
   /**
    * Group notifications by type for digest emails
    */
-  private groupNotificationsByType(notifications: Notification[]): Record<string, Notification[]> {
-    return notifications.reduce((groups, notification) => {
-      const type = notification.type;
-      if (!groups[type]) {
-        groups[type] = [];
-      }
-      groups[type].push(notification);
-      return groups;
-    }, {} as Record<string, Notification[]>);
+  private groupNotificationsByType(
+    notifications: Notification[],
+  ): Record<string, Notification[]> {
+    return notifications.reduce(
+      (groups, notification) => {
+        const type = notification.type;
+        if (!groups[type]) {
+          groups[type] = [];
+        }
+        groups[type].push(notification);
+        return groups;
+      },
+      {} as Record<string, Notification[]>,
+    );
   }
 
   /**
    * Get unsubscribe URL for user
    */
   private getUnsubscribeUrl(userId?: string): string {
-    const baseUrl = this.configService.get<string>('APP_URL', 'https://whspr.com');
-    return userId 
+    const baseUrl = this.configService.get<string>(
+      'APP_URL',
+      'https://whspr.com',
+    );
+    return userId
       ? `${baseUrl}/unsubscribe?token=${this.generateUnsubscribeToken(userId)}`
       : `${baseUrl}/settings/notifications`;
   }

@@ -154,12 +154,22 @@ export class CreateRewardsSystem1769335951000 implements MigrationInterface {
     `);
 
     // Drop indexes
-    await queryRunner.query(`DROP INDEX "public"."IDX_reward_marketplace_status_price"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_reward_marketplace_sellerId_status"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_reward_marketplace_status_price"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_reward_marketplace_sellerId_status"`,
+    );
     await queryRunner.query(`DROP INDEX "public"."IDX_user_rewards_status"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_user_rewards_rewardId_status"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_user_rewards_userId_expiresAt"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_user_rewards_userId_status"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_user_rewards_rewardId_status"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_user_rewards_userId_expiresAt"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_user_rewards_userId_status"`,
+    );
     await queryRunner.query(`DROP INDEX "public"."IDX_rewards_type"`);
 
     // Drop tables
@@ -168,7 +178,9 @@ export class CreateRewardsSystem1769335951000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "rewards"`);
 
     // Drop enums
-    await queryRunner.query(`DROP TYPE "public"."marketplace_listing_status_enum"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."marketplace_listing_status_enum"`,
+    );
     await queryRunner.query(`DROP TYPE "public"."user_reward_status_enum"`);
     await queryRunner.query(`DROP TYPE "public"."reward_type_enum"`);
   }

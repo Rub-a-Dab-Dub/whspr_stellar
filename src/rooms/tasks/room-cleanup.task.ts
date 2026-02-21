@@ -55,7 +55,9 @@ export class RoomCleanupTask {
           roomId: room.id,
           creatorId: room.creatorId,
           expiryTimestamp: room.expiryTimestamp,
-          minutesRemaining: Math.floor((room.expiryTimestamp - Date.now()) / 60000),
+          minutesRemaining: Math.floor(
+            (room.expiryTimestamp - Date.now()) / 60000,
+          ),
         });
 
         // Mark warning as sent
