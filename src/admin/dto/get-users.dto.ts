@@ -9,6 +9,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { UserRole } from '../../roles/entities/role.entity';
 
 export enum UserFilterStatus {
   ALL = 'all',
@@ -19,7 +20,7 @@ export enum UserFilterStatus {
 }
 
 export class GetUsersDto {
-  @ApiPropertyOptional({ description: 'Search by email' })
+  @ApiPropertyOptional({ description: 'Search by username, email, or walletAddress' })
   @IsOptional()
   @IsString()
   search?: string;
@@ -28,6 +29,35 @@ export class GetUsersDto {
   @IsOptional()
   @IsEnum(UserFilterStatus)
   status?: UserFilterStatus;
+
+  @ApiPropertyOptional({ enum: UserRole })
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
+
+  @ApiPropertyOptional({ example: '2024-01-01T00:00:00Z' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ example: '2024-12-31T23:59:59Z' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  minXp?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  maxXp?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -70,14 +100,4 @@ export class GetUsersDto {
   @IsOptional()
   @IsEnum(['ASC', 'DESC'])
   sortOrder?: 'ASC' | 'DESC' = 'DESC';
-
-  @ApiPropertyOptional({ example: '2024-01-01T00:00:00Z' })
-  @IsOptional()
-  @IsDateString()
-  createdAfter?: string;
-
-  @ApiPropertyOptional({ example: '2024-12-31T23:59:59Z' })
-  @IsOptional()
-  @IsDateString()
-  createdBefore?: string;
 }
