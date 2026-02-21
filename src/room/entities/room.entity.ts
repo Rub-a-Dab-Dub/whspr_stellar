@@ -110,6 +110,18 @@ export class Room {
   @Column({ type: 'timestamp', nullable: true })
   deletedAt?: Date;
 
+  @Column({ default: false })
+  isClosed!: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  closedAt?: Date;
+
+  @Column({ type: 'uuid', nullable: true })
+  closedBy?: string;
+
+  @Column({ type: 'text', nullable: true })
+  closeReason?: string;
+
   @OneToMany(() => RoomPayment, (payment) => payment.room)
   payments!: RoomPayment[];
 

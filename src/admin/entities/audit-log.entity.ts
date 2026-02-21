@@ -21,6 +21,7 @@ export enum AuditAction {
   USER_VIEWED = 'user.viewed',
   USER_UPDATED = 'user.updated',
   USER_DELETED = 'user.deleted',
+  USER_XP_ADJUSTED = 'user.xp.adjusted',
   BULK_ACTION = 'bulk.action',
   IMPERSONATION_STARTED = 'impersonation.started',
   IMPERSONATION_ENDED = 'impersonation.ended',
@@ -45,6 +46,9 @@ export enum AuditAction {
   PLATFORM_WALLET_WITHDRAWAL_COMPLETED = 'platform.wallet.withdrawal.completed',
   PLATFORM_WALLET_WITHDRAWAL_FAILED = 'platform.wallet.withdrawal.failed',
   PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED = 'platform.wallet.withdrawal.attempted',
+  ROOM_CLOSED = 'room.closed',
+  ROOM_DELETED = 'room.deleted',
+  ROOM_RESTORED = 'room.restored',
 }
 
 export enum AuditEventType {
