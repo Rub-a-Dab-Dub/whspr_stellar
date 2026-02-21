@@ -42,6 +42,9 @@ import {
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
 import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
+import { PlatformWalletService } from '../services/platform-wallet.service';
+import { PlatformWalletWithdrawDto } from '../dto/platform-wallet-withdraw.dto';
+import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -49,7 +52,10 @@ import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
 @IsAdmin()
 @UseGuards(RoleGuard, PermissionGuard)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly platformWalletService: PlatformWalletService,
+  ) {}
 
   @Get('health')
   @HttpCode(HttpStatus.OK)
