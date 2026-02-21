@@ -6,7 +6,11 @@ import { NotFoundException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { User } from '../../user/entities/user.entity';
 import { Session } from '../../sessions/entities/session.entity';
-import { AuditLog, AuditAction, AuditSeverity } from '../entities/audit-log.entity';
+import {
+  AuditLog,
+  AuditAction,
+  AuditSeverity,
+} from '../entities/audit-log.entity';
 import { Transfer } from '../../transfer/entities/transfer.entity';
 import { Message } from '../../message/entities/message.entity';
 import { Room } from '../../room/entities/room.entity';
@@ -17,6 +21,7 @@ import { AuditLogService } from './audit-log.service';
 import { TransferBalanceService } from '../../transfer/services/transfer-balance.service';
 import { RedisService } from '../../redis/redis.service';
 import { LeaderboardService } from '../../leaderboard/leaderboard.service';
+import { CacheService } from '../../cache/cache.service';
 
 describe('AdminService - Password Reset', () => {
   let service: AdminService;
@@ -30,6 +35,7 @@ describe('AdminService - Password Reset', () => {
   };
 
   const mockSessionRepository = {
+    update: jest.fn(),
     createQueryBuilder: jest.fn(() => ({
       update: jest.fn().mockReturnThis(),
       set: jest.fn().mockReturnThis(),
@@ -53,7 +59,10 @@ describe('AdminService - Password Reset', () => {
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
         { provide: getRepositoryToken(AuditLog), useValue: {} },
         { provide: getRepositoryToken(Transfer), useValue: {} },
-        { provide: getRepositoryToken(Session), useValue: mockSessionRepository },
+        {
+          provide: getRepositoryToken(Session),
+          useValue: mockSessionRepository,
+        },
         { provide: getRepositoryToken(Message), useValue: {} },
         { provide: getRepositoryToken(Room), useValue: {} },
         { provide: getRepositoryToken(RoomMember), useValue: {} },
@@ -64,12 +73,15 @@ describe('AdminService - Password Reset', () => {
         { provide: RedisService, useValue: {} },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: LeaderboardService, useValue: {} },
+        { provide: CacheService, useValue: {} },
       ],
     }).compile();
 
     service = module.get<AdminService>(AdminService);
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
-    sessionRepository = module.get<Repository<Session>>(getRepositoryToken(Session));
+    sessionRepository = module.get<Repository<Session>>(
+      getRepositoryToken(Session),
+    );
     eventEmitter = module.get<EventEmitter2>(EventEmitter2);
   });
 
@@ -93,8 +105,10 @@ describe('AdminService - Password Reset', () => {
       const result = await service.adminResetPassword(userId, adminId);
 
       expect(result).toEqual({ message: 'Password reset email sent to user' });
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: userId } });
-      
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { id: userId },
+      });
+
       // Verify reset token was set with 1 hour expiry
       expect(mockUserRepository.update).toHaveBeenCalledWith(
         userId,
@@ -139,9 +153,9 @@ describe('AdminService - Password Reset', () => {
     it('should throw NotFoundException if user does not exist', async () => {
       mockUserRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.adminResetPassword(userId, adminId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.adminResetPassword(userId, adminId)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(mockUserRepository.update).not.toHaveBeenCalled();
       expect(mockSessionRepository.createQueryBuilder).not.toHaveBeenCalled();

@@ -31,6 +31,9 @@ import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
 import { LeaderboardModule } from '../leaderboard/leaderboard.module';
 import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
+import { AdminAuthModule } from './auth/admin-auth.module';
+import { ModerationQueue } from '../moderation/moderation-queue.entity';
+import { FlaggedMessage } from '../moderation/flagged-message.entity';
 
 @Module({
   imports: [
@@ -53,7 +56,7 @@ import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
       RoomMember,
       RoomPayment,
       PlatformConfig,
-      ModerationQueue,   
+      ModerationQueue,
       FlaggedMessage,
     ]),
   ],

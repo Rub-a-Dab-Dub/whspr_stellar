@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository, In, MoreThanOrEqual, LessThan, Between } from 'typeorm';
+import { randomBytes } from 'crypto';
 import { User } from '../../user/entities/user.entity';
 import {
   AuditLog,
@@ -19,6 +20,7 @@ import {
 } from '../entities/audit-log.entity';
 import { GetUsersDto, UserFilterStatus } from '../dto/get-users.dto';
 import { GetRoomsDto, RoomFilterStatus } from '../dto/get-rooms.dto';
+import { GetRoomDetailsDto } from '../dto/get-room-details.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto, BulkActionType } from '../dto/bulk-action.dto';
@@ -52,7 +54,10 @@ import {
 } from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
-import { GetOverviewAnalyticsDto, AnalyticsPeriod } from '../dto/get-overview-analytics.dto';
+import {
+  GetOverviewAnalyticsDto,
+  AnalyticsPeriod,
+} from '../dto/get-overview-analytics.dto';
 import { CacheService } from '../../cache/cache.service';
 
 @Injectable()
@@ -298,7 +303,10 @@ export class AdminService {
       });
     }
     const userRoles = userWithRoles?.roles || [];
-    const isAdmin = userRoles.some((role) => role.name === 'admin');
+    const isAdmin = userRoles.some(
+      (role) =>
+        role.name === UserRole.ADMIN || role.name === UserRole.SUPER_ADMIN,
+    );
     if (isAdmin) {
       throw new ForbiddenException('Cannot ban admin users');
     }
@@ -393,7 +401,10 @@ export class AdminService {
       });
     }
     const userRoles = userWithRoles?.roles || [];
-    const isAdmin = userRoles.some((role) => role.name === 'admin');
+    const isAdmin = userRoles.some(
+      (role) =>
+        role.name === UserRole.ADMIN || role.name === UserRole.SUPER_ADMIN,
+    );
     if (isAdmin) {
       throw new ForbiddenException('Cannot suspend admin users');
     }
@@ -539,7 +550,10 @@ export class AdminService {
     for (const user of users) {
       try {
         const userRoles = user.roles || [];
-        const isAdmin = userRoles.some((role) => role.name === 'admin');
+        const isAdmin = userRoles.some(
+          (role) =>
+            role.name === UserRole.ADMIN || role.name === UserRole.SUPER_ADMIN,
+        );
 
         switch (action) {
           case BulkActionType.BAN:
@@ -1299,7 +1313,9 @@ export class AdminService {
     // Try to get from cache
     const cached = await this.cacheService.get<any>(cacheKey);
     if (cached) {
-      this.logger.debug(`Returning cached overview analytics for period: ${period}`);
+      this.logger.debug(
+        `Returning cached overview analytics for period: ${period}`,
+      );
       return cached;
     }
 
@@ -1360,28 +1376,32 @@ export class AdminService {
     const activeUserCount = parseInt(activeUsersThisPeriod?.count || '0', 10);
 
     // Calculate growth rate
-    const growthRate = newUsersPreviousPeriod > 0
-      ? (newUsersThisPeriod - newUsersPreviousPeriod) / newUsersPreviousPeriod
-      : newUsersThisPeriod > 0 ? 1 : 0;
+    const growthRate =
+      newUsersPreviousPeriod > 0
+        ? (newUsersThisPeriod - newUsersPreviousPeriod) / newUsersPreviousPeriod
+        : newUsersThisPeriod > 0
+          ? 1
+          : 0;
 
     // Room metrics
-    const [totalRooms, activeRoomsThisPeriod, roomsCreatedThisPeriod] = await Promise.all([
-      this.roomRepository.count({ where: { isDeleted: false } }),
-      this.roomRepository
-        .createQueryBuilder('room')
-        .innerJoin('room.members', 'member')
-        .where('room.isDeleted = :isDeleted', { isDeleted: false })
-        .andWhere('member.lastActiveAt >= :startDate', { startDate })
-        .select('COUNT(DISTINCT room.id)', 'count')
-        .getRawOne()
-        .then(result => parseInt(result?.count || '0', 10)),
-      this.roomRepository.count({
-        where: {
-          createdAt: MoreThanOrEqual(startDate),
-          isDeleted: false,
-        },
-      }),
-    ]);
+    const [totalRooms, activeRoomsThisPeriod, roomsCreatedThisPeriod] =
+      await Promise.all([
+        this.roomRepository.count({ where: { isDeleted: false } }),
+        this.roomRepository
+          .createQueryBuilder('room')
+          .innerJoin('room.members', 'member')
+          .where('room.isDeleted = :isDeleted', { isDeleted: false })
+          .andWhere('member.lastActiveAt >= :startDate', { startDate })
+          .select('COUNT(DISTINCT room.id)', 'count')
+          .getRawOne()
+          .then((result) => parseInt(result?.count || '0', 10)),
+        this.roomRepository.count({
+          where: {
+            createdAt: MoreThanOrEqual(startDate),
+            isDeleted: false,
+          },
+        }),
+      ]);
 
     // Expired rooms in period
     const timedExpiredRooms = await this.roomRepository.count({
@@ -1399,9 +1419,8 @@ export class AdminService {
       },
     });
 
-    const avgMessagesPerActiveUser = activeUserCount > 0
-      ? messagesThisPeriod / activeUserCount
-      : 0;
+    const avgMessagesPerActiveUser =
+      activeUserCount > 0 ? messagesThisPeriod / activeUserCount : 0;
 
     // Transaction metrics (room payments + tips)
     const roomPayments = await this.roomPaymentRepository
@@ -1437,9 +1456,8 @@ export class AdminService {
     }
 
     const transactionCount = roomPayments.length + tips.length;
-    const avgTransactionValue = transactionCount > 0
-      ? totalVolume / transactionCount
-      : 0;
+    const avgTransactionValue =
+      transactionCount > 0 ? totalVolume / transactionCount : 0;
 
     // Top rooms by activity
     const topRooms = await this.roomRepository
@@ -1468,10 +1486,12 @@ export class AdminService {
       name: room.name,
       memberCount: room.memberCount,
       activeMembers: parseInt(topRooms.raw[index]?.activeMembers || '0', 10),
-      owner: room.owner ? {
-        id: room.owner.id,
-        username: room.owner.username || room.owner.email,
-      } : null,
+      owner: room.owner
+        ? {
+            id: room.owner.id,
+            username: room.owner.username || room.owner.email,
+          }
+        : null,
     }));
 
     // Top tippers
@@ -1481,19 +1501,18 @@ export class AdminService {
       .where("message.type = 'tip'")
       .andWhere('message.isDeleted = :isDeleted', { isDeleted: false })
       .andWhere('message.createdAt >= :startDate', { startDate })
-      .select([
-        'author.id',
-        'author.username',
-        'author.email',
-      ])
+      .select(['author.id', 'author.username', 'author.email'])
       .addSelect('COUNT(message.id)', 'tipCount')
-      .addSelect('SUM(CAST(message.metadata->>\'amount\' AS DECIMAL))', 'totalAmount')
+      .addSelect(
+        "SUM(CAST(message.metadata->>'amount' AS DECIMAL))",
+        'totalAmount',
+      )
       .groupBy('author.id')
       .orderBy('totalAmount', 'DESC')
       .limit(10)
       .getRawMany();
 
-    const topTippersFormatted = topTippers.map(tipper => ({
+    const topTippersFormatted = topTippers.map((tipper) => ({
       userId: tipper.author_id,
       username: tipper.author_username || tipper.author_email,
       tipCount: parseInt(tipper.tipCount || '0', 10),
@@ -1544,9 +1563,173 @@ export class AdminService {
     return response;
   }
 
-  async getRooms(
-    query: GetRoomsDto,
-  ): Promise<{
+  async getUserSessions(userId: string): Promise<{
+    sessions: Session[];
+    total: number;
+  }> {
+    const sessions = await this.sessionRepository.find({
+      where: { userId },
+      order: { lastActivity: 'DESC' },
+    });
+    return { sessions, total: sessions.length };
+  }
+
+  async terminateSession(
+    userId: string,
+    sessionId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    await this.sessionRepository.update(
+      { id: sessionId, userId },
+      { isActive: false },
+    );
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_UPDATED,
+      userId,
+      `Terminated session ${sessionId}`,
+      { sessionId },
+      req,
+      AuditSeverity.MEDIUM,
+      'session',
+      sessionId,
+    );
+
+    return { message: 'Session terminated' };
+  }
+
+  async terminateAllUserSessions(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    await this.sessionRepository.update(
+      { userId, isActive: true },
+      { isActive: false },
+    );
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_UPDATED,
+      userId,
+      'Terminated all active sessions',
+      null,
+      req,
+      AuditSeverity.HIGH,
+      'session',
+      userId,
+    );
+
+    return { message: 'All active sessions terminated' };
+  }
+
+  async adminResetPassword(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const resetToken = randomBytes(32).toString('hex');
+    const resetExpiry = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.userRepository.update(userId, {
+      passwordResetToken: resetToken,
+      passwordResetExpires: resetExpiry,
+    } as any);
+
+    await this.sessionRepository
+      .createQueryBuilder()
+      .update(Session)
+      .set({ isActive: false })
+      .where('user_id = :userId AND is_active = :isActive', {
+        userId,
+        isActive: true,
+      })
+      .execute();
+
+    try {
+      this.eventEmitter.emit('user.password.reset.admin', {
+        userId,
+        email: user.email,
+        resetToken,
+        adminId,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Password-reset event emit failed for user ${userId}: ${(error as Error).message}`,
+      );
+    }
+
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      action: AuditAction.AUTH_PASSWORD_RESET_REQUESTED,
+      eventType: AuditEventType.AUTH,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.HIGH,
+      targetUserId: userId,
+      details: 'Admin triggered password reset',
+      metadata: { adminInitiated: true },
+      req,
+    });
+
+    return { message: 'Password reset email sent to user' };
+  }
+
+  async getRoomDetails(
+    roomId: string,
+    query: GetRoomDetailsDto,
+    adminId: string,
+    req?: Request,
+  ) {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+      relations: ['owner'],
+    });
+
+    if (!room) {
+      throw new NotFoundException(`Room with ID ${roomId} not found`);
+    }
+
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const [payments, totalPayments] =
+      await this.roomPaymentRepository.findAndCount({
+        where: { roomId },
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limit,
+      });
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      `Viewed room details for ${roomId}`,
+      { roomId, page, limit },
+      req,
+      AuditSeverity.LOW,
+      'room',
+      roomId,
+    );
+
+    return {
+      ...room,
+      payments,
+      totalPayments,
+      page,
+      limit,
+    };
+  }
+
+  async getRooms(query: GetRoomsDto): Promise<{
     rooms: Array<{
       id: string;
       name: string;
@@ -1633,7 +1816,9 @@ export class AdminService {
           );
           break;
         case RoomFilterStatus.CLOSED:
-          queryBuilder.andWhere('room.isExpired = :isExpired', { isExpired: true });
+          queryBuilder.andWhere('room.isExpired = :isExpired', {
+            isExpired: true,
+          });
           break;
         case RoomFilterStatus.FLAGGED:
           queryBuilder.andWhere('room.warningNotificationSent = :flagged', {
@@ -1641,7 +1826,9 @@ export class AdminService {
           });
           break;
         case RoomFilterStatus.DELETED:
-          queryBuilder.andWhere('room.isDeleted = :isDeleted', { isDeleted: true });
+          queryBuilder.andWhere('room.isDeleted = :isDeleted', {
+            isDeleted: true,
+          });
           break;
       }
     }
@@ -1671,7 +1858,9 @@ export class AdminService {
           .createQueryBuilder('payment')
           .select('SUM(CAST(payment.amount as DECIMAL))', 'total')
           .where('payment.roomId = :roomId', { roomId: room.id })
-          .andWhere('payment.status = :status', { status: PaymentStatus.COMPLETED })
+          .andWhere('payment.status = :status', {
+            status: PaymentStatus.COMPLETED,
+          })
           .getRawOne();
 
         const totalFeesCollected = feeResult?.total || '0';

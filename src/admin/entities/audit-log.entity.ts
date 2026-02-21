@@ -41,6 +41,11 @@ export enum AuditAction {
   PLATFORM_CONFIG_UPDATED = 'platform.config.updated',
   IP_WHITELIST_ADDED = 'ip_whitelist.added',
   IP_WHITELIST_REMOVED = 'ip_whitelist.removed',
+  ADMIN_LISTED = 'admin.listed',
+  ADMIN_INVITED = 'admin.invited',
+  ADMIN_ROLE_CHANGED = 'admin.role.changed',
+  ADMIN_DEACTIVATED = 'admin.deactivated',
+  ADMIN_REACTIVATED = 'admin.reactivated',
 }
 
 export enum AuditEventType {
