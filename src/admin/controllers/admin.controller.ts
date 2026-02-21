@@ -32,6 +32,7 @@ import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
 import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
 import { GetRevenueAnalyticsDto } from '../dto/get-revenue-analytics.dto';
 import { GetOverviewAnalyticsDto } from '../dto/get-overview-analytics.dto';
+import { GetTransactionsDto } from '../dto/get-transactions.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
 import { UpdateConfigDto } from '../dto/update-config.dto';
@@ -486,6 +487,17 @@ export class AdminController {
       currentUser.userId,
       req,
     );
+  }
+
+  @Get('transactions')
+  @ApiOperation({ summary: 'Get on-chain transactions ledger (paginated & filterable)' })
+  @ApiResponse({ status: 200, description: 'Paginated transactions list' })
+  async getTransactions(
+    @Query() query: GetTransactionsDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.getTransactions(query, currentUser.userId, req);
   }
 
   @Get('leaderboards')
