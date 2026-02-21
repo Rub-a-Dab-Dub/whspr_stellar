@@ -68,6 +68,8 @@ import { FlaggedMessage } from '../moderation/flagged-message.entity';
       PlatformConfig,
       ModerationQueue,   
       FlaggedMessage,
+      PlatformWalletWithdrawal,
+      WithdrawalWhitelist,
     ]),
   ],
   controllers: [AdminController, IpWhitelistController],

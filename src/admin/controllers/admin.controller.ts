@@ -43,6 +43,9 @@ import {
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
 import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
+import { PlatformWalletService } from '../services/platform-wallet.service';
+import { PlatformWalletWithdrawDto } from '../dto/platform-wallet-withdraw.dto';
+import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -50,7 +53,10 @@ import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
 @IsAdmin()
 @UseGuards(RoleGuard, PermissionGuard)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly platformWalletService: PlatformWalletService,
+  ) {}
 
   @Get('health')
   @HttpCode(HttpStatus.OK)
@@ -583,7 +589,7 @@ export class AdminController {
   @Get('rooms/:roomId')
   async getRoomDetails(
   @Param('roomId') roomId: string,
-  @Query() query: GetRoomDetailsDto,
+  @Query() query: any,
   @CurrentUser() currentUser: any,
   @Req() req: Request,
   ) {
@@ -593,6 +599,38 @@ export class AdminController {
       currentUser.userId,
       req,
     );
+  }
+
+  @Get('platform-wallet')
+  @ApiOperation({ summary: 'Get platform wallet information' })
+  @ApiResponse({ status: 200, description: 'Platform wallet info' })
+  async getPlatformWallet(@CurrentUser() currentUser: any) {
+    return await this.platformWalletService.getPlatformWalletInfo();
+  }
+
+  @Post('platform-wallet/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Initiate platform wallet withdrawal (super admin only)' })
+  @ApiResponse({ status: 200, description: 'Withdrawal initiated' })
+  @ApiResponse({ status: 403, description: 'Super admin role required' })
+  async withdrawFromPlatformWallet(
+    @Body() withdrawDto: PlatformWalletWithdrawDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.platformWalletService.initiateWithdrawal(
+      withdrawDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Get('platform-wallet/withdrawals')
+  @ApiOperation({ summary: 'Get platform wallet withdrawal history' })
+  @ApiResponse({ status: 200, description: 'Withdrawal history' })
+  async getWithdrawals(@Query() query: GetWithdrawalsDto) {
+    return await this.platformWalletService.getWithdrawals(query);
   }
 
 }

@@ -41,6 +41,10 @@ export enum AuditAction {
   PLATFORM_CONFIG_UPDATED = 'platform.config.updated',
   IP_WHITELIST_ADDED = 'ip_whitelist.added',
   IP_WHITELIST_REMOVED = 'ip_whitelist.removed',
+  PLATFORM_WALLET_WITHDRAWAL_INITIATED = 'platform.wallet.withdrawal.initiated',
+  PLATFORM_WALLET_WITHDRAWAL_COMPLETED = 'platform.wallet.withdrawal.completed',
+  PLATFORM_WALLET_WITHDRAWAL_FAILED = 'platform.wallet.withdrawal.failed',
+  PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED = 'platform.wallet.withdrawal.attempted',
 }
 
 export enum AuditEventType {
