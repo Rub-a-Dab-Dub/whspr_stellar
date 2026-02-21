@@ -11,8 +11,10 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../roles/guards/role.guard';
 import { PermissionGuard } from '../roles/guards/permission.guard';
@@ -41,6 +43,24 @@ export class AdminController {
     @Req() req: Request,
   ) {
     return await this.adminService.getUsers(query, currentUser.userId, req);
+  }
+
+  @Get('users/export')
+  async exportUsers(
+    @Query() query: GetUsersDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const stream = await this.adminService.exportUsers(query, currentUser.userId, req);
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename="users-export-${timestamp}.csv"`,
+    });
+
+    return new StreamableFile(stream);
   }
 
   @Get('users/:id')

@@ -13,6 +13,7 @@ import { BanUserDto } from './dto/ban-user.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { BulkActionDto, BulkActionType } from './dto/bulk-action.dto';
 import { Request } from 'express';
+import { Readable } from 'stream';
 
 @Injectable()
 export class AdminService {
@@ -645,5 +646,210 @@ export class AdminService {
       page,
       limit,
     };
+  }
+
+  async exportUsers(
+    query: GetUsersDto,
+    adminId: string,
+    req?: Request,
+  ): Promise<Readable> {
+    const {
+      search,
+      status,
+      isBanned,
+      isSuspended,
+      isVerified,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      createdAfter,
+      createdBefore,
+    } = query;
+
+    // Build query to count total matching records
+    const countQueryBuilder = this.userRepository.createQueryBuilder('user');
+
+    // Apply same filters as getUsers
+    if (search) {
+      countQueryBuilder.andWhere(
+        '(user.email ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (status && status !== UserFilterStatus.ALL) {
+      if (status === UserFilterStatus.BANNED) {
+        countQueryBuilder.andWhere('user.isBanned = :isBanned', { isBanned: true });
+      } else if (status === UserFilterStatus.SUSPENDED) {
+        countQueryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+      }
+    }
+
+    if (isBanned !== undefined) {
+      countQueryBuilder.andWhere('user.isBanned = :isBanned', { isBanned });
+    }
+
+    if (isSuspended !== undefined) {
+      if (isSuspended) {
+        countQueryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+      } else {
+        countQueryBuilder.andWhere(
+          '(user.suspendedUntil IS NULL OR user.suspendedUntil <= :now)',
+          { now: new Date() },
+        );
+      }
+    }
+
+    if (isVerified !== undefined) {
+      countQueryBuilder.andWhere('user.isVerified = :isVerified', { isVerified });
+    }
+
+    if (createdAfter) {
+      countQueryBuilder.andWhere('user.createdAt >= :createdAfter', {
+        createdAfter: new Date(createdAfter),
+      });
+    }
+
+    if (createdBefore) {
+      countQueryBuilder.andWhere('user.createdAt <= :createdBefore', {
+        createdBefore: new Date(createdBefore),
+      });
+    }
+
+    // Check if count exceeds limit
+    const totalCount = await countQueryBuilder.getCount();
+    if (totalCount > 10000) {
+      throw new BadRequestException(
+        `Export would return ${totalCount} rows, which exceeds the maximum of 10,000. Please narrow your filters.`,
+      );
+    }
+
+    // Build streaming query
+    const queryBuilder = this.userRepository.createQueryBuilder('user');
+
+    // Apply same filters
+    if (search) {
+      queryBuilder.andWhere(
+        '(user.email ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (status && status !== UserFilterStatus.ALL) {
+      if (status === UserFilterStatus.BANNED) {
+        queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned: true });
+      } else if (status === UserFilterStatus.SUSPENDED) {
+        queryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+      }
+    }
+
+    if (isBanned !== undefined) {
+      queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned });
+    }
+
+    if (isSuspended !== undefined) {
+      if (isSuspended) {
+        queryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+      } else {
+        queryBuilder.andWhere(
+          '(user.suspendedUntil IS NULL OR user.suspendedUntil <= :now)',
+          { now: new Date() },
+        );
+      }
+    }
+
+    if (isVerified !== undefined) {
+      queryBuilder.andWhere('user.isVerified = :isVerified', { isVerified });
+    }
+
+    if (createdAfter) {
+      queryBuilder.andWhere('user.createdAt >= :createdAfter', {
+        createdAfter: new Date(createdAfter),
+      });
+    }
+
+    if (createdBefore) {
+      queryBuilder.andWhere('user.createdAt <= :createdBefore', {
+        createdBefore: new Date(createdBefore),
+      });
+    }
+
+    // Sorting
+    queryBuilder.orderBy(`user.${sortBy}`, sortOrder);
+
+    // Load roles relation
+    queryBuilder.leftJoinAndSelect('user.roles', 'roles');
+
+    // Get users
+    const users = await queryBuilder.getMany();
+
+    // Log the export action
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_EXPORT,
+      null,
+      `Exported ${users.length} users`,
+      { filters: query, count: users.length },
+      req,
+    );
+
+    // Create CSV stream
+    const stream = new Readable();
+    stream._read = () => {}; // Required for Readable
+
+    // CSV header
+    const header = [
+      'id',
+      'username',
+      'email',
+      'walletAddress',
+      'role',
+      'status',
+      'xp',
+      'level',
+      'totalTipsSent',
+      'totalTipsReceived',
+      'joinedAt',
+      'lastActiveAt',
+    ].join(',') + '\n';
+    stream.push(header);
+
+    // CSV rows
+    for (const user of users) {
+      const roles = user.roles || [];
+      const roleNames = roles.map((r) => r.name).join(';');
+      
+      let status = 'active';
+      if (user.isBanned) {
+        status = 'banned';
+      } else if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+        status = 'suspended';
+      }
+
+      const row = [
+        this.escapeCsvField(user.id || ''),
+        this.escapeCsvField(''), // username - not in current schema
+        this.escapeCsvField(user.email),
+        this.escapeCsvField(''), // walletAddress - not in current schema
+        this.escapeCsvField(roleNames),
+        this.escapeCsvField(status),
+        this.escapeCsvField('0'), // xp - not in current schema
+        this.escapeCsvField('0'), // level - not in current schema
+        this.escapeCsvField('0'), // totalTipsSent - not in current schema
+        this.escapeCsvField('0'), // totalTipsReceived - not in current schema
+        this.escapeCsvField(user.createdAt ? user.createdAt.toISOString() : ''),
+        this.escapeCsvField(user.updatedAt ? user.updatedAt.toISOString() : ''),
+      ].join(',') + '\n';
+      stream.push(row);
+    }
+
+    stream.push(null); // End stream
+    return stream;
+  }
+
+  private escapeCsvField(field: string): string {
+    if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+      return `"${field.replace(/"/g, '""')}"`;
+    }
+    return field;
   }
 }

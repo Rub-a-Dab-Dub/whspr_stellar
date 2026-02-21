@@ -21,6 +21,7 @@ export enum AuditAction {
   BULK_ACTION = 'bulk.action',
   IMPERSONATION_STARTED = 'impersonation.started',
   IMPERSONATION_ENDED = 'impersonation.ended',
+  USER_EXPORT = 'user.export',
 }
 
 @Entity('audit_logs')
