@@ -31,6 +31,17 @@ import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
 import { LeaderboardModule } from '../leaderboard/leaderboard.module';
 import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
+import { TemporaryBanCleanupJob } from './jobs/temporary-ban-cleanup.job';
+import { AutoUnbanProcessor } from './jobs/auto-unban.processor';
+import { PlatformWalletService } from './services/platform-wallet.service';
+import { PlatformWalletWithdrawal } from './entities/platform-wallet-withdrawal.entity';
+import { WithdrawalWhitelist } from './entities/withdrawal-whitelist.entity';
+import { PlatformWalletWithdrawalProcessor } from './processors/platform-wallet-withdrawal.processor';
+import { ChainModule } from '../chain/chain.module';
+import { QueueModule } from '../queue/queue.module';
+import { ModerationQueue } from '../moderation/moderation-queue.entity';
+import { FlaggedMessage } from '../moderation/flagged-message.entity';
+import { AdminAuthModule } from './auth/admin-auth.module';
 
 @Module({
   imports: [
@@ -39,6 +50,8 @@ import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
     forwardRef(() => TransferModule),
     forwardRef(() => AdminAuthModule),
     LeaderboardModule,
+    ChainModule,
+    QueueModule,
     TypeOrmModule.forFeature([
       User,
       AuditLog,
@@ -66,6 +79,10 @@ import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
     IpWhitelistService,
     AuditLogService,
     AuditLogRetentionJob,
+    TemporaryBanCleanupJob,
+    AutoUnbanProcessor,
+    PlatformWalletService,
+    PlatformWalletWithdrawalProcessor,
     AdminEventStreamGateway,
   ],
   exports: [AdminConfigService, AdminService, AuditLogService],
