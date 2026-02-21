@@ -521,4 +521,20 @@ export class AdminController {
       req,
     );
   }
+
+  @Get('rooms/:roomId')
+  async getRoomDetails(
+  @Param('roomId') roomId: string,
+  @Query() query: GetRoomDetailsDto,
+  @CurrentUser() currentUser: any,
+  @Req() req: Request,
+  ) {
+    return await this.adminService.getRoomDetails(
+      roomId,
+      query,
+      currentUser.userId,
+      req,
+    );
+  }
+
 }

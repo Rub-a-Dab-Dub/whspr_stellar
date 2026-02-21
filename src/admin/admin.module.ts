@@ -53,6 +53,8 @@ import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
       RoomMember,
       RoomPayment,
       PlatformConfig,
+      ModerationQueue,   
+      FlaggedMessage,
     ]),
   ],
   controllers: [AdminController, IpWhitelistController],
