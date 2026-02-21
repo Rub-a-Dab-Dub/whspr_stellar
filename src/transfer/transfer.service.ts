@@ -31,7 +31,7 @@ import {
   AuditSeverity,
 } from '../admin/entities/audit-log.entity';
 import { ADMIN_STREAM_EVENTS } from '../admin/gateways/admin-event-stream.gateway';
-import { ConfigService } from '@nestjs/config';
+import { AdminConfigService } from '../config/admin-config.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
@@ -50,7 +50,7 @@ export class TransferService {
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
     private readonly auditLogService: AuditLogService,
-    private readonly configService: ConfigService,
+    private readonly adminConfigService: AdminConfigService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -215,10 +215,7 @@ export class TransferService {
         );
 
         // Emit large transaction event if above threshold
-        const threshold = this.configService.get<number>(
-          'ADMIN_LARGE_TRANSACTION_THRESHOLD',
-          10000,
-        );
+        const threshold = this.adminConfigService.largeTransactionThreshold;
         const amountNum = parseFloat(transfer.amount);
         if (amountNum >= threshold) {
           this.eventEmitter.emit(ADMIN_STREAM_EVENTS.TRANSACTION_LARGE, {

@@ -7,7 +7,7 @@ import {
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule } from '@nestjs/config';
+import { AdminConfigService } from '../config/admin-config.service';
 import { AdminController } from './controllers/admin.controller';
 import { IpWhitelistController } from './controllers/ip-whitelist.controller';
 import { AdminService } from './services/admin.service';
@@ -56,13 +56,14 @@ import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
   ],
   controllers: [AdminController, IpWhitelistController],
   providers: [
+    AdminConfigService,
     AdminService,
     IpWhitelistService,
     AuditLogService,
     AuditLogRetentionJob,
     AdminEventStreamGateway,
   ],
-  exports: [AdminService, AuditLogService],
+  exports: [AdminConfigService, AdminService, AuditLogService],
 })
 export class AdminModule {
   configure(consumer: MiddlewareConsumer) {
