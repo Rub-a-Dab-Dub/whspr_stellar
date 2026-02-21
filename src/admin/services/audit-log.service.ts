@@ -39,11 +39,15 @@ export type AuditLogFilters = {
   outcome?: AuditOutcome;
   resourceType?: string;
   resourceId?: string;
+  targetType?: string; // Alias for resourceType
+  targetId?: string; // Alias for resourceId
   ipAddress?: string;
   userAgent?: string;
   search?: string;
   createdAfter?: string;
   createdBefore?: string;
+  startDate?: string; // Alias for createdAfter
+  endDate?: string; // Alias for createdBefore
 };
 
 export type DataAccessLogInput = {

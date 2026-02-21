@@ -21,11 +21,23 @@ export class GetAuditLogsDto {
 
   @IsOptional()
   @IsString()
+  adminId?: string; // Alias for actorUserId
+
+  @IsOptional()
+  @IsString()
   actorUserId?: string;
 
   @IsOptional()
   @IsString()
   targetUserId?: string;
+
+  @IsOptional()
+  @IsString()
+  targetType?: string; // Filter by resource type
+
+  @IsOptional()
+  @IsString()
+  targetId?: string; // Filter by resource id
 
   @IsOptional()
   @IsString()
@@ -42,6 +54,14 @@ export class GetAuditLogsDto {
   @IsOptional()
   @IsString()
   userAgent?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string; // Alias for createdAfter
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string; // Alias for createdBefore
 
   @IsOptional()
   @IsInt()
