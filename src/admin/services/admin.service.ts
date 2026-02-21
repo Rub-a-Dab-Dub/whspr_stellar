@@ -1283,4 +1283,55 @@ export class AdminService {
 
     return { message: `User pinned status updated successfully` };
   }
+
+  async adminResetPassword(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const { randomBytes } = await import('crypto');
+    const resetToken = randomBytes(32).toString('hex');
+
+    await this.userRepository.update(userId, {
+      passwordResetToken: resetToken,
+      passwordResetExpires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+    });
+
+    // Invalidate all sessions
+    await this.sessionRepository
+      .createQueryBuilder()
+      .update(Session)
+      .set({ isActive: false })
+      .where('user_id = :userId', { userId })
+      .execute();
+
+    // Send password reset email
+    try {
+      this.eventEmitter.emit('user.password.reset.admin', {
+        userId,
+        email: user.email,
+        resetToken,
+      });
+    } catch (error) {
+      this.logger.warn('Failed to send password reset email', error);
+    }
+
+    await this.logAudit(
+      adminId,
+      AuditAction.AUTH_PASSWORD_RESET_REQUESTED,
+      userId,
+      'Admin triggered password reset',
+      { adminInitiated: true },
+      req,
+      AuditSeverity.HIGH,
+    );
+
+    return { message: 'Password reset email sent to user' };
+  }
 }
