@@ -35,6 +35,7 @@ import { UpdateConfigDto } from '../dto/update-config.dto';
 import { LeaderboardCategory, LeaderboardPeriod } from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
+import { GetRoomDetailsDto } from '../dto/get-room-details.dto';
 
 @Controller('admin')
 @IsAdmin()
@@ -381,4 +382,20 @@ export class AdminController {
   ) {
     return await this.adminService.setLeaderboardPinned(dto, currentUser.userId, req);
   }
+
+  @Get('rooms/:roomId')
+  async getRoomDetails(
+  @Param('roomId') roomId: string,
+  @Query() query: GetRoomDetailsDto,
+  @CurrentUser() currentUser: any,
+  @Req() req: Request,
+  ) {
+    return await this.adminService.getRoomDetails(
+      roomId,
+      query,
+      currentUser.userId,
+      req,
+    );
+  }
+
 }

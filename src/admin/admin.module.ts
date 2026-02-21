@@ -22,6 +22,8 @@ import { RoomPayment } from '../room/entities/room-payment.entity';
 import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
 import { LeaderboardModule } from '../leaderboard/leaderboard.module';
+import { ModerationQueue } from '../moderation/moderation-queue.entity';
+import { FlaggedMessage } from '../moderation/flagged-message.entity';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
       RoomMember,
       RoomPayment,
       PlatformConfig,
+      ModerationQueue,   
+      FlaggedMessage,
     ]),
   ],
   controllers: [AdminController],

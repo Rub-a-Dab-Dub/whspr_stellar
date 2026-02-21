@@ -22,9 +22,14 @@ export class IsAdminGuard implements CanActivate {
     const directRole = userObj?.role;
 
     const isAdmin = 
-      directRole === UserRole.ADMIN || 
-      directRole === UserRole.SUPER_ADMIN ||
-      roles.some((role: any) => role.name === UserRole.ADMIN || role.name === UserRole.SUPER_ADMIN);
+    directRole === UserRole.ADMIN || 
+    directRole === UserRole.SUPER_ADMIN ||
+    directRole === UserRole.MODERATOR ||
+    roles.some((role: any) => 
+      role.name === UserRole.ADMIN || 
+      role.name === UserRole.SUPER_ADMIN ||
+      role.name === UserRole.MODERATOR
+    );
 
     if (!isAdmin) {
       throw new ForbiddenException('Admin access required');

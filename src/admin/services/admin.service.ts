@@ -42,6 +42,9 @@ import { LeaderboardService } from '../../leaderboard/leaderboard.service';
 import { LeaderboardCategory, LeaderboardPeriod } from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
+import { ModerationQueue } from '../../moderation/moderation-queue.entity';
+import { FlaggedMessage } from '../../moderation/flagged-message.entity';
+import { GetRoomDetailsDto } from '../dto/get-room-details.dto';
 
 @Injectable()
 export class AdminService {
@@ -71,6 +74,10 @@ export class AdminService {
     private readonly redisService: RedisService,
     private readonly eventEmitter: EventEmitter2,
     private readonly leaderboardService: LeaderboardService,
+    @InjectRepository(ModerationQueue)
+    private readonly moderationQueueRepository: Repository<ModerationQueue>,
+    @InjectRepository(FlaggedMessage)
+    private readonly flaggedMessageRepository: Repository<FlaggedMessage>,
   ) {}
 
   private async logAudit(
@@ -1245,4 +1252,223 @@ export class AdminService {
 
     return { message: `User pinned status updated successfully` };
   }
+
+
+  async getRoomDetails(
+  roomId: string,
+  query: GetRoomDetailsDto,
+  adminId: string,
+  req?: Request,
+  ) {
+    const { page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+
+    // 1. Fetch room metadata — throw if not found
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId, isDeleted: false },
+      relations: ['owner', 'creator'],
+    });
+
+    if (!room) {
+      throw new NotFoundException(`Room with ID ${roomId} not found`);
+    }
+
+    // 2. Member list (paginated) with message count per member
+    const [memberRows, totalMembers] = await this.roomMemberRepository
+      .createQueryBuilder('rm')
+      .leftJoinAndSelect('rm.user', 'user')
+      .where('rm.roomId = :roomId', { roomId })
+      .orderBy('rm.joinedAt', 'ASC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    // Get message counts per member in one query
+    const memberIds = memberRows.map((m) => m.userId);
+    let messageCountMap: Record<string, number> = {};
+
+    if (memberIds.length > 0) {
+      const messageCounts = await this.messageRepository
+        .createQueryBuilder('msg')
+        .select('msg.authorId', 'authorId')
+        .addSelect('COUNT(*)', 'count')
+        .where('msg.roomId = :roomId', { roomId })
+        .andWhere('msg.authorId IN (:...memberIds)', { memberIds })
+        .andWhere('msg.isDeleted = false')
+        .groupBy('msg.authorId')
+        .getRawMany();
+
+      messageCountMap = messageCounts.reduce(
+        (acc, row) => {
+          acc[row.authorId] = parseInt(row.count, 10);
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+    }
+
+    const members = memberRows.map((rm) => ({
+      userId: rm.userId,
+      username: rm.user?.username ?? null,
+      email: rm.user?.email ?? null,
+      role: rm.role,
+      status: rm.status,
+      joinedAt: rm.joinedAt,
+      messageCount: messageCountMap[rm.userId] ?? 0,
+    }));
+
+    // 3. Last 20 messages with sender info and deletion flags
+    const [recentMessages] = await this.messageRepository.findAndCount({
+      where: { roomId },
+      relations: ['author'],
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+
+    const messages = recentMessages.map((msg) => ({
+      id: msg.id,
+      content: msg.isDeleted ? '[deleted]' : msg.content,
+      type: msg.type,
+      senderId: msg.authorId,
+      senderUsername: msg.author?.username ?? null,
+      createdAt: msg.createdAt,
+      isDeleted: msg.isDeleted,
+      deletedAt: msg.deletedAt ?? null,
+      deletedBy: msg.deletedBy ?? null,
+      isEdited: msg.isEdited,
+      editedAt: msg.editedAt ?? null,
+    }));
+
+    // 4. Financial summary
+    const payments = await this.roomPaymentRepository
+      .createQueryBuilder('payment')
+      .where('payment.roomId = :roomId', { roomId })
+      .andWhere('payment.status = :status', { status: 'completed' })
+      .getMany();
+
+    let totalEntryFees = 0;
+    let totalPlatformFeesFromEntry = 0;
+
+    for (const p of payments) {
+      totalEntryFees += parseFloat(p.amount);
+      totalPlatformFeesFromEntry += parseFloat(p.platformFee);
+    }
+
+    // Tips sent within room
+    const tips = await this.messageRepository
+      .createQueryBuilder('msg')
+      .where('msg.roomId = :roomId', { roomId })
+      .andWhere("msg.type = 'tip'")
+      .andWhere('msg.isDeleted = false')
+      .getMany();
+
+    let totalTipsAmount = 0;
+    let totalPlatformFeesFromTips = 0;
+
+    for (const tip of tips) {
+      const amount = parseFloat(tip.metadata?.amount ?? '0');
+      const fee = parseFloat(tip.metadata?.platformFee ?? '0');
+      totalTipsAmount += amount;
+      totalPlatformFeesFromTips += fee;
+    }
+
+    const financialSummary = {
+      totalEntryFeesCollected: totalEntryFees.toFixed(8),
+      totalTipsSent: totalTipsAmount.toFixed(8),
+      totalPlatformFeesEarned: (totalPlatformFeesFromEntry + totalPlatformFeesFromTips).toFixed(8),
+      entryPaymentCount: payments.length,
+      tipCount: tips.length,
+    };
+
+    // 5. Moderation history — flags and admin actions for this room
+    const flags = await this.flaggedMessageRepository.find({
+      where: { roomId },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+
+    const moderationQueueItems = await this.moderationQueueRepository.find({
+      where: { contentId: roomId, contentType: 'room' as any },
+      relations: ['decisions'],
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+
+    const moderationHistory = {
+      flags: flags.map((f) => ({
+        id: f.id,
+        messageId: f.messageId,
+        reason: f.reason,
+        reportedBy: f.reportedBy,
+        status: f.status,
+        moderatorNotes: f.moderatorNotes ?? null,
+        reviewedBy: f.reviewedBy ?? null,
+        createdAt: f.createdAt,
+      })),
+      adminActions: moderationQueueItems.map((q) => ({
+        id: q.id,
+        reason: q.reason,
+        status: q.status,
+        priority: q.priority,
+        isAutoFlagged: q.isAutoFlagged,
+        reportCount: q.reportCount,
+        decisions: (q.decisions ?? []).map((d) => ({
+          action: d.action,
+          moderatorId: d.moderatorId,
+          reason: d.reason,
+          createdAt: d.createdAt,
+        })),
+        createdAt: q.createdAt,
+        resolvedAt: q.resolvedAt ?? null,
+      })),
+    };
+
+    // Audit log
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      action: AuditAction.VIEW_ROOM_DETAILS,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.LOW,
+      resourceType: 'room',
+      resourceId: roomId,
+      details: `Admin viewed room details: ${room.name}`,
+      metadata: { roomId, roomName: room.name },
+      req,
+    });
+
+    return {
+      room: {
+        id: room.id,
+        name: room.name,
+        description: room.description ?? null,
+        roomType: room.roomType,
+        isPrivate: room.isPrivate,
+        isTokenGated: room.isTokenGated,
+        isActive: room.isActive,
+        isExpired: room.isExpired,
+        entryFee: room.entryFee,
+        paymentRequired: room.paymentRequired,
+        maxMembers: room.maxMembers,
+        memberCount: room.memberCount,
+        ownerId: room.ownerId,
+        ownerUsername: room.owner?.username ?? null,
+        creatorId: room.creatorId,
+        creatorUsername: room.creator?.username ?? null,
+        createdAt: room.createdAt,
+        updatedAt: room.updatedAt,
+        expiryTimestamp: room.expiryTimestamp ?? null,
+      },
+      members: {
+        data: members,
+        total: totalMembers,
+        page,
+        limit,
+      },
+      recentMessages: messages,
+      financialSummary,
+      moderationHistory,
+    };
+  }
+
 }
