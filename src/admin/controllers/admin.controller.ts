@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
+import { IsModeratorGuard } from '../guards/is-moderator.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../../roles/guards/role.guard';
 import { PermissionGuard } from '../../roles/guards/permission.guard';
@@ -57,11 +58,11 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly platformWalletService: PlatformWalletService,
-  ) {}
+  ) { }
 
   @Get('health')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Admin API health check' })
+  @ApiOperation({ title: 'Admin API health check' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   async healthCheck() {
     return {
@@ -71,6 +72,7 @@ export class AdminController {
   }
 
   @Get('users')
+  @UseGuards(IsModeratorGuard)
   @ApiOperation({ summary: 'List users with filters and pagination' })
   @ApiResponse({ status: 200, description: 'Paginated list of users' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -600,10 +602,10 @@ export class AdminController {
 
   @Get('rooms/:roomId')
   async getRoomDetails(
-  @Param('roomId') roomId: string,
-  @Query() query: any,
-  @CurrentUser() currentUser: any,
-  @Req() req: Request,
+    @Param('roomId') roomId: string,
+    @Query() query: any,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
   ) {
     return await this.adminService.getRoomDetails(
       roomId,

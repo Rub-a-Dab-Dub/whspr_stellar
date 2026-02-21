@@ -66,6 +66,7 @@ export class User {
 
   // Stats
   @Column({ default: 0 })
+  @Index()
   currentXp: number = 0;
 
   @Column({ default: 1 })
@@ -103,7 +104,26 @@ export class User {
   banExpiresAt: Date | undefined;
 
   @Column({ type: 'timestamp', nullable: true })
+  suspendedAt: Date | undefined;
+
+  @Column({ type: 'uuid', nullable: true })
+  suspendedBy: string | undefined;
+
+  @Column({ type: 'text', nullable: true })
+  suspensionReason: string | undefined;
+
+  @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | undefined;
+
+  @Column({ default: false })
+  @Index()
+  isVerified: boolean = false;
+
+  @Column({ type: 'timestamp', nullable: true })
+  verifiedAt: Date | undefined;
+
+  @Column({ type: 'uuid', nullable: true })
+  verifiedBy: string | undefined;
 
   // Timestamps
   @CreateDateColumn()
