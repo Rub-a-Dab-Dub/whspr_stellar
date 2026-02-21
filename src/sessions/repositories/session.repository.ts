@@ -37,6 +37,13 @@ export class SessionRepository {
     });
   }
 
+  async findAllByUserId(userId: string): Promise<Session[]> {
+    return this.repository.find({
+      where: { userId },
+      order: { lastActivity: 'DESC' },
+    });
+  }
+
   async countActiveSessions(userId: string): Promise<number> {
     return this.repository.count({
       where: { userId, isActive: true },
