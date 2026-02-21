@@ -16,7 +16,7 @@ import { TransferBalanceService } from '../../transfer/services/transfer-balance
 import { RedisService } from '../../redis/redis.service';
 import { AuditLogService } from './audit-log.service';
 import { LeaderboardService } from '../../leaderboard/leaderboard.service';
-import { SessionService } from '../../sessions/sessions.service';
+import { SessionService } from '../../sessions/services/sessions.service';
 import { CacheService } from '../../cache/cache.service';
 import { UserRole } from '../../roles/entities/role.entity';
 import { UserFilterStatus } from '../dto/get-users.dto';

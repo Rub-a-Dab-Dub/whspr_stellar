@@ -377,7 +377,7 @@ export class AdminService {
       }
     }
     if (isVerified !== undefined) {
-      queryBuilder.andWhere('user.isEmailVerified = :isVerified', { isVerified });
+      queryBuilder.andWhere('user.isVerified = :isVerified', { isVerified });
     }
 
     // Sorting

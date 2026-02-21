@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AdminController } from '../src/admin/controllers/admin.controller';
 import { AdminService } from '../src/admin/services/admin.service';
 import { IsModeratorGuard } from '../src/admin/guards/is-moderator.guard';
