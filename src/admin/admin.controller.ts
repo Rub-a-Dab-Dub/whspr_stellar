@@ -26,13 +26,18 @@ import { BanUserDto } from './dto/ban-user.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { BulkActionDto } from './dto/bulk-action.dto';
 import { ImpersonateUserDto } from './dto/impersonate-user.dto';
+import { GenerateReportDto } from './dto/generate-report.dto';
+import { ReportsService } from './services/reports.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RoleGuard, PermissionGuard)
 @Roles(RoleType.ADMIN)
 @RequirePermissions('user.manage')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly reportsService: ReportsService,
+  ) {}
 
   @Get('users')
   async getUsers(
@@ -180,5 +185,34 @@ export class AdminController {
       // In production, return a special impersonation token here
       // impersonationToken: await this.generateImpersonationToken(...)
     };
+  }
+
+  @Post('reports/generate')
+  @HttpCode(HttpStatus.OK)
+  async generateReport(
+    @Body() dto: GenerateReportDto,
+    @CurrentUser() currentUser: any,
+  ) {
+    return await this.reportsService.generateReport(dto, currentUser.userId);
+  }
+
+  @Get('reports/:jobId/status')
+  async getReportStatus(@Param('jobId') jobId: string) {
+    return await this.reportsService.getJobStatus(jobId);
+  }
+
+  @Get('reports/:jobId/download')
+  async downloadReport(
+    @Param('jobId') jobId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { stream, filename, contentType } = await this.reportsService.downloadReport(jobId);
+
+    res.set({
+      'Content-Type': contentType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    return new StreamableFile(stream);
   }
 }

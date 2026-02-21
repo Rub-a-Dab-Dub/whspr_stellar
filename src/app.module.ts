@@ -26,6 +26,9 @@ import { SessionsModule } from './sessions/sessions.module';
 import { MessageModule } from './message/message.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { ChainModule } from './chain/chain.module';
+import { AdminModule } from './admin/admin.module';
+import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -47,6 +50,17 @@ import { ChainModule } from './chain/chain.module';
         limit: 10, // 10 requests
       },
     ]),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get('redis.host'),
+          port: configService.get('redis.port'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    ScheduleModule.forRoot(),
     MailerModule.forRoot({
       transport: {
         host: process.env.MAIL_HOST,
@@ -77,6 +91,7 @@ import { ChainModule } from './chain/chain.module';
     MessageModule,
     RewardsModule,
     ChainModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
