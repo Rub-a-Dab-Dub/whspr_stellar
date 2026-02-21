@@ -45,6 +45,7 @@ export enum AuditAction {
   PLATFORM_WALLET_WITHDRAWAL_COMPLETED = 'platform.wallet.withdrawal.completed',
   PLATFORM_WALLET_WITHDRAWAL_FAILED = 'platform.wallet.withdrawal.failed',
   PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED = 'platform.wallet.withdrawal.attempted',
+  TRANSACTION_REFUNDED = 'admin.transaction.refunded',
 }
 
 export enum AuditEventType {

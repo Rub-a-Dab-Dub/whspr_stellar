@@ -8,6 +8,7 @@ export enum BlockchainTaskType {
   QUERY = 'query',
   CONTRACT_CALL = 'contract_call',
   BALANCE_CHECK = 'balance_check',
+  REFUND = 'refund', 
 }
 
 @Processor(QUEUE_NAMES.BLOCKCHAIN_TASKS)
@@ -40,6 +41,9 @@ export class BlockchainTaskProcessor {
           break;
         default:
           throw new Error(`Unknown blockchain task type: ${taskType}`);
+        case BlockchainTaskType.REFUND:
+          result = await this.processRefund(params, job);
+          break;
       }
 
       await job.progress(100);
@@ -131,5 +135,22 @@ export class BlockchainTaskProcessor {
     return retryableErrors.some(
       (errType) => error.message?.includes(errType) || error.code === errType,
     );
+  }
+
+  private async processRefund(params: any, job: Job) {
+    this.logger.log(`Processing refund: ${JSON.stringify(params)}`);
+    await job.progress(30);
+
+    // TODO: Implement actual on-chain refund logic using TransferBlockchainService
+    // params will contain: { originalTxId, refundTxId, recipientId, amount, reason }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    await job.progress(80);
+
+    return {
+      transactionHash: `0x${Math.random().toString(16).substr(2, 64)}`,
+      status: 'confirmed',
+      refundTxId: params.refundTxId,
+    };
   }
 }

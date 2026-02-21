@@ -40,6 +40,8 @@ import { QueueModule } from '../queue/queue.module';
 import { AdminAuthModule } from './auth/admin-auth.module';
 import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
+import { NotificationService } from '../notifications/services/notification.service';
+import { QueueService } from '../queue/queue.service';
 
 @Module({
   imports: [
@@ -71,6 +73,8 @@ import { FlaggedMessage } from '../moderation/flagged-message.entity';
       PlatformWalletWithdrawal,
       WithdrawalWhitelist,
     ]),
+    NotificationsModule,
+    QueueModule,
   ],
   controllers: [AdminController, IpWhitelistController],
   providers: [
@@ -82,6 +86,8 @@ import { FlaggedMessage } from '../moderation/flagged-message.entity';
     TemporaryBanCleanupJob,
     AutoUnbanProcessor,
     AdminEventStreamGateway,
+    NotificationService,
+    QueueService,
   ],
   exports: [AdminConfigService, AdminService, AuditLogService],
 })

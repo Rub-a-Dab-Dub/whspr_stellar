@@ -61,6 +61,12 @@ import { NotificationGateway } from '../../notifications/gateways/notification.g
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
+import { NotificationService } from '../../notifications/services/notification.service';
+import { NotificationType } from '../../notifications/enums/notification-type.enum';
+import { QueueService } from '../../queue/queue.service';
+import { BlockchainTaskType } from '../../queue/processors/blockchain-task.processor';
+import { TransferStatus } from '../../transfer/entities/transfer.entity';
+import { RefundTransactionDto } from '../dto/refund-transaction.dto';
 
 @Injectable()
 export class AdminService {
@@ -96,6 +102,8 @@ export class AdminService {
     private readonly notificationGateway: NotificationGateway,
     @InjectQueue(QUEUE_NAMES.NOTIFICATIONS)
     private readonly notificationsQueue: Queue,
+    private readonly notificationService: NotificationService,
+    private readonly queueService: QueueService,
   ) {}
 
   async getTransactions(
@@ -2054,5 +2062,122 @@ export class AdminService {
     if (room.isExpired) return RoomFilterStatus.CLOSED;
     if (room.isActive) return RoomFilterStatus.ACTIVE;
     return 'unknown';
+  }
+
+  async refundTransaction(
+  txId: string,
+  dto: RefundTransactionDto,
+  adminId: string,
+  req?: Request,
+  ): Promise<{ message: string; refundJobId: string }> {
+    // 1. Find the original transaction
+    const transfer = await this.transferRepository.findOne({
+      where: { id: txId },
+      relations: ['sender', 'recipient'],
+    });
+
+    if (!transfer) {
+      throw new NotFoundException(`Transaction with ID ${txId} not found`);
+    }
+
+    // 2. Validate status is completed
+    if (transfer.status !== TransferStatus.COMPLETED) {
+      throw new BadRequestException(
+        `Transaction must be in completed status to be refunded. Current status: ${transfer.status}`,
+      );
+    }
+
+    // 3. Validate refund amount does not exceed original
+    const originalAmount = parseFloat(transfer.amount);
+    const refundAmount = parseFloat(dto.amount);
+
+    if (isNaN(refundAmount) || refundAmount <= 0) {
+      throw new BadRequestException('Refund amount must be a positive number');
+    }
+
+    if (refundAmount > originalAmount) {
+      throw new BadRequestException(
+        `Refund amount (${dto.amount}) cannot exceed original transaction amount (${transfer.amount})`,
+      );
+    }
+
+    // 4. Check not already refunded (memo check)
+    if (transfer.memo?.startsWith('REFUND:')) {
+      throw new BadRequestException('This transaction has already been refunded');
+    }
+
+    // 5. Create refund transfer record linked to original
+    const refundTransfer = this.transferRepository.create({
+      senderId: transfer.recipientId,
+      recipientId: transfer.senderId,
+      amount: dto.amount,
+      blockchainNetwork: transfer.blockchainNetwork,
+      status: TransferStatus.PENDING,
+      type: transfer.type,
+      memo: `REFUND:${txId}`,
+      note: dto.reason,
+    });
+
+    const savedRefund = await this.transferRepository.save(refundTransfer);
+
+    // 6. Queue the on-chain refund via Bull
+    const job = await this.queueService.addBlockchainTaskJob(
+      {
+        taskType: BlockchainTaskType.REFUND,
+        params: {
+          originalTxId: txId,
+          refundTxId: savedRefund.id,
+          recipientId: transfer.senderId,
+          amount: dto.amount,
+          reason: dto.reason,
+          blockchainNetwork: transfer.blockchainNetwork,
+        },
+      },
+      3, // high priority
+    );
+
+    // 7. Notify user if requested
+    if (dto.notifyUser) {
+      await this.notificationService.createNotification({
+        recipientId: transfer.senderId,
+        senderId: adminId,
+        type: NotificationType.SYSTEM,
+        title: 'Refund Initiated',
+        message: `A refund of ${dto.amount} has been initiated for your transaction. Reason: ${dto.reason}`,
+        data: {
+          originalTxId: txId,
+          refundTxId: savedRefund.id,
+          amount: dto.amount,
+          reason: dto.reason,
+        },
+      });
+    }
+
+    // 8. Audit log with full details
+    await this.logAudit(
+      adminId,
+      AuditAction.TRANSACTION_REFUNDED,
+      transfer.senderId,
+      `Refund initiated for transaction ${txId}. Amount: ${dto.amount}. Reason: ${dto.reason}`,
+      {
+        originalTxId: txId,
+        refundTxId: savedRefund.id,
+        originalAmount: transfer.amount,
+        refundAmount: dto.amount,
+        reason: dto.reason,
+        notifyUser: dto.notifyUser,
+        recipientId: transfer.senderId,
+        blockchainNetwork: transfer.blockchainNetwork,
+      },
+      req,
+      AuditSeverity.HIGH,
+      'transaction',
+      txId,
+    );
+
+    return {
+      message: 'Refund initiated successfully',
+      refundJobId: job.id.toString(),
+    };
   }
 }
