@@ -64,6 +64,8 @@ import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { CloseRoomDto } from '../dto/close-room.dto';
 import { DeleteRoomDto } from '../dto/delete-room.dto';
 import { RestoreRoomDto } from '../dto/restore-room.dto';
+import { AdjustUserXpDto } from '../dto/adjust-user-xp.dto';
+import { XpService } from '../../users/services/xp.service';
 
 @Injectable()
 export class AdminService {
@@ -97,6 +99,7 @@ export class AdminService {
     private readonly sessionService: SessionService,
     private readonly messagesGateway: MessagesGateway,
     private readonly notificationGateway: NotificationGateway,
+    private readonly xpService: XpService,
     @InjectQueue(QUEUE_NAMES.NOTIFICATIONS)
     private readonly notificationsQueue: Queue,
   ) {}
@@ -2366,5 +2369,137 @@ export class AdminService {
 
     return totalRefunded;
   }
-}
+
+  /**
+   * Adjust user XP for edge cases (exploit mitigation, compensation, contest rewards, etc.)
+   */
+  async adjustUserXp(
+    userId: string,
+    adjustXpDto: AdjustUserXpDto,
+    adminId: string,
+    req: Request,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    user: User;
+    previousXp: number;
+    newXp: number;
+    delta: number;
+    oldLevel: number;
+    newLevel: number;
+    levelChanged: boolean;
+  }> {
+    // Fetch user
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const { delta, reason } = adjustXpDto;
+    const previousXp = user.currentXp;
+
+    // Calculate new XP
+    const newXp = previousXp + delta;
+
+    // Validate XP doesn't go below 0
+    if (newXp < 0) {
+      throw new BadRequestException(
+        `XP adjustment would result in negative XP. Current: ${previousXp}, Delta: ${delta}. New XP would be: ${newXp}`,
+      );
+    }
+
+    // Calculate levels before and after
+    const oldLevel = this.xpService.calculateLevel(previousXp);
+    const newLevel = this.xpService.calculateLevel(newXp);
+    const levelChanged = newLevel !== oldLevel;
+
+    // Update user XP and level
+    user.currentXp = newXp;
+    user.level = newLevel;
+
+    await this.userRepository.save(user);
+
+    // Update leaderboard with the delta
+    if (delta !== 0) {
+      await this.leaderboardService.updateLeaderboard({
+        userId: user.id,
+        username: user.username,
+        category: LeaderboardCategory.XP,
+        scoreIncrement: delta,
+      });
+    }
+
+    // Queue notifications if level changed
+    if (levelChanged) {
+      if (newLevel > oldLevel) {
+        // Level up: queue level up notification
+        await this.notificationsQueue.add(
+          'send-notification',
+          {
+            type: 'LEVEL_UP',
+            userId: user.id,
+            username: user.username,
+            oldLevel,
+            newLevel,
+            currentXp: user.currentXp,
+            adminAdjustment: true,
+            reason,
+          },
+          { delay: 1000 },
+        );
+      } else {
+        // Level down: queue level down notification (if supported)
+        await this.notificationsQueue.add(
+          'send-notification',
+          {
+            type: 'LEVEL_DOWN',
+            userId: user.id,
+            username: user.username,
+            oldLevel,
+            newLevel,
+            currentXp: user.currentXp,
+            adminAdjustment: true,
+            reason,
+          },
+          { delay: 1000 },
+        );
+      }
+    }
+
+    // Create audit log entry
+    await this.auditLogService.log({
+      adminId,
+      action: AuditAction.USER_XP_ADJUSTED,
+      resourceType: 'USER',
+      resourceId: userId,
+      details: reason,
+      changes: {
+        previousXp,
+        newXp,
+        delta,
+        oldLevel,
+        newLevel,
+      },
+      severity: AuditSeverity.MEDIUM,
+      outcome: AuditOutcome.SUCCESS,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    this.logger.log(
+      `XP adjusted for user ${userId}: ${previousXp} → ${newXp} (delta: ${delta}, reason: ${reason})`,
+    );
+
+    return {
+      success: true,
+      message: `XP adjusted successfully. Previous: ${previousXp}, New: ${newXp}, Delta: ${delta}`,
+      user,
+      previousXp,
+      newXp,
+      delta,
+      oldLevel,
+      newLevel,
+      levelChanged,
+    };
+  }
 
