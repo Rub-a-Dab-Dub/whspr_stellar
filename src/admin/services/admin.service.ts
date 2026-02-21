@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Repository, In } from 'typeorm';
+import { Repository, In, MoreThanOrEqual, LessThan, Between } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import {
   AuditLog,
@@ -51,6 +51,8 @@ import {
 } from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
+import { GetOverviewAnalyticsDto, AnalyticsPeriod } from '../dto/get-overview-analytics.dto';
+import { CacheService } from '../../cache/cache.service';
 
 @Injectable()
 export class AdminService {
@@ -80,6 +82,7 @@ export class AdminService {
     private readonly redisService: RedisService,
     private readonly eventEmitter: EventEmitter2,
     private readonly leaderboardService: LeaderboardService,
+    private readonly cacheService: CacheService,
   ) {}
 
   private async logAudit(
@@ -1282,5 +1285,261 @@ export class AdminService {
     );
 
     return { message: `User pinned status updated successfully` };
+  }
+
+  async getOverviewAnalytics(
+    query: GetOverviewAnalyticsDto,
+    adminId: string,
+    req?: Request,
+  ) {
+    const { period = AnalyticsPeriod.MONTH } = query;
+    const cacheKey = `admin:overview:${period}`;
+
+    // Try to get from cache
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Returning cached overview analytics for period: ${period}`);
+      return cached;
+    }
+
+    // Calculate date range
+    const now = new Date();
+    const startDate = new Date();
+    const previousPeriodStart = new Date();
+    const previousPeriodEnd = new Date();
+
+    switch (period) {
+      case AnalyticsPeriod.DAY:
+        startDate.setHours(0, 0, 0, 0);
+        previousPeriodStart.setDate(startDate.getDate() - 1);
+        previousPeriodStart.setHours(0, 0, 0, 0);
+        previousPeriodEnd.setDate(startDate.getDate() - 1);
+        previousPeriodEnd.setHours(23, 59, 59, 999);
+        break;
+      case AnalyticsPeriod.WEEK:
+        startDate.setDate(startDate.getDate() - 7);
+        previousPeriodStart.setDate(startDate.getDate() - 7);
+        previousPeriodEnd.setTime(startDate.getTime() - 1);
+        break;
+      case AnalyticsPeriod.MONTH:
+        startDate.setMonth(startDate.getMonth() - 1);
+        previousPeriodStart.setMonth(startDate.getMonth() - 1);
+        previousPeriodEnd.setTime(startDate.getTime() - 1);
+        break;
+      case AnalyticsPeriod.YEAR:
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        previousPeriodStart.setFullYear(startDate.getFullYear() - 1);
+        previousPeriodEnd.setTime(startDate.getTime() - 1);
+        break;
+    }
+
+    // User metrics
+    const [totalUsers, bannedUsers] = await Promise.all([
+      this.userRepository.count(),
+      this.userRepository.count({ where: { isBanned: true } }),
+    ]);
+
+    const newUsersThisPeriod = await this.userRepository.count({
+      where: { createdAt: MoreThanOrEqual(startDate) },
+    });
+
+    const newUsersPreviousPeriod = await this.userRepository.count({
+      where: {
+        createdAt: Between(previousPeriodStart, previousPeriodEnd),
+      },
+    });
+
+    // Active users (users with sessions in the period)
+    const activeUsersThisPeriod = await this.sessionRepository
+      .createQueryBuilder('session')
+      .select('COUNT(DISTINCT session.userId)', 'count')
+      .where('session.createdAt >= :startDate', { startDate })
+      .getRawOne();
+
+    const activeUserCount = parseInt(activeUsersThisPeriod?.count || '0', 10);
+
+    // Calculate growth rate
+    const growthRate = newUsersPreviousPeriod > 0
+      ? (newUsersThisPeriod - newUsersPreviousPeriod) / newUsersPreviousPeriod
+      : newUsersThisPeriod > 0 ? 1 : 0;
+
+    // Room metrics
+    const [totalRooms, activeRoomsThisPeriod, roomsCreatedThisPeriod] = await Promise.all([
+      this.roomRepository.count({ where: { isDeleted: false } }),
+      this.roomRepository
+        .createQueryBuilder('room')
+        .innerJoin('room.members', 'member')
+        .where('room.isDeleted = :isDeleted', { isDeleted: false })
+        .andWhere('member.lastActiveAt >= :startDate', { startDate })
+        .select('COUNT(DISTINCT room.id)', 'count')
+        .getRawOne()
+        .then(result => parseInt(result?.count || '0', 10)),
+      this.roomRepository.count({
+        where: {
+          createdAt: MoreThanOrEqual(startDate),
+          isDeleted: false,
+        },
+      }),
+    ]);
+
+    // Expired rooms in period
+    const timedExpiredRooms = await this.roomRepository.count({
+      where: {
+        isExpired: true,
+        updatedAt: MoreThanOrEqual(startDate),
+      },
+    });
+
+    // Message metrics
+    const messagesThisPeriod = await this.messageRepository.count({
+      where: {
+        createdAt: MoreThanOrEqual(startDate),
+        isDeleted: false,
+      },
+    });
+
+    const avgMessagesPerActiveUser = activeUserCount > 0
+      ? messagesThisPeriod / activeUserCount
+      : 0;
+
+    // Transaction metrics (room payments + tips)
+    const roomPayments = await this.roomPaymentRepository
+      .createQueryBuilder('payment')
+      .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere('payment.createdAt >= :startDate', { startDate })
+      .getMany();
+
+    const tips = await this.messageRepository
+      .createQueryBuilder('message')
+      .where("message.type = 'tip'")
+      .andWhere('message.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('message.createdAt >= :startDate', { startDate })
+      .getMany();
+
+    let totalVolume = 0;
+    let platformRevenue = 0;
+
+    // Process room payments
+    for (const payment of roomPayments) {
+      const amount = parseFloat(payment.amount || '0');
+      const fee = parseFloat(payment.platformFee || '0');
+      totalVolume += amount;
+      platformRevenue += fee;
+    }
+
+    // Process tips
+    for (const tip of tips) {
+      const amount = parseFloat(tip.metadata?.amount || '0');
+      const fee = parseFloat(tip.metadata?.platformFee || '0');
+      totalVolume += amount;
+      platformRevenue += fee;
+    }
+
+    const transactionCount = roomPayments.length + tips.length;
+    const avgTransactionValue = transactionCount > 0
+      ? totalVolume / transactionCount
+      : 0;
+
+    // Top rooms by activity
+    const topRooms = await this.roomRepository
+      .createQueryBuilder('room')
+      .leftJoin('room.members', 'member')
+      .leftJoinAndSelect('room.owner', 'owner')
+      .where('room.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('member.lastActiveAt >= :startDate', { startDate })
+      .select([
+        'room.id',
+        'room.name',
+        'room.memberCount',
+        'owner.id',
+        'owner.username',
+        'owner.email',
+      ])
+      .addSelect('COUNT(DISTINCT member.id)', 'activeMembers')
+      .groupBy('room.id')
+      .addGroupBy('owner.id')
+      .orderBy('activeMembers', 'DESC')
+      .limit(10)
+      .getRawAndEntities();
+
+    const topRoomsFormatted = topRooms.entities.map((room, index) => ({
+      id: room.id,
+      name: room.name,
+      memberCount: room.memberCount,
+      activeMembers: parseInt(topRooms.raw[index]?.activeMembers || '0', 10),
+      owner: room.owner ? {
+        id: room.owner.id,
+        username: room.owner.username || room.owner.email,
+      } : null,
+    }));
+
+    // Top tippers
+    const topTippers = await this.messageRepository
+      .createQueryBuilder('message')
+      .leftJoinAndSelect('message.author', 'author')
+      .where("message.type = 'tip'")
+      .andWhere('message.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('message.createdAt >= :startDate', { startDate })
+      .select([
+        'author.id',
+        'author.username',
+        'author.email',
+      ])
+      .addSelect('COUNT(message.id)', 'tipCount')
+      .addSelect('SUM(CAST(message.metadata->>\'amount\' AS DECIMAL))', 'totalAmount')
+      .groupBy('author.id')
+      .orderBy('totalAmount', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    const topTippersFormatted = topTippers.map(tipper => ({
+      userId: tipper.author_id,
+      username: tipper.author_username || tipper.author_email,
+      tipCount: parseInt(tipper.tipCount || '0', 10),
+      totalAmount: parseFloat(tipper.totalAmount || '0').toFixed(2),
+    }));
+
+    const response = {
+      users: {
+        total: totalUsers,
+        newThisPeriod: newUsersThisPeriod,
+        activeThisPeriod: activeUserCount,
+        banned: bannedUsers,
+        growthRate: parseFloat(growthRate.toFixed(3)),
+      },
+      rooms: {
+        total: totalRooms,
+        activeThisPeriod: activeRoomsThisPeriod,
+        created: roomsCreatedThisPeriod,
+        timedExpired: timedExpiredRooms,
+      },
+      messages: {
+        totalThisPeriod: messagesThisPeriod,
+        avgPerActiveUser: parseFloat(avgMessagesPerActiveUser.toFixed(1)),
+      },
+      transactions: {
+        totalVolume: totalVolume.toFixed(2),
+        platformRevenue: platformRevenue.toFixed(2),
+        count: transactionCount,
+        avgValue: avgTransactionValue.toFixed(2),
+      },
+      topRooms: topRoomsFormatted,
+      topTippers: topTippersFormatted,
+    };
+
+    // Cache for 5 minutes (300 seconds)
+    await this.cacheService.set(cacheKey, response, 300);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      'Viewed overview analytics',
+      { period },
+      req,
+      AuditSeverity.LOW,
+    );
+
+    return response;
   }
 }

@@ -9,6 +9,7 @@ import jwtConfig from './config/jwt.config';
 import evmConfig from './config/evm.config';
 import redisConfig from './config/redis.config';
 import pinataConfig from './config/pinata.config';
+import adminConfig from './config/admin.config';
 import { validationSchema } from './config/validation.schema';
 import { HealthModule } from './health/health.module';
 import { MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
@@ -42,7 +43,7 @@ import { MaintenanceGuard } from './common/guards/maintenance.guard';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig],
+      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig, adminConfig],
       validationSchema,
     }),
     EventEmitterModule.forRoot(),

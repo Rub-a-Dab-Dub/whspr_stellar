@@ -14,6 +14,9 @@ import { TransferBlockchainService } from './services/transfer-blockchain.servic
 import { TransferNotificationService } from './services/transfer-notification.service';
 import { UsersService } from '../user/user.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { AuditLogService } from '../admin/services/audit-log.service';
+import { AdminConfigService } from '../config/admin-config.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('TransferService', () => {
   let service: TransferService;
@@ -70,6 +73,18 @@ describe('TransferService', () => {
     createQueryRunner: jest.fn(),
   };
 
+  const mockAuditLogService = {
+    log: jest.fn(),
+  };
+
+  const mockAdminConfigService = {
+    largeTransactionThreshold: 10000,
+  };
+
+  const mockEventEmitter = {
+    emit: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -105,6 +120,18 @@ describe('TransferService', () => {
         {
           provide: DataSource,
           useValue: mockDataSource,
+        },
+        {
+          provide: AuditLogService,
+          useValue: mockAuditLogService,
+        },
+        {
+          provide: AdminConfigService,
+          useValue: mockAdminConfigService,
+        },
+        {
+          provide: EventEmitter2,
+          useValue: mockEventEmitter,
         },
       ],
     }).compile();
