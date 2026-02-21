@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
-import { RoomMember, MemberRole, MemberStatus } from '../entities/room-member.entity';
+import {
+  RoomMember,
+  MemberRole,
+  MemberStatus,
+} from '../entities/room-member.entity';
 
 @Injectable()
 export class RoomMemberRepository extends Repository<RoomMember> {
@@ -17,7 +21,9 @@ export class RoomMemberRepository extends Repository<RoomMember> {
   ): Promise<[RoomMember[], number]> {
     const query = this.createQueryBuilder('rm')
       .where('rm.roomId = :roomId', { roomId })
-      .andWhere('rm.status = :status', { status: status || MemberStatus.ACTIVE })
+      .andWhere('rm.status = :status', {
+        status: status || MemberStatus.ACTIVE,
+      })
       .leftJoinAndSelect('rm.user', 'user')
       .skip(skip)
       .take(take);
@@ -29,7 +35,10 @@ export class RoomMemberRepository extends Repository<RoomMember> {
     return await query.getManyAndCount();
   }
 
-  async findMemberWithRole(roomId: string, userId: string): Promise<RoomMember | null> {
+  async findMemberWithRole(
+    roomId: string,
+    userId: string,
+  ): Promise<RoomMember | null> {
     return await this.createQueryBuilder('rm')
       .where('rm.roomId = :roomId', { roomId })
       .andWhere('rm.userId = :userId', { userId })
@@ -50,7 +59,9 @@ export class RoomMemberRepository extends Repository<RoomMember> {
   }
 
   async countMembers(roomId: string, status?: MemberStatus): Promise<number> {
-    const query = this.createQueryBuilder('rm').where('rm.roomId = :roomId', { roomId });
+    const query = this.createQueryBuilder('rm').where('rm.roomId = :roomId', {
+      roomId,
+    });
 
     if (status) {
       query.andWhere('rm.status = :status', { status });
@@ -77,7 +88,10 @@ export class RoomMemberRepository extends Repository<RoomMember> {
     return count > 0;
   }
 
-  async findMembersByRole(roomId: string, role: MemberRole): Promise<RoomMember[]> {
+  async findMembersByRole(
+    roomId: string,
+    role: MemberRole,
+  ): Promise<RoomMember[]> {
     return await this.createQueryBuilder('rm')
       .where('rm.roomId = :roomId', { roomId })
       .andWhere('rm.role = :role', { role })

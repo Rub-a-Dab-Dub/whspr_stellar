@@ -31,15 +31,24 @@ import { Session } from '../../sessions/entities/session.entity';
 import { Message } from '../../message/entities/message.entity';
 import { Room } from '../../room/entities/room.entity';
 import { RoomMember } from '../../room/entities/room-member.entity';
-import { RoomPayment, PaymentStatus } from '../../room/entities/room-payment.entity';
+import {
+  RoomPayment,
+  PaymentStatus,
+} from '../../room/entities/room-payment.entity';
 import { TransferBalanceService } from '../../transfer/services/transfer-balance.service';
 import { UserRole } from '../../roles/entities/role.entity';
 import { PlatformConfig } from '../entities/platform-config.entity';
 import { UpdateConfigDto } from '../dto/update-config.dto';
 import { RedisService } from '../../redis/redis.service';
-import { GetRevenueAnalyticsDto, RevenuePeriod } from '../dto/get-revenue-analytics.dto';
+import {
+  GetRevenueAnalyticsDto,
+  RevenuePeriod,
+} from '../dto/get-revenue-analytics.dto';
 import { LeaderboardService } from '../../leaderboard/leaderboard.service';
-import { LeaderboardCategory, LeaderboardPeriod } from '../../leaderboard/leaderboard.interface';
+import {
+  LeaderboardCategory,
+  LeaderboardPeriod,
+} from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
 
@@ -137,10 +146,9 @@ export class AdminService {
 
     // Search
     if (search) {
-      queryBuilder.andWhere(
-        '(user.email ILIKE :search)',
-        { search: `%${search}%` },
-      );
+      queryBuilder.andWhere('(user.email ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
 
     // Status filter
@@ -148,7 +156,9 @@ export class AdminService {
       if (status === UserFilterStatus.BANNED) {
         queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned: true });
       } else if (status === UserFilterStatus.SUSPENDED) {
-        queryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+        queryBuilder.andWhere('user.suspendedUntil > :now', {
+          now: new Date(),
+        });
       }
     }
 
@@ -159,7 +169,9 @@ export class AdminService {
 
     if (isSuspended !== undefined) {
       if (isSuspended) {
-        queryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+        queryBuilder.andWhere('user.suspendedUntil > :now', {
+          now: new Date(),
+        });
       } else {
         queryBuilder.andWhere(
           '(user.suspendedUntil IS NULL OR user.suspendedUntil <= :now)',
@@ -220,7 +232,11 @@ export class AdminService {
     };
   }
 
-  async getUserDetail(userId: string, adminId: string, req?: Request): Promise<User> {
+  async getUserDetail(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['roles'],
@@ -639,9 +655,15 @@ export class AdminService {
     recentRegistrations: number;
   }> {
     const total = await this.userRepository.count();
-    const banned = await this.userRepository.count({ where: { isBanned: true } });
-    const verified = await this.userRepository.count({ where: { isVerified: true } });
-    const unverified = await this.userRepository.count({ where: { isVerified: false } });
+    const banned = await this.userRepository.count({
+      where: { isBanned: true },
+    });
+    const verified = await this.userRepository.count({
+      where: { isVerified: true },
+    });
+    const unverified = await this.userRepository.count({
+      where: { isVerified: false },
+    });
 
     const now = new Date();
     const suspended = await this.userRepository
@@ -803,12 +825,13 @@ export class AdminService {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    const [sessions, transfersSent, transfersReceived, messages] = await Promise.all([
-      this.sessionRepository.find({ where: { userId } }),
-      this.transferRepository.find({ where: { senderId: userId } }),
-      this.transferRepository.find({ where: { recipientId: userId } }),
-      this.messageRepository.find({ where: { authorId: userId } }),
-    ]);
+    const [sessions, transfersSent, transfersReceived, messages] =
+      await Promise.all([
+        this.sessionRepository.find({ where: { userId } }),
+        this.transferRepository.find({ where: { senderId: userId } }),
+        this.transferRepository.find({ where: { recipientId: userId } }),
+        this.messageRepository.find({ where: { authorId: userId } }),
+      ]);
 
     const auditLogs = await this.auditLogRepository.find({
       where: [{ actorUserId: userId }, { targetUserId: userId }],
@@ -816,7 +839,8 @@ export class AdminService {
       take: 500,
     });
 
-    const dataAccessLogs = await this.auditLogService.getDataAccessLogsForUser(userId);
+    const dataAccessLogs =
+      await this.auditLogService.getDataAccessLogsForUser(userId);
 
     await this.auditLogService.createAuditLog({
       actorUserId: adminId,
@@ -886,7 +910,9 @@ export class AdminService {
 
     // Verify confirmEmail
     if (dto.confirmEmail !== user.email) {
-      throw new BadRequestException('Confirmation email does not match user email');
+      throw new BadRequestException(
+        'Confirmation email does not match user email',
+      );
     }
 
     // Check balance
@@ -987,7 +1013,9 @@ export class AdminService {
     adminId: string,
     req?: Request,
   ): Promise<PlatformConfig> {
-    const config = await this.platformConfigRepository.findOne({ where: { key } });
+    const config = await this.platformConfigRepository.findOne({
+      where: { key },
+    });
 
     if (!config) {
       throw new NotFoundException(`Configuration with key ${key} not found`);
@@ -1035,7 +1063,9 @@ export class AdminService {
       return JSON.parse(cached) as T;
     }
 
-    const config = await this.platformConfigRepository.findOne({ where: { key } });
+    const config = await this.platformConfigRepository.findOne({
+      where: { key },
+    });
     if (!config) {
       return defaultValue;
     }
@@ -1177,7 +1207,12 @@ export class AdminService {
 
   async getLeaderboardEntries(
     type: LeaderboardCategory,
-    query: { period?: LeaderboardPeriod; roomId?: string; page?: number; limit?: number },
+    query: {
+      period?: LeaderboardPeriod;
+      roomId?: string;
+      page?: number;
+      limit?: number;
+    },
   ) {
     return await this.leaderboardService.getTopUsers({
       category: type,
@@ -1216,7 +1251,10 @@ export class AdminService {
   }
 
   async getLeaderboardHistory(page: number = 1, limit: number = 20) {
-    const snapshots = await this.leaderboardService.getHistory(limit, (page - 1) * limit);
+    const snapshots = await this.leaderboardService.getHistory(
+      limit,
+      (page - 1) * limit,
+    );
     return snapshots;
   }
 

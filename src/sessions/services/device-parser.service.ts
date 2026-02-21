@@ -36,7 +36,7 @@ export class DeviceParserService {
     if (result.device.type) {
       return result.device.type;
     }
-    
+
     // Default to desktop if no device type is specified
     return 'desktop';
   }
@@ -77,12 +77,15 @@ export class DeviceParserService {
     return version ? `${os} ${version}` : os;
   }
 
-  generateFingerprint(userAgent: string, ipAddress: string, additionalData?: string): string {
-    const data = [userAgent, ipAddress, additionalData].filter(Boolean).join('|');
-    return crypto
-      .createHash('sha256')
-      .update(data)
-      .digest('hex');
+  generateFingerprint(
+    userAgent: string,
+    ipAddress: string,
+    additionalData?: string,
+  ): string {
+    const data = [userAgent, ipAddress, additionalData]
+      .filter(Boolean)
+      .join('|');
+    return crypto.createHash('sha256').update(data).digest('hex');
   }
 
   // Simple location parsing from IP (you'd typically use a GeoIP service)

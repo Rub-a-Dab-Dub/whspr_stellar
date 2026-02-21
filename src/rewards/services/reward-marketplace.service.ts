@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RewardMarketplace, MarketplaceListingStatus } from '../entities/reward-marketplace.entity';
+import {
+  RewardMarketplace,
+  MarketplaceListingStatus,
+} from '../entities/reward-marketplace.entity';
 import { UserReward } from '../entities/user-reward.entity';
 import { UserRewardStatus } from '../enums/user-reward-status.enum';
 import { MarketplaceListDto } from '../dto/marketplace-list.dto';
@@ -39,7 +47,9 @@ export class RewardMarketplaceService {
     });
 
     if (!userReward) {
-      throw new NotFoundException(`User reward with ID ${userRewardId} not found`);
+      throw new NotFoundException(
+        `User reward with ID ${userRewardId} not found`,
+      );
     }
 
     if (userReward.status !== UserRewardStatus.ACTIVE) {
@@ -49,7 +59,9 @@ export class RewardMarketplaceService {
     }
 
     if (!userReward.reward.isMarketplaceItem) {
-      throw new BadRequestException('This reward cannot be listed in the marketplace');
+      throw new BadRequestException(
+        'This reward cannot be listed in the marketplace',
+      );
     }
 
     // Check if already listed
@@ -61,7 +73,9 @@ export class RewardMarketplaceService {
     });
 
     if (existingListing) {
-      throw new BadRequestException('This reward is already listed in the marketplace');
+      throw new BadRequestException(
+        'This reward is already listed in the marketplace',
+      );
     }
 
     // Create marketplace listing
@@ -186,7 +200,10 @@ export class RewardMarketplaceService {
   /**
    * Cancel a marketplace listing
    */
-  async cancelListing(userId: string, listingId: string): Promise<RewardMarketplace> {
+  async cancelListing(
+    userId: string,
+    listingId: string,
+  ): Promise<RewardMarketplace> {
     const listing = await this.marketplaceRepository.findOne({
       where: { id: listingId, sellerId: userId },
     });

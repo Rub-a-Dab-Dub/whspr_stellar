@@ -1,6 +1,10 @@
 // src/health/indicators/evm-rpc.indicator.ts
 import { Injectable } from '@nestjs/common';
-import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus';
+import {
+  HealthIndicator,
+  HealthIndicatorResult,
+  HealthCheckError,
+} from '@nestjs/terminus';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom, timeout, catchError } from 'rxjs';
 
@@ -12,30 +16,32 @@ export class EvmRpcHealthIndicator extends HealthIndicator {
 
   async checkRpc(key: string, rpcUrl: string): Promise<HealthIndicatorResult> {
     const startTime = Date.now();
-    
+
     try {
       if (!rpcUrl) {
         throw new Error('RPC URL not configured');
       }
 
       const response = await firstValueFrom(
-        this.http.post(
-          rpcUrl,
-          {
-            jsonrpc: '2.0',
-            method: 'eth_blockNumber',
-            params: [],
-            id: 1,
-          },
-          {
-            headers: { 'Content-Type': 'application/json' },
-          }
-        ).pipe(
-          timeout(2000), // 2 second timeout
-          catchError((error) => {
-            throw new Error(`RPC request failed: ${error.message}`);
-          })
-        )
+        this.http
+          .post(
+            rpcUrl,
+            {
+              jsonrpc: '2.0',
+              method: 'eth_blockNumber',
+              params: [],
+              id: 1,
+            },
+            {
+              headers: { 'Content-Type': 'application/json' },
+            },
+          )
+          .pipe(
+            timeout(2000), // 2 second timeout
+            catchError((error) => {
+              throw new Error(`RPC request failed: ${error.message}`);
+            }),
+          ),
       );
 
       const responseTime = Date.now() - startTime;
@@ -55,7 +61,7 @@ export class EvmRpcHealthIndicator extends HealthIndicator {
         message: error.message,
         rpcUrl: rpcUrl.replace(/\/\/.*@/, '//***@'),
       });
-      
+
       throw new HealthCheckError('EVM RPC check failed', result);
     }
   }

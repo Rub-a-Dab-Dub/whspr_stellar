@@ -39,6 +39,8 @@ export enum AuditAction {
   AUDIT_LOG_EXPORTED = 'audit.logs.exported',
   DATA_EXPORT = 'data.exported',
   PLATFORM_CONFIG_UPDATED = 'platform.config.updated',
+  IP_WHITELIST_ADDED = 'ip_whitelist.added',
+  IP_WHITELIST_REMOVED = 'ip_whitelist.removed',
 }
 
 export enum AuditEventType {

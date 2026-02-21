@@ -74,7 +74,9 @@ describe('RoomMemberService', () => {
     }).compile();
 
     service = module.get<RoomMemberService>(RoomMemberService);
-    memberRepository = module.get(RoomMemberRepository) as jest.Mocked<RoomMemberRepository>;
+    memberRepository = module.get(
+      RoomMemberRepository,
+    ) as jest.Mocked<RoomMemberRepository>;
     redisService = module.get(RedisService) as jest.Mocked<RedisService>;
     dataSource = module.get(DataSource) as jest.Mocked<DataSource>;
   });
@@ -166,7 +168,9 @@ describe('RoomMemberService', () => {
 
     it('should not allow member to kick', async () => {
       const memberInitiator = { ...mockMember, role: MemberRole.MEMBER };
-      memberRepository.findMemberWithRole.mockResolvedValueOnce(memberInitiator as any);
+      memberRepository.findMemberWithRole.mockResolvedValueOnce(
+        memberInitiator as any,
+      );
 
       await expect(
         service.kickMember('room-1', 'user-2', 'user-1'),
@@ -205,10 +209,17 @@ describe('RoomMemberService', () => {
     });
 
     it('should throw error if initiator not admin', async () => {
-      memberRepository.findMemberWithRole.mockResolvedValueOnce(mockMember as any);
+      memberRepository.findMemberWithRole.mockResolvedValueOnce(
+        mockMember as any,
+      );
 
       await expect(
-        service.updateMemberRole('room-1', 'user-2', MemberRole.MODERATOR, 'user-1'),
+        service.updateMemberRole(
+          'room-1',
+          'user-2',
+          MemberRole.MODERATOR,
+          'user-1',
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
   });

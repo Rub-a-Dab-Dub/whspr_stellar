@@ -6,8 +6,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { Transfer, TransferStatus, TransferType } from './entities/transfer.entity';
-import { BulkTransfer, BulkTransferStatus } from './entities/bulk-transfer.entity';
+import {
+  Transfer,
+  TransferStatus,
+  TransferType,
+} from './entities/transfer.entity';
+import {
+  BulkTransfer,
+  BulkTransferStatus,
+} from './entities/bulk-transfer.entity';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { CreateBulkTransferDto } from './dto/create-bulk-transfer.dto';
 import { TransferQueryDto } from './dto/transfer-query.dto';
@@ -51,7 +58,13 @@ export class TransferService {
     senderId: string,
     createTransferDto: CreateTransferDto,
   ): Promise<Transfer> {
-    const { recipientId, amount, memo, note, blockchainNetwork = 'stellar' } = createTransferDto;
+    const {
+      recipientId,
+      amount,
+      memo,
+      note,
+      blockchainNetwork = 'stellar',
+    } = createTransferDto;
 
     // Validate amount
     this.validationService.validateAmount(amount);
@@ -60,17 +73,22 @@ export class TransferService {
     await this.validationService.validateRecipient(recipientId, senderId);
 
     // Validate balance
-    await this.validationService.validateBalance(senderId, amount, blockchainNetwork);
+    await this.validationService.validateBalance(
+      senderId,
+      amount,
+      blockchainNetwork,
+    );
 
     // Record balance snapshots
     const senderBalanceBefore = await this.balanceService.recordBalanceSnapshot(
       senderId,
       blockchainNetwork,
     );
-    const recipientBalanceBefore = await this.balanceService.recordBalanceSnapshot(
-      recipientId,
-      blockchainNetwork,
-    );
+    const recipientBalanceBefore =
+      await this.balanceService.recordBalanceSnapshot(
+        recipientId,
+        blockchainNetwork,
+      );
 
     // Create transfer record
     const transfer = this.transferRepository.create({
@@ -129,8 +147,12 @@ export class TransferService {
       await this.transferRepository.save(transfer);
 
       // Get wallet addresses
-      const senderPublicKey = await this.blockchainService.getUserPublicKey(transfer.senderId);
-      const recipientPublicKey = await this.blockchainService.getUserPublicKey(transfer.recipientId);
+      const senderPublicKey = await this.blockchainService.getUserPublicKey(
+        transfer.senderId,
+      );
+      const recipientPublicKey = await this.blockchainService.getUserPublicKey(
+        transfer.recipientId,
+      );
 
       if (!senderPublicKey || !recipientPublicKey) {
         throw new Error('Wallet addresses not found');
@@ -146,14 +168,16 @@ export class TransferService {
 
       if (result.success) {
         // Record balance snapshots after transfer
-        const senderBalanceAfter = await this.balanceService.recordBalanceSnapshot(
-          transfer.senderId,
-          transfer.blockchainNetwork,
-        );
-        const recipientBalanceAfter = await this.balanceService.recordBalanceSnapshot(
-          transfer.recipientId,
-          transfer.blockchainNetwork,
-        );
+        const senderBalanceAfter =
+          await this.balanceService.recordBalanceSnapshot(
+            transfer.senderId,
+            transfer.blockchainNetwork,
+          );
+        const recipientBalanceAfter =
+          await this.balanceService.recordBalanceSnapshot(
+            transfer.recipientId,
+            transfer.blockchainNetwork,
+          );
 
         transfer.status = TransferStatus.COMPLETED;
         transfer.transactionHash = result.transactionHash;
@@ -181,11 +205,20 @@ export class TransferService {
         });
 
         // Send notifications
-        await this.notificationService.notifyTransferSent(transfer, transfer.recipient.email);
-        await this.notificationService.notifyTransferReceived(transfer, transfer.sender.email);
+        await this.notificationService.notifyTransferSent(
+          transfer,
+          transfer.recipient.email,
+        );
+        await this.notificationService.notifyTransferReceived(
+          transfer,
+          transfer.sender.email,
+        );
 
         // Emit large transaction event if above threshold
-        const threshold = this.configService.get<number>('ADMIN_LARGE_TRANSACTION_THRESHOLD', 10000);
+        const threshold = this.configService.get<number>(
+          'ADMIN_LARGE_TRANSACTION_THRESHOLD',
+          10000,
+        );
         const amountNum = parseFloat(transfer.amount);
         if (amountNum >= threshold) {
           this.eventEmitter.emit(ADMIN_STREAM_EVENTS.TRANSACTION_LARGE, {
@@ -211,7 +244,10 @@ export class TransferService {
     }
   }
 
-  private async handleTransferFailure(transferId: string, reason: string): Promise<void> {
+  private async handleTransferFailure(
+    transferId: string,
+    reason: string,
+  ): Promise<void> {
     const transfer = await this.transferRepository.findOne({
       where: { id: transferId },
     });
@@ -259,7 +295,11 @@ export class TransferService {
     senderId: string,
     createBulkTransferDto: CreateBulkTransferDto,
   ): Promise<BulkTransfer> {
-    const { recipients, memo, blockchainNetwork = 'stellar' } = createBulkTransferDto;
+    const {
+      recipients,
+      memo,
+      blockchainNetwork = 'stellar',
+    } = createBulkTransferDto;
 
     // Validate bulk transfer
     await this.validationService.validateBulkTransfer(
@@ -283,7 +323,7 @@ export class TransferService {
     await this.bulkTransferRepository.save(bulkTransfer);
 
     // Create individual transfer records
-    const transfers = recipients.map(recipient =>
+    const transfers = recipients.map((recipient) =>
       this.transferRepository.create({
         senderId,
         recipientId: recipient.recipientId,
@@ -305,7 +345,9 @@ export class TransferService {
     return bulkTransfer;
   }
 
-  private async executeBulkTransferAsync(bulkTransferId: string): Promise<void> {
+  private async executeBulkTransferAsync(
+    bulkTransferId: string,
+  ): Promise<void> {
     const bulkTransfer = await this.bulkTransferRepository.findOne({
       where: { id: bulkTransferId },
     });
@@ -330,18 +372,20 @@ export class TransferService {
         successful++;
       } catch (error) {
         failed++;
-        this.logger.error(`Bulk transfer item ${transfer.id} failed: ${error.message}`);
+        this.logger.error(
+          `Bulk transfer item ${transfer.id} failed: ${error.message}`,
+        );
       }
     }
 
     bulkTransfer.successfulTransfers = successful;
     bulkTransfer.failedTransfers = failed;
-    bulkTransfer.status = 
-      failed === 0 
-        ? BulkTransferStatus.COMPLETED 
-        : successful === 0 
-        ? BulkTransferStatus.FAILED 
-        : BulkTransferStatus.PARTIALLY_COMPLETED;
+    bulkTransfer.status =
+      failed === 0
+        ? BulkTransferStatus.COMPLETED
+        : successful === 0
+          ? BulkTransferStatus.FAILED
+          : BulkTransferStatus.PARTIALLY_COMPLETED;
     bulkTransfer.completedAt = new Date();
 
     await this.bulkTransferRepository.save(bulkTransfer);
@@ -357,13 +401,23 @@ export class TransferService {
     userId: string,
     query: TransferQueryDto,
   ): Promise<{ transfers: Transfer[]; total: number }> {
-    const { status, type, recipientId, senderId, limit = 20, offset = 0 } = query;
+    const {
+      status,
+      type,
+      recipientId,
+      senderId,
+      limit = 20,
+      offset = 0,
+    } = query;
 
     const queryBuilder = this.transferRepository
       .createQueryBuilder('transfer')
       .leftJoinAndSelect('transfer.sender', 'sender')
       .leftJoinAndSelect('transfer.recipient', 'recipient')
-      .where('(transfer.senderId = :userId OR transfer.recipientId = :userId)', { userId });
+      .where(
+        '(transfer.senderId = :userId OR transfer.recipientId = :userId)',
+        { userId },
+      );
 
     if (status) {
       queryBuilder.andWhere('transfer.status = :status', { status });
@@ -374,17 +428,16 @@ export class TransferService {
     }
 
     if (recipientId) {
-      queryBuilder.andWhere('transfer.recipientId = :recipientId', { recipientId });
+      queryBuilder.andWhere('transfer.recipientId = :recipientId', {
+        recipientId,
+      });
     }
 
     if (senderId) {
       queryBuilder.andWhere('transfer.senderId = :senderId', { senderId });
     }
 
-    queryBuilder
-      .orderBy('transfer.createdAt', 'DESC')
-      .skip(offset)
-      .take(limit);
+    queryBuilder.orderBy('transfer.createdAt', 'DESC').skip(offset).take(limit);
 
     const [transfers, total] = await queryBuilder.getManyAndCount();
 
@@ -408,7 +461,10 @@ export class TransferService {
     return transfer;
   }
 
-  async getBulkTransferById(bulkTransferId: string, userId: string): Promise<BulkTransfer> {
+  async getBulkTransferById(
+    bulkTransferId: string,
+    userId: string,
+  ): Promise<BulkTransfer> {
     const bulkTransfer = await this.bulkTransferRepository.findOne({
       where: { id: bulkTransferId, senderId: userId },
     });
@@ -420,7 +476,10 @@ export class TransferService {
     return bulkTransfer;
   }
 
-  async getBulkTransferItems(bulkTransferId: string, userId: string): Promise<Transfer[]> {
+  async getBulkTransferItems(
+    bulkTransferId: string,
+    userId: string,
+  ): Promise<Transfer[]> {
     const bulkTransfer = await this.getBulkTransferById(bulkTransferId, userId);
 
     return this.transferRepository.find({

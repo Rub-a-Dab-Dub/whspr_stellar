@@ -50,10 +50,7 @@ export class MemberActivityService {
       metadata,
     };
 
-    await this.redisService.lpush(
-      activityKey,
-      JSON.stringify(activity),
-    );
+    await this.redisService.lpush(activityKey, JSON.stringify(activity));
 
     // Keep only last 100 activities per user per room
     await this.redisService.ltrim(activityKey, 0, 99);
@@ -84,7 +81,11 @@ export class MemberActivityService {
     limit: number = 50,
   ): Promise<ActivityRecord[]> {
     const activityKey = `activity:${roomId}:${userId}`;
-    const activities = await this.redisService.lrange(activityKey, 0, limit - 1);
+    const activities = await this.redisService.lrange(
+      activityKey,
+      0,
+      limit - 1,
+    );
 
     if (!activities || activities.length === 0) {
       return [];
@@ -147,7 +148,11 @@ export class MemberActivityService {
     const activityCounts: Record<string, number> = {};
 
     for (const member of members) {
-      const activities = await this.getActivityHistory(member.userId, roomId, 1000);
+      const activities = await this.getActivityHistory(
+        member.userId,
+        roomId,
+        1000,
+      );
       activityCounts[member.userId] = activities.length;
     }
 
@@ -157,9 +162,7 @@ export class MemberActivityService {
       .slice(0, limit);
   }
 
-  async getMostActiveHours(
-    roomId: string,
-  ): Promise<Record<number, number>> {
+  async getMostActiveHours(roomId: string): Promise<Record<number, number>> {
     const feedKey = `activity:feed:${roomId}`;
     const activities = await this.redisService.lrange(feedKey, 0, -1);
 
@@ -182,7 +185,10 @@ export class MemberActivityService {
     return hourCounts;
   }
 
-  async cleanOldActivities(roomId: string, daysOld: number = 30): Promise<number> {
+  async cleanOldActivities(
+    roomId: string,
+    daysOld: number = 30,
+  ): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
@@ -193,7 +199,11 @@ export class MemberActivityService {
 
     let count = 0;
     for (const member of members) {
-      const activities = await this.getActivityHistory(member.userId, roomId, 10000);
+      const activities = await this.getActivityHistory(
+        member.userId,
+        roomId,
+        10000,
+      );
       const recentActivities = activities.filter(
         (a) => new Date(a.timestamp) > cutoffDate,
       );
@@ -203,10 +213,7 @@ export class MemberActivityService {
         // Delete and recreate with only recent activities
         await this.redisService.delete(activityKey);
         for (const activity of recentActivities) {
-          await this.redisService.lpush(
-            activityKey,
-            JSON.stringify(activity),
-          );
+          await this.redisService.lpush(activityKey, JSON.stringify(activity));
         }
         count++;
       }
@@ -251,8 +258,16 @@ export class MemberActivityService {
   async bulkGetOnlineStatus(
     roomId: string,
     userIds: string[],
-  ): Promise<Record<string, { isOnline: boolean; minutesSinceLastActivity: number | null }>> {
-    const result: Record<string, { isOnline: boolean; minutesSinceLastActivity: number | null }> = {};
+  ): Promise<
+    Record<
+      string,
+      { isOnline: boolean; minutesSinceLastActivity: number | null }
+    >
+  > {
+    const result: Record<
+      string,
+      { isOnline: boolean; minutesSinceLastActivity: number | null }
+    > = {};
 
     for (const userId of userIds) {
       const status = await this.getMemberOnlineStatus(roomId, userId);

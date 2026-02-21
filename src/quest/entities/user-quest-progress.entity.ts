@@ -1,4 +1,13 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Unique } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Unique,
+} from 'typeorm';
 import { Quest } from './quest.entity';
 
 @Entity('user_quest_progress')
@@ -13,7 +22,7 @@ export class UserQuestProgress {
   @Column()
   questId: string;
 
-  @ManyToOne(() => Quest, quest => quest.userProgress)
+  @ManyToOne(() => Quest, (quest) => quest.userProgress)
   @JoinColumn({ name: 'questId' })
   quest: Quest;
 

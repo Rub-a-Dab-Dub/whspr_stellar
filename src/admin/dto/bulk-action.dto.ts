@@ -1,4 +1,10 @@
-import { IsArray, IsString, IsEnum, IsOptional, MaxLength } from 'class-validator';
+import {
+  IsArray,
+  IsString,
+  IsEnum,
+  IsOptional,
+  MaxLength,
+} from 'class-validator';
 
 export enum BulkActionType {
   BAN = 'ban',

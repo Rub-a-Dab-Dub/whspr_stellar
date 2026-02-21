@@ -34,12 +34,17 @@ export class NotificationBatchingJob {
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async sendDailyDigest(): Promise<void> {
     this.logger.log('Starting daily notification digest');
-    
+
     try {
       const batchedNotifications = await this.getBatchedNotifications('daily');
-      const results = await this.sendDigestEmails(batchedNotifications, 'daily');
-      
-      this.logger.log(`Daily digest sent: ${results.sent} successful, ${results.failed} failed`);
+      const results = await this.sendDigestEmails(
+        batchedNotifications,
+        'daily',
+      );
+
+      this.logger.log(
+        `Daily digest sent: ${results.sent} successful, ${results.failed} failed`,
+      );
     } catch (error) {
       this.logger.error('Failed to send daily digest:', error);
     }
@@ -51,12 +56,17 @@ export class NotificationBatchingJob {
   @Cron('0 9 * * 1') // Every Monday at 9 AM
   async sendWeeklyDigest(): Promise<void> {
     this.logger.log('Starting weekly notification digest');
-    
+
     try {
       const batchedNotifications = await this.getBatchedNotifications('weekly');
-      const results = await this.sendDigestEmails(batchedNotifications, 'weekly');
-      
-      this.logger.log(`Weekly digest sent: ${results.sent} successful, ${results.failed} failed`);
+      const results = await this.sendDigestEmails(
+        batchedNotifications,
+        'weekly',
+      );
+
+      this.logger.log(
+        `Weekly digest sent: ${results.sent} successful, ${results.failed} failed`,
+      );
     } catch (error) {
       this.logger.error('Failed to send weekly digest:', error);
     }
@@ -68,7 +78,7 @@ export class NotificationBatchingJob {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async batchImmediateNotifications(): Promise<void> {
     this.logger.log('Processing immediate notification batch');
-    
+
     try {
       // Get notifications created in the last 5 minutes that haven't been batched
       const fiveMinutesAgo = new Date();
@@ -93,11 +103,12 @@ export class NotificationBatchingJob {
 
       // Group notifications by user
       const userNotifications = this.groupNotificationsByUser(notifications);
-      
+
       // Send batched notifications
       let processed = 0;
       for (const batch of userNotifications) {
-        if (batch.notifications.length >= 3) { // Only batch if 3+ notifications
+        if (batch.notifications.length >= 3) {
+          // Only batch if 3+ notifications
           await this.sendBatchedNotification(batch);
           processed += batch.notifications.length;
         }
@@ -106,31 +117,40 @@ export class NotificationBatchingJob {
       // Mark notifications as batched
       if (processed > 0) {
         await this.markNotificationsAsBatched(
-          userNotifications.flatMap(batch => 
-            batch.notifications.length >= 3 ? batch.notifications.map(n => n.id) : []
-          )
+          userNotifications.flatMap((batch) =>
+            batch.notifications.length >= 3
+              ? batch.notifications.map((n) => n.id)
+              : [],
+          ),
         );
       }
 
-      this.logger.log(`Processed ${processed} notifications in immediate batch`);
+      this.logger.log(
+        `Processed ${processed} notifications in immediate batch`,
+      );
     } catch (error) {
-      this.logger.error('Failed to process immediate notification batch:', error);
+      this.logger.error(
+        'Failed to process immediate notification batch:',
+        error,
+      );
     }
   }
 
   /**
    * Get batched notifications for digest emails
    */
-  private async getBatchedNotifications(period: 'daily' | 'weekly'): Promise<BatchedNotification[]> {
+  private async getBatchedNotifications(
+    period: 'daily' | 'weekly',
+  ): Promise<BatchedNotification[]> {
     const now = new Date();
     const startDate = new Date(now);
-    
+
     if (period === 'daily') {
       startDate.setDate(startDate.getDate() - 1);
     } else {
       startDate.setDate(startDate.getDate() - 7);
     }
-    
+
     startDate.setHours(0, 0, 0, 0);
 
     // Get users who have email digest enabled
@@ -142,8 +162,8 @@ export class NotificationBatchingJob {
       relations: ['user'],
     });
 
-    const userIds = emailPreferences.map(pref => pref.userId);
-    
+    const userIds = emailPreferences.map((pref) => pref.userId);
+
     if (userIds.length === 0) {
       return [];
     }
@@ -165,7 +185,9 @@ export class NotificationBatchingJob {
   /**
    * Group notifications by user
    */
-  private groupNotificationsByUser(notifications: Notification[]): BatchedNotification[] {
+  private groupNotificationsByUser(
+    notifications: Notification[],
+  ): BatchedNotification[] {
     const userGroups = new Map<string, BatchedNotification>();
 
     for (const notification of notifications) {
@@ -218,7 +240,10 @@ export class NotificationBatchingJob {
           failed++;
         }
       } catch (error) {
-        this.logger.error(`Failed to send digest email to ${batch.userEmail}:`, error);
+        this.logger.error(
+          `Failed to send digest email to ${batch.userEmail}:`,
+          error,
+        );
         failed++;
       }
     }
@@ -229,10 +254,14 @@ export class NotificationBatchingJob {
   /**
    * Send batched notification for immediate delivery
    */
-  private async sendBatchedNotification(batch: BatchedNotification): Promise<void> {
+  private async sendBatchedNotification(
+    batch: BatchedNotification,
+  ): Promise<void> {
     try {
       // Create a summary notification
-      const notificationTypes = Array.from(new Set(batch.notifications.map(n => n.type)));
+      const notificationTypes = Array.from(
+        new Set(batch.notifications.map((n) => n.type)),
+      );
       const title = `You have ${batch.notifications.length} new notifications`;
       const message = `Including ${notificationTypes.join(', ')} notifications`;
 
@@ -243,26 +272,30 @@ export class NotificationBatchingJob {
         'daily', // Use daily template for immediate batches
       );
 
-      this.logger.debug(`Sent batched notification to ${batch.userEmail} with ${batch.notifications.length} notifications`);
+      this.logger.debug(
+        `Sent batched notification to ${batch.userEmail} with ${batch.notifications.length} notifications`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send batched notification to ${batch.userEmail}:`, error);
+      this.logger.error(
+        `Failed to send batched notification to ${batch.userEmail}:`,
+        error,
+      );
     }
   }
 
   /**
    * Mark notifications as batched
    */
-  private async markNotificationsAsBatched(notificationIds: string[]): Promise<void> {
+  private async markNotificationsAsBatched(
+    notificationIds: string[],
+  ): Promise<void> {
     if (notificationIds.length === 0) {
       return;
     }
 
-    await this.notificationRepository.update(
-      { id: In(notificationIds) },
-      {
-        data: () => "jsonb_set(data, '{batched}', 'true')",
-      } as any,
-    );
+    await this.notificationRepository.update({ id: In(notificationIds) }, {
+      data: () => "jsonb_set(data, '{batched}', 'true')",
+    } as any);
   }
 
   /**
@@ -297,7 +330,8 @@ export class NotificationBatchingJob {
     // This would require a separate table to track digest emails
     // For now, we'll estimate based on batched notifications
     const digestEmailsSent = Math.floor(batchedNotifications / 5); // Rough estimate
-    const averageBatchSize = batchedNotifications > 0 ? batchedNotifications / digestEmailsSent : 0;
+    const averageBatchSize =
+      batchedNotifications > 0 ? batchedNotifications / digestEmailsSent : 0;
 
     return {
       totalNotifications,
@@ -310,7 +344,9 @@ export class NotificationBatchingJob {
   /**
    * Manual trigger for testing
    */
-  async triggerManualBatch(period: 'daily' | 'weekly' | 'immediate'): Promise<any> {
+  async triggerManualBatch(
+    period: 'daily' | 'weekly' | 'immediate',
+  ): Promise<any> {
     this.logger.log(`Manually triggering ${period} batch`);
 
     switch (period) {

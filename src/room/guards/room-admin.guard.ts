@@ -28,7 +28,10 @@ export class RoomAdminGuard implements CanActivate {
       where: { userId, roomId },
     });
 
-    if (!member || ![MemberRole.ADMIN, MemberRole.OWNER].includes(member.role)) {
+    if (
+      !member ||
+      ![MemberRole.ADMIN, MemberRole.OWNER].includes(member.role)
+    ) {
       throw new ForbiddenException('Only room admins can perform this action');
     }
 

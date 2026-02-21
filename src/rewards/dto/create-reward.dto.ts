@@ -1,4 +1,12 @@
-import { IsEnum, IsString, IsOptional, IsNumber, IsBoolean, IsObject, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsObject,
+  Min,
+} from 'class-validator';
 import { RewardType } from '../enums/reward-type.enum';
 
 export class CreateRewardDto {
