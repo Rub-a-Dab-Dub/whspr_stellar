@@ -156,6 +156,7 @@ export class AdminController {
   }
 
   @Get('audit-logs')
+  @Roles(UserRole.SUPER_ADMIN)
   async getAuditLogs(
     @Query() query: GetAuditLogsDto,
     @Query('adminId') adminId: string,
@@ -166,7 +167,8 @@ export class AdminController {
       ? query.actions.split(',').map((action) => action.trim())
       : undefined;
 
-    const actorUserId = query.actorUserId || adminId;
+    // Use adminId parameter if provided, otherwise use actorUserId from query
+    const actorUserId = adminId || query.adminId || query.actorUserId;
 
     return await this.adminService.getAuditLogs(
       {
@@ -180,6 +182,7 @@ export class AdminController {
   }
 
   @Get('audit-logs/export')
+  @Roles(UserRole.SUPER_ADMIN)
   async exportAuditLogs(
     @Query() query: GetAuditLogsDto,
     @Query('format') format: 'csv' | 'json' = 'csv',
@@ -192,7 +195,8 @@ export class AdminController {
       ? query.actions.split(',').map((action) => action.trim())
       : undefined;
 
-    const actorUserId = query.actorUserId || adminId;
+    // Use adminId parameter if provided, otherwise use actorUserId from query
+    const actorUserId = adminId || query.adminId || query.actorUserId;
 
     const exportResult = await this.adminService.exportAuditLogs(
       {
