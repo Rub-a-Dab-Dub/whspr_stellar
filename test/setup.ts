@@ -91,7 +91,7 @@ export async function globalSetup() {
  * Global test teardown hook for Jest
  * This is called once after all test files complete
  */
-export async function globalTeardown() {
+async function globalTeardownFn() {
   try {
     if (process.env.NODE_ENV === 'test') {
       console.log('\n🧹 Global test teardown started...\n');
@@ -108,3 +108,6 @@ export async function globalTeardown() {
     process.exit(1);
   }
 }
+
+// Export for Jest to call
+export default globalTeardownFn;
