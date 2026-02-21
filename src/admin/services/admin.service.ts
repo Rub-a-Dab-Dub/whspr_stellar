@@ -18,6 +18,7 @@ import {
   AuditSeverity,
 } from '../entities/audit-log.entity';
 import { GetUsersDto, UserFilterStatus } from '../dto/get-users.dto';
+import { GetRoomsDto, RoomFilterStatus } from '../dto/get-rooms.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto, BulkActionType } from '../dto/bulk-action.dto';
@@ -29,7 +30,7 @@ import { Transfer } from '../../transfer/entities/transfer.entity';
 import { ADMIN_STREAM_EVENTS } from '../gateways/admin-event-stream.gateway';
 import { Session } from '../../sessions/entities/session.entity';
 import { Message } from '../../message/entities/message.entity';
-import { Room } from '../../room/entities/room.entity';
+import { Room, RoomType } from '../../room/entities/room.entity';
 import { RoomMember } from '../../room/entities/room-member.entity';
 import {
   RoomPayment,
@@ -1541,5 +1542,174 @@ export class AdminService {
     );
 
     return response;
+  }
+
+  async getRooms(
+    query: GetRoomsDto,
+  ): Promise<{
+    rooms: Array<{
+      id: string;
+      name: string;
+      type: RoomType;
+      status: string;
+      owner: { id: string; username: string } | null;
+      memberCount: number;
+      messageCount: number;
+      entryFee: string;
+      totalFeesCollected: string;
+      createdAt: Date;
+      expiresAt: Date | null;
+      isFlagged: boolean;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const {
+      search,
+      type,
+      status,
+      ownerId,
+      minMembers,
+      maxMembers,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 20,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = query;
+
+    const skip = (page - 1) * limit;
+    const queryBuilder = this.roomRepository.createQueryBuilder('room');
+
+    // Search on name and description
+    if (search) {
+      queryBuilder.andWhere(
+        '(room.name ILIKE :search OR room.description ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    // Filter by type
+    if (type) {
+      queryBuilder.andWhere('room.roomType = :type', { type });
+    }
+
+    // Filter by owner
+    if (ownerId) {
+      queryBuilder.andWhere('room.ownerId = :ownerId', { ownerId });
+    }
+
+    // Filter by member count
+    if (minMembers !== undefined) {
+      queryBuilder.andWhere('room.memberCount >= :minMembers', { minMembers });
+    }
+
+    if (maxMembers !== undefined) {
+      queryBuilder.andWhere('room.memberCount <= :maxMembers', { maxMembers });
+    }
+
+    // Filter by date range
+    if (startDate) {
+      queryBuilder.andWhere('room.createdAt >= :startDate', {
+        startDate: new Date(startDate),
+      });
+    }
+
+    if (endDate) {
+      queryBuilder.andWhere('room.createdAt <= :endDate', {
+        endDate: new Date(endDate),
+      });
+    }
+
+    // Filter by status
+    if (status) {
+      switch (status) {
+        case RoomFilterStatus.ACTIVE:
+          queryBuilder.andWhere(
+            'room.isActive = :isActive AND room.isDeleted = :isDeleted AND room.isExpired = :isExpired',
+            { isActive: true, isDeleted: false, isExpired: false },
+          );
+          break;
+        case RoomFilterStatus.CLOSED:
+          queryBuilder.andWhere('room.isExpired = :isExpired', { isExpired: true });
+          break;
+        case RoomFilterStatus.FLAGGED:
+          queryBuilder.andWhere('room.warningNotificationSent = :flagged', {
+            flagged: true,
+          });
+          break;
+        case RoomFilterStatus.DELETED:
+          queryBuilder.andWhere('room.isDeleted = :isDeleted', { isDeleted: true });
+          break;
+      }
+    }
+
+    // Load relations
+    queryBuilder.leftJoinAndSelect('room.owner', 'owner');
+
+    // Apply sorting
+    const orderColumn = `room.${sortBy}`;
+    queryBuilder.orderBy(orderColumn, sortOrder);
+
+    // Apply pagination
+    queryBuilder.skip(skip).take(limit);
+
+    const [rooms, total] = await queryBuilder.getManyAndCount();
+
+    // Get message counts and total fees for each room
+    const roomsWithDetails = await Promise.all(
+      rooms.map(async (room) => {
+        // Count messages in room
+        const messageCount = await this.messageRepository.count({
+          where: { roomId: room.id },
+        });
+
+        // Calculate total fees collected
+        const feeResult = await this.roomPaymentRepository
+          .createQueryBuilder('payment')
+          .select('SUM(CAST(payment.amount as DECIMAL))', 'total')
+          .where('payment.roomId = :roomId', { roomId: room.id })
+          .andWhere('payment.status = :status', { status: PaymentStatus.COMPLETED })
+          .getRawOne();
+
+        const totalFeesCollected = feeResult?.total || '0';
+
+        return {
+          id: room.id,
+          name: room.name,
+          type: room.roomType,
+          status: this.determineRoomStatus(room),
+          owner: room.owner
+            ? { id: room.owner.id, username: room.owner.username }
+            : null,
+          memberCount: room.memberCount,
+          messageCount,
+          entryFee: room.entryFee,
+          totalFeesCollected,
+          createdAt: room.createdAt,
+          expiresAt: room.expiryTimestamp
+            ? new Date(room.expiryTimestamp)
+            : null,
+          isFlagged: room.warningNotificationSent,
+        };
+      }),
+    );
+
+    return {
+      rooms: roomsWithDetails,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  private determineRoomStatus(room: Room): string {
+    if (room.isDeleted) return RoomFilterStatus.DELETED;
+    if (room.warningNotificationSent) return RoomFilterStatus.FLAGGED;
+    if (room.isExpired) return RoomFilterStatus.CLOSED;
+    if (room.isActive) return RoomFilterStatus.ACTIVE;
+    return 'unknown';
   }
 }
