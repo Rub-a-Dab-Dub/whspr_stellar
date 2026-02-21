@@ -23,6 +23,7 @@ import { UserRole } from '../../roles/entities/role.entity';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { AdminService } from '../services/admin.service';
 import { GetUsersDto } from '../dto/get-users.dto';
+import { GetRoomsDto } from '../dto/get-rooms.dto';
 import { BanUserDto } from '../dto/ban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
 import { BulkActionDto } from '../dto/bulk-action.dto';
