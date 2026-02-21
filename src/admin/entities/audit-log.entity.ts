@@ -21,6 +21,7 @@ export enum AuditAction {
   USER_VIEWED = 'user.viewed',
   USER_UPDATED = 'user.updated',
   USER_DELETED = 'user.deleted',
+  USER_XP_ADJUSTED = 'user.xp.adjusted',
   BULK_ACTION = 'bulk.action',
   IMPERSONATION_STARTED = 'impersonation.started',
   IMPERSONATION_ENDED = 'impersonation.ended',
