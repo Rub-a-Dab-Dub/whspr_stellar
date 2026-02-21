@@ -50,6 +50,7 @@ import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
 import { CloseRoomDto } from '../dto/close-room.dto';
 import { DeleteRoomDto } from '../dto/delete-room.dto';
 import { RestoreRoomDto } from '../dto/restore-room.dto';
+import { AdjustUserXpDto } from '../dto/adjust-user-xp.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -201,6 +202,26 @@ export class AdminController {
   ) {
     return await this.adminService.unverifyUser(
       userId,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Patch('users/:id/xp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Adjust user XP (exploit mitigation, compensation, etc.)' })
+  @ApiResponse({ status: 200, description: 'XP adjusted successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid XP adjustment (would go below 0)' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async adjustUserXp(
+    @Param('id') userId: string,
+    @Body() adjustXpDto: AdjustUserXpDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.adjustUserXp(
+      userId,
+      adjustXpDto,
       currentUser.userId,
       req,
     );
