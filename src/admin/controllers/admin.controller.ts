@@ -30,6 +30,7 @@ import { BulkActionDto } from '../dto/bulk-action.dto';
 import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
 import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
 import { GetRevenueAnalyticsDto } from '../dto/get-revenue-analytics.dto';
+import { GetOverviewAnalyticsDto } from '../dto/get-overview-analytics.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
 import { UpdateConfigDto } from '../dto/update-config.dto';
@@ -388,6 +389,19 @@ export class AdminController {
     @Req() req: Request,
   ) {
     return await this.adminService.getRevenueAnalytics(
+      query,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Get('analytics/overview')
+  async getOverviewAnalytics(
+    @Query() query: GetOverviewAnalyticsDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.getOverviewAnalytics(
       query,
       currentUser.userId,
       req,
