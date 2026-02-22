@@ -31,6 +31,8 @@ import { RoomMember } from '../room/entities/room-member.entity';
 import { RoomPayment } from '../room/entities/room-payment.entity';
 import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
+import { PlatformWalletWithdrawal } from './entities/platform-wallet-withdrawal.entity';
+import { WithdrawalWhitelist } from './entities/withdrawal-whitelist.entity';
 import { LeaderboardModule } from '../leaderboard/leaderboard.module';
 import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
 import { SessionModule } from '../sessions/sessions.module';
@@ -40,6 +42,7 @@ import { QueueModule } from '../queue/queue.module';
 import { AdminAuthModule } from './auth/admin-auth.module';
 import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -50,6 +53,7 @@ import { FlaggedMessage } from '../moderation/flagged-message.entity';
     LeaderboardModule,
     SessionModule,
     MessageModule,
+    UsersModule,
     NotificationsModule,
     QueueModule,
     TypeOrmModule.forFeature([
@@ -66,7 +70,7 @@ import { FlaggedMessage } from '../moderation/flagged-message.entity';
       RoomMember,
       RoomPayment,
       PlatformConfig,
-      ModerationQueue,   
+      ModerationQueue,
       FlaggedMessage,
       PlatformWalletWithdrawal,
       WithdrawalWhitelist,

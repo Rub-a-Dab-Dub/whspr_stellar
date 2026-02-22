@@ -13,7 +13,7 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiUseTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../../roles/guards/role.guard';
@@ -48,7 +48,7 @@ import { PlatformWalletService } from '../services/platform-wallet.service';
 import { PlatformWalletWithdrawDto } from '../dto/platform-wallet-withdraw.dto';
 import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
 
-@ApiTags('admin')
+@ApiUseTags('admin')
 @ApiBearerAuth()
 @Controller('admin')
 @IsAdmin()
@@ -57,11 +57,11 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly platformWalletService: PlatformWalletService,
-  ) {}
+  ) { }
 
   @Get('health')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Admin API health check' })
+  @ApiOperation({ title: 'Admin API health check' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   async healthCheck() {
     return {
@@ -71,7 +71,7 @@ export class AdminController {
   }
 
   @Get('users')
-  @ApiOperation({ summary: 'List users with filters and pagination' })
+  @ApiOperation({ title: 'List users with filters and pagination' })
   @ApiResponse({ status: 200, description: 'Paginated list of users' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
@@ -84,7 +84,7 @@ export class AdminController {
   }
 
   @Get('users/:id')
-  @ApiOperation({ summary: 'Get user detail by ID' })
+  @ApiOperation({ title: 'Get user deep-dive detail' })
   @ApiResponse({ status: 200, description: 'User details' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserDetail(
@@ -101,7 +101,7 @@ export class AdminController {
 
   @Post('users/:id/ban')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Ban a user' })
+  @ApiOperation({ title: 'Ban a user' })
   @ApiResponse({ status: 200, description: 'User banned successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async banUser(
@@ -120,7 +120,7 @@ export class AdminController {
 
   @Post('users/:id/unban')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Unban a user' })
+  @ApiOperation({ title: 'Unban a user' })
   @ApiResponse({ status: 200, description: 'User unbanned successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async unbanUser(
@@ -139,7 +139,7 @@ export class AdminController {
 
   @Post('users/:id/suspend')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Suspend a user until a date' })
+  @ApiOperation({ title: 'Suspend a user until a date' })
   @ApiResponse({ status: 200, description: 'User suspended successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async suspendUser(
@@ -158,7 +158,7 @@ export class AdminController {
 
   @Post('users/:id/unsuspend')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Unsuspend a user' })
+  @ApiOperation({ title: 'Unsuspend a user' })
   @ApiResponse({ status: 200, description: 'User unsuspended successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async unsuspendUser(
@@ -175,7 +175,7 @@ export class AdminController {
 
   @Post('users/:id/verify')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verify a user' })
+  @ApiOperation({ title: 'Verify a user' })
   @ApiResponse({ status: 200, description: 'User verified successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async verifyUser(
@@ -188,7 +188,7 @@ export class AdminController {
 
   @Post('users/:id/unverify')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Unverify a user' })
+  @ApiOperation({ title: 'Unverify a user' })
   @ApiResponse({ status: 200, description: 'User unverified successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async unverifyUser(
@@ -205,7 +205,7 @@ export class AdminController {
 
   @Post('users/bulk-action')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Perform bulk action on multiple users' })
+  @ApiOperation({ title: 'Perform bulk action on multiple users' })
   @ApiResponse({ status: 200, description: 'Bulk action completed' })
   @ApiResponse({ status: 400, description: 'Invalid request' })
   async bulkAction(
@@ -217,7 +217,7 @@ export class AdminController {
   }
 
   @Get('users/:id/activity')
-  @ApiOperation({ summary: 'Get user activity and audit history' })
+  @ApiOperation({ title: 'Get user activity and audit history' })
   @ApiResponse({ status: 200, description: 'User activity data' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserActivity(
@@ -239,7 +239,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.getUserSessions(userId);
+    return await this.adminService.getUserSessions(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Delete('users/:id/sessions/:sessionId')
@@ -275,20 +279,25 @@ export class AdminController {
   }
 
   @Get('rooms')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
-  async getRooms(@Query() query: GetRoomsDto) {
-    return await this.adminService.getRooms(query);
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ title: 'Get rooms (with filters)' })
+  async getRooms(
+    @Query() query: GetRoomsDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.getRooms(query, currentUser.userId, req);
   }
 
   @Get('statistics')
-  @ApiOperation({ summary: 'Get user statistics' })
+  @ApiOperation({ title: 'Get user statistics' })
   @ApiResponse({ status: 200, description: 'User statistics' })
   async getStatistics(@CurrentUser() currentUser: any, @Req() req: Request) {
     return await this.adminService.getUserStatistics(currentUser.userId, req);
   }
 
   @Get('audit-logs')
-  @ApiOperation({ summary: 'Get audit logs with filters' })
+  @ApiOperation({ title: 'Get audit logs with filters' })
   @ApiResponse({ status: 200, description: 'Paginated audit logs' })
   async getAuditLogs(
     @Query() query: GetAuditLogsDto,
@@ -315,7 +324,7 @@ export class AdminController {
   }
 
   @Get('audit-logs/export')
-  @ApiOperation({ summary: 'Export audit logs as CSV or JSON' })
+  @ApiOperation({ title: 'Export audit logs as CSV or JSON' })
   @ApiResponse({ status: 200, description: 'Audit log file download' })
   async exportAuditLogs(
     @Query() query: GetAuditLogsDto,
@@ -353,7 +362,7 @@ export class AdminController {
   }
 
   @Get('users/:id/gdpr-export')
-  @ApiOperation({ summary: 'Export user data (GDPR)' })
+  @ApiOperation({ title: 'Export user data (GDPR)' })
   @ApiResponse({ status: 200, description: 'User data JSON download' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async exportGdprData(
@@ -380,7 +389,7 @@ export class AdminController {
   @Post('impersonate')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('user.impersonate')
-  @ApiOperation({ summary: 'Start impersonation session' })
+  @ApiOperation({ title: 'Start impersonation session' })
   @ApiResponse({ status: 200, description: 'Impersonation started' })
   @ApiResponse({ status: 403, description: 'user.impersonate permission required' })
   @ApiResponse({ status: 404, description: 'Target user not found' })
@@ -423,7 +432,7 @@ export class AdminController {
   @Delete('users/:id')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Delete user (super admin only)' })
+  @ApiOperation({ title: 'Delete user (super admin only)' })
   @ApiResponse({ status: 200, description: 'User deleted and anonymized' })
   @ApiResponse({ status: 403, description: 'Super admin role required' })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -446,7 +455,7 @@ export class AdminController {
 
   @Get('config')
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Get all platform configs (super admin only)' })
+  @ApiOperation({ title: 'Get all platform configs (super admin only)' })
   @ApiResponse({ status: 200, description: 'Platform configuration' })
   @ApiResponse({ status: 403, description: 'Super admin role required' })
   async getConfigs() {
@@ -456,7 +465,7 @@ export class AdminController {
   @Patch('config/:key')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Update platform config (super admin only)' })
+  @ApiOperation({ title: 'Update platform config (super admin only)' })
   @ApiResponse({ status: 200, description: 'Config updated' })
   @ApiResponse({ status: 403, description: 'Super admin role required' })
   @ApiResponse({ status: 404, description: 'Config key not found' })
@@ -475,7 +484,7 @@ export class AdminController {
   }
 
   @Get('analytics/revenue')
-  @ApiOperation({ summary: 'Get revenue analytics' })
+  @ApiOperation({ title: 'Get revenue analytics' })
   @ApiResponse({ status: 200, description: 'Revenue analytics' })
   async getRevenueAnalytics(
     @Query() query: GetRevenueAnalyticsDto,
@@ -503,7 +512,7 @@ export class AdminController {
   }
 
   @Get('transactions')
-  @ApiOperation({ summary: 'Get on-chain transactions ledger (paginated & filterable)' })
+  @ApiOperation({ title: 'Get on-chain transactions ledger (paginated & filterable)' })
   @ApiResponse({ status: 200, description: 'Paginated transactions list' })
   async getTransactions(
     @Query() query: GetTransactionsDto,
@@ -514,14 +523,14 @@ export class AdminController {
   }
 
   @Get('leaderboards')
-  @ApiOperation({ summary: 'Get available leaderboard types' })
+  @ApiOperation({ title: 'Get available leaderboard types' })
   @ApiResponse({ status: 200, description: 'List of leaderboard categories' })
   async getLeaderboardTypes() {
     return await this.adminService.getLeaderboardTypes();
   }
 
   @Get('leaderboards/:type')
-  @ApiOperation({ summary: 'Get leaderboard entries' })
+  @ApiOperation({ title: 'Get leaderboard entries' })
   @ApiResponse({ status: 200, description: 'Leaderboard entries' })
   async getLeaderboardEntries(
     @Param('type') type: LeaderboardCategory,
@@ -533,7 +542,7 @@ export class AdminController {
   @Post('leaderboards/:type/reset')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Reset leaderboard (super admin only)' })
+  @ApiOperation({ title: 'Reset leaderboard (super admin only)' })
   @ApiResponse({ status: 200, description: 'Leaderboard reset successfully' })
   @ApiResponse({ status: 403, description: 'Super admin role required' })
   async resetLeaderboard(
@@ -553,7 +562,7 @@ export class AdminController {
   }
 
   @Get('leaderboards/history')
-  @ApiOperation({ summary: 'Get leaderboard reset history' })
+  @ApiOperation({ title: 'Get leaderboard reset history' })
   @ApiResponse({ status: 200, description: 'Leaderboard history snapshots' })
   async getLeaderboardHistory(
     @Query('page') page: number = 1,
@@ -568,7 +577,7 @@ export class AdminController {
   @Post('leaderboards/pin')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Pin/unpin user on leaderboard (super admin only)' })
+  @ApiOperation({ title: 'Pin/unpin user on leaderboard (super admin only)' })
   @ApiResponse({ status: 200, description: 'Pinned status updated' })
   @ApiResponse({ status: 403, description: 'Super admin role required' })
   async setPinnedStatus(
@@ -600,10 +609,10 @@ export class AdminController {
 
   @Get('rooms/:roomId')
   async getRoomDetails(
-  @Param('roomId') roomId: string,
-  @Query() query: any,
-  @CurrentUser() currentUser: any,
-  @Req() req: Request,
+    @Param('roomId') roomId: string,
+    @Query() query: any,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
   ) {
     return await this.adminService.getRoomDetails(
       roomId,
@@ -614,7 +623,7 @@ export class AdminController {
   }
 
   @Get('platform-wallet')
-  @ApiOperation({ summary: 'Get platform wallet information' })
+  @ApiOperation({ title: 'Get platform wallet information' })
   @ApiResponse({ status: 200, description: 'Platform wallet info' })
   async getPlatformWallet(@CurrentUser() currentUser: any) {
     return await this.platformWalletService.getPlatformWalletInfo();
@@ -623,7 +632,7 @@ export class AdminController {
   @Post('platform-wallet/withdraw')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Initiate platform wallet withdrawal (super admin only)' })
+  @ApiOperation({ title: 'Initiate platform wallet withdrawal (super admin only)' })
   @ApiResponse({ status: 200, description: 'Withdrawal initiated' })
   @ApiResponse({ status: 403, description: 'Super admin role required' })
   async withdrawFromPlatformWallet(
@@ -639,7 +648,7 @@ export class AdminController {
   }
 
   @Get('platform-wallet/withdrawals')
-  @ApiOperation({ summary: 'Get platform wallet withdrawal history' })
+  @ApiOperation({ title: 'Get platform wallet withdrawal history' })
   @ApiResponse({ status: 200, description: 'Withdrawal history' })
   async getWithdrawals(@Query() query: GetWithdrawalsDto) {
     return await this.platformWalletService.getWithdrawals(query);
