@@ -1,0 +1,225 @@
+/**
+ * Example: How to use the test database in e2e tests
+ * 
+ * This file shows how to access the test database and seeded data
+ * in your e2e test files.
+ */
+
+import { DataSource } from 'typeorm';
+import { User } from '../src/user/entities/user.entity';
+import { Room } from '../src/room/entities/room.entity';
+import { Message } from '../src/message/entities/message.entity';
+
+describe('Example E2E Test with Test Database', () => {
+  let dataSource: DataSource;
+
+  beforeAll(() => {
+    // Access the DataSource that was initialized by globalSetup
+    // This is automatically available after globalSetup runs
+    dataSource = (global as any).__test_db__;
+  });
+
+  describe('Accessing Seeded Data', () => {
+    it('should have seeded 100 users', async () => {
+      const userRepository = dataSource.getRepository(User);
+      const users = await userRepository.find();
+      
+      expect(users.length).toBe(100);
+    });
+
+    it('should have admin accounts with correct roles', async () => {
+      const userRepository = dataSource.getRepository(User);
+      
+      const superAdmin = await userRepository.findOne({
+        where: { email: 'superadmin@test.local' },
+      });
+      const admin = await userRepository.findOne({
+        where: { email: 'admin@test.local' },
+      });
+      const moderator = await userRepository.findOne({
+        where: { email: 'moderator@test.local' },
+      });
+
+      expect(superAdmin?.role).toBe('super_admin');
+      expect(admin?.role).toBe('admin');
+      expect(moderator?.role).toBe('moderator');
+    });
+
+    it('should have created 50 rooms', async () => {
+      const roomRepository = dataSource.getRepository(Room);
+      const rooms = await roomRepository.find();
+      
+      expect(rooms.length).toBe(50);
+    });
+
+    it('should have created 500 messages', async () => {
+      const messageRepository = dataSource.getRepository(Message);
+      const messages = await messageRepository.find();
+      
+      expect(messages.length).toBe(500);
+    });
+
+    it('should have various room types', async () => {
+      const roomRepository = dataSource.getRepository(Room);
+      const roomTypes = await roomRepository
+        .createQueryBuilder('room')
+        .select('room.roomType, COUNT(*) as count')
+        .groupBy('room.roomType')
+        .getRawMany();
+
+      expect(roomTypes).toContainEqual(
+        expect.objectContaining({ roomType: 'PUBLIC' })
+      );
+      expect(roomTypes).toContainEqual(
+        expect.objectContaining({ roomType: 'PRIVATE' })
+      );
+      expect(roomTypes).toContainEqual(
+        expect.objectContaining({ roomType: 'TOKEN_GATED' })
+      );
+      expect(roomTypes).toContainEqual(
+        expect.objectContaining({ roomType: 'TIMED' })
+      );
+    });
+
+    it('should have banned and suspended users', async () => {
+      const userRepository = dataSource.getRepository(User);
+      
+      const bannedUsers = await userRepository.find({
+        where: { isBanned: true },
+      });
+      const suspendedUsers = await userRepository.find({
+        where: { isSuspended: true },
+      });
+
+      expect(bannedUsers.length).toBeGreaterThan(0);
+      expect(suspendedUsers.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Querying Test Data', () => {
+    it('should find users by role', async () => {
+      const userRepository = dataSource.getRepository(User);
+      const adminUsers = await userRepository.find({
+        where: { role: 'admin' },
+      });
+
+      expect(adminUsers.length).toBeGreaterThan(0);
+      expect(adminUsers.every(u => u.role === 'admin')).toBe(true);
+    });
+
+    it('should find rooms by type and status', async () => {
+      const roomRepository = dataSource.getRepository(Room);
+      const activePublicRooms = await roomRepository.find({
+        where: {
+          isActive: true,
+          roomType: 'PUBLIC',
+        },
+      });
+
+      expect(activePublicRooms.length).toBeGreaterThan(0);
+      expect(
+        activePublicRooms.every(r => r.isActive && r.roomType === 'PUBLIC')
+      ).toBe(true);
+    });
+
+    it('should find messages by room', async () => {
+      const roomRepository = dataSource.getRepository(Room);
+      const messageRepository = dataSource.getRepository(Message);
+
+      const firstRoom = await roomRepository.findOne();
+      
+      const messages = await messageRepository.find({
+        where: { roomId: firstRoom?.id },
+      });
+
+      expect(messages.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Using Test Data in Integration Tests', () => {
+    it('example: test admin login with seeded credentials', async () => {
+      const userRepository = dataSource.getRepository(User);
+      
+      const admin = await userRepository.findOne({
+        where: { email: 'admin@test.local' },
+      });
+
+      // In a real integration test, you would use the HTTP client
+      // to test the login endpoint with the seeded admin credentials
+      expect(admin?.email).toBe('admin@test.local');
+      expect(admin?.role).toBe('admin');
+
+      // Example: POST /admin/auth/login with:
+      // { email: 'admin@test.local', password: 'Test@123456' }
+      // Password is: Test@123456 (all test users)
+    });
+
+    it('example: test room access with seeded user and room', async () => {
+      const userRepository = dataSource.getRepository(User);
+      const roomRepository = dataSource.getRepository(Room);
+
+      const testUser = await userRepository.findOne({
+        where: { email: 'user0@test.local' },
+      });
+      const testRoom = await roomRepository.findOne({
+        where: { isActive: true },
+      });
+
+      // In a real test, you would use these IDs to test room access
+      // GET /rooms/:id/access-status with authenticated user
+      expect(testUser?.id).toBeDefined();
+      expect(testRoom?.id).toBeDefined();
+    });
+
+    it('example: test message creation in seeded room', async () => {
+      const userRepository = dataSource.getRepository(User);
+      const roomRepository = dataSource.getRepository(Room);
+
+      const author = await userRepository.findOne({
+        where: { email: 'user1@test.local' },
+      });
+      const room = await roomRepository.findOne({
+        where: { isActive: true },
+      });
+
+      // In a real test, you would use these to POST a new message
+      // POST /messages with:
+      // { roomId: '<room-id>', conversationId: '<room-id>', content: '...' }
+      expect(author?.id).toBeDefined();
+      expect(room?.id).toBeDefined();
+    });
+  });
+});
+
+/**
+ * NOTES FOR E2E TESTS:
+ * 
+ * 1. The DataSource is initialized by the globalSetup hook (test/setup.ts)
+ *    before any tests run, so it's available via `(global as any).__test_db__`
+ * 
+ * 2. All test data is freshly seeded before tests run and cleaned up after
+ * 
+ * 3. Use the seeded data (especially test user emails and admin credentials)
+ *    to set up test scenarios
+ * 
+ * 4. Test user passwords are all: 'Test@123456'
+ * 
+ * 5. Admin accounts are:
+ *    - superadmin@test.local (SUPER_ADMIN)
+ *    - admin@test.local (ADMIN)
+ *    - moderator@test.local (MODERATOR)
+ * 
+ * 6. Regular users follow pattern: user0@test.local through user99@test.local
+ * 
+ * 7. For integration tests that need actual HTTP requests:
+ *    - Use the full app from your test setup
+ *    - Use supertest agent for requests
+ *    - Reference seeded data by email or ID retrieved from database
+ * 
+ * 8. Seeded data distribution:
+ *    - 100 total users (3 admin + 97 regular)
+ *    - 50 rooms (20 PUBLIC, 15 PRIVATE, 10 TOKEN_GATED, 5 TIMED)
+ *    - ~400+ room memberships (5-30 per room)
+ *    - 500 messages across rooms
+ *    - 200 transactions (150 P2P, 50 BULK)
+ */
