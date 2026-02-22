@@ -58,7 +58,7 @@ export class AdminEventStreamGateway
 
       const decoded = this.jwtService.verify(token, {
         secret: this.configService.get('JWT_ACCESS_SECRET'),
-      }) as { sub?: string; id?: string };
+      });
       const userId = decoded.sub || decoded.id;
 
       if (!userId) {
@@ -79,7 +79,7 @@ export class AdminEventStreamGateway
       }
 
       const isAdmin = (user.roles || []).some(
-        (r) => r.name === UserRole.ADMIN || r.name === 'admin',
+        (r) => r.name === UserRole.ADMIN || r.name === UserRole.SUPER_ADMIN,
       );
 
       if (!isAdmin) {

@@ -66,7 +66,7 @@ import { FlaggedMessage } from '../moderation/flagged-message.entity';
       RoomMember,
       RoomPayment,
       PlatformConfig,
-      ModerationQueue,   
+      ModerationQueue,
       FlaggedMessage,
       PlatformWalletWithdrawal,
       WithdrawalWhitelist,

@@ -13,7 +13,12 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../../roles/guards/role.guard';
@@ -37,6 +42,7 @@ import { GetTransactionsDto } from '../dto/get-transactions.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
 import { UpdateConfigDto } from '../dto/update-config.dto';
+import { GetRoomDetailsDto } from '../dto/get-room-details.dto';
 import {
   LeaderboardCategory,
   LeaderboardPeriod,
@@ -469,7 +475,10 @@ export class AdminController {
   @RequirePermissions('user.impersonate')
   @ApiOperation({ summary: 'Start impersonation session' })
   @ApiResponse({ status: 200, description: 'Impersonation started' })
-  @ApiResponse({ status: 403, description: 'user.impersonate permission required' })
+  @ApiResponse({
+    status: 403,
+    description: 'user.impersonate permission required',
+  })
   @ApiResponse({ status: 404, description: 'Target user not found' })
   async impersonateUser(
     @Body() impersonateDto: ImpersonateUserDto,
@@ -687,6 +696,10 @@ export class AdminController {
 
   @Get('rooms/:roomId')
   async getRoomDetails(
+    @Param('roomId') roomId: string,
+    @Query() query: GetRoomDetailsDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
   @Param('roomId') roomId: string,
   @Query() query: any,
   @CurrentUser() currentUser: any,
