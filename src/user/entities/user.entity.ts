@@ -10,7 +10,8 @@ import {
   Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { Role, UserRole } from '../../roles/entities/role.entity';
+import { Role } from '../../roles/entities/role.entity';
+import { UserRole } from '../../roles/entities/user-role.enum';
 import { UserProfile } from './user-profile.entity';
 
 @Entity('users')
@@ -66,6 +67,7 @@ export class User {
 
   // Stats
   @Column({ default: 0 })
+  @Index()
   currentXp: number = 0;
 
   @Column({ default: 1 })
@@ -100,7 +102,37 @@ export class User {
   banReason: string | undefined;
 
   @Column({ type: 'timestamp', nullable: true })
+  banExpiresAt: Date | undefined;
+
+  @Column({ type: 'timestamp', nullable: true })
+  suspendedAt: Date | undefined;
+
+  @Column({ type: 'uuid', nullable: true })
+  suspendedBy: string | undefined;
+
+  @Column({ type: 'text', nullable: true })
+  suspensionReason: string | undefined;
+
+  @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | undefined;
+
+  @Column({ type: 'timestamp', nullable: true })
+  suspendedAt: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  suspendedBy: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  suspensionReason: string | null;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  verifiedAt: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  verifiedBy: string | null;
 
   // Timestamps
   @CreateDateColumn()
