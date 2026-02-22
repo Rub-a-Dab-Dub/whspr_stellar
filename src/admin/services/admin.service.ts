@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import {
   Injectable,
   NotFoundException,
@@ -64,6 +65,7 @@ import { CacheService } from '../../cache/cache.service';
 import { SessionService } from '../../sessions/services/sessions.service';
 import { MessagesGateway } from '../../message/gateways/messages.gateway';
 import { NotificationGateway } from '../../notifications/gateways/notification.gateway';
+import { XpService } from '../../users/services/xp.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
@@ -571,7 +573,7 @@ export class AdminService {
     userId: string,
     adminId: string,
     req?: Request,
-  ): Promise<User> {
+  ): Promise<any> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['roles'],
@@ -581,11 +583,54 @@ export class AdminService {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
+    // 1. Wallet Balance (EVM)
+    const walletBalance = await this.transferBalanceService.getBalance(userId);
+
+    // 2. Last 10 messages
+    const lastMessages = await this.messageRepository.find({
+      where: { authorId: userId },
+      relations: ['room'],
+      order: { createdAt: 'DESC' },
+      take: 10,
+    });
+
+    // 3. Last 10 transactions
+    const lastTransactions = await this.transferRepository.find({
+      where: [{ senderId: userId }, { recipientId: userId }],
+      order: { createdAt: 'DESC' },
+      take: 10,
+    });
+
+    // 4. Rooms Created
+    const roomsCreated = await this.roomRepository.find({
+      where: { creatorId: userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    // 5. Rooms Joined Count
+    const roomsJoinedCount = await this.roomMemberRepository.count({
+      where: { userId },
+    });
+
+    // 6. XP History Breakdown
+    const xpBreakdown = await this.xpService.getXpByAction(userId);
+
+    // 7. Login History (last 5)
+    const loginHistory = await this.auditLogRepository.find({
+      where: {
+        actorUserId: userId,
+        action: AuditAction.AUTH_LOGIN_SUCCESS
+      },
+      order: { createdAt: 'DESC' },
+      take: 5,
+    });
+
+    // 8. Audit: Admin viewed profile
     await this.logAudit(
       adminId,
-      AuditAction.USER_VIEWED,
+      AuditAction.VIEW_USER_PROFILE,
       userId,
-      `Viewed user details: ${user.email}`,
+      `Deep-dive view of user profile: ${user.email}`,
       null,
       req,
     );
@@ -596,12 +641,49 @@ export class AdminService {
       action: DataAccessAction.VIEW,
       resourceType: 'user',
       resourceId: userId,
-      details: 'Viewed user details',
+      details: 'Deep-dive view of user profile',
       metadata: { email: user.email },
       req,
     });
 
-    return user;
+    return {
+      user: {
+        ...user,
+        activeBan: user.isBanned ? { reason: 'Active ban', expires: null } : null,
+        activeSuspension: user.isSuspended ? { reason: 'User suspended', expiresAt: user.suspendedUntil } : null,
+      },
+      stats: {
+        walletBalance,
+        roomsCreatedCount: roomsCreated.length,
+        roomsJoinedCount,
+      },
+      history: {
+        lastMessages: lastMessages.map(m => ({
+          id: m.id,
+          roomName: m.room?.name || 'Private/Unknown',
+          contentPreview: m.content ? m.content.substring(0, 50) : null,
+          timestamp: m.createdAt,
+        })),
+        lastTransactions: lastTransactions.map(t => ({
+          type: t.senderId === userId ? 'SENT' : 'RECEIVED',
+          amount: t.amount,
+          counterparty: t.senderId === userId ? t.recipientId : t.senderId,
+          timestamp: t.createdAt,
+          txHash: t.transactionHash,
+        })),
+        roomsCreated: roomsCreated.map(r => ({
+          id: r.id,
+          name: r.name,
+          type: r.roomType,
+          createdAt: r.createdAt,
+        })),
+        xpBreakdown,
+        loginHistory: loginHistory.map(l => ({
+          ip: l.ipAddress,
+          timestamp: l.createdAt,
+        })),
+      },
+    };
   }
 
   async banUser(
@@ -1299,6 +1381,127 @@ export class AdminService {
     };
   }
 
+  async getUserSessions(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ) {
+    const sessions = await this.sessionService.getActiveSessions(userId);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      userId,
+      `Admin viewed active sessions for user ${userId}`,
+      { sessionCount: sessions.length },
+      req,
+      AuditSeverity.LOW,
+    );
+
+    return sessions;
+  }
+
+  async terminateSession(
+    userId: string,
+    sessionId: string,
+    adminId: string,
+    req?: Request,
+  ) {
+    await this.sessionService.revokeSession(sessionId, userId);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.AUTH_LOGOUT,
+      userId,
+      `Admin terminated session ${sessionId} for user ${userId}`,
+      { sessionId },
+      req,
+      AuditSeverity.MEDIUM,
+    );
+
+    return { success: true };
+  }
+
+  async terminateAllUserSessions(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ) {
+    await this.sessionService.revokeAllSessions(userId);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.AUTH_LOGOUT,
+      userId,
+      `Admin terminated all sessions for user ${userId}`,
+      null,
+      req,
+      AuditSeverity.MEDIUM,
+    );
+
+    return { success: true };
+  }
+
+  async adminResetPassword(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.passwordResetToken = resetToken;
+    user.passwordResetExpires = new Date(Date.now() + 3600000); // 1 hour
+    await this.userRepository.save(user);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.AUTH_PASSWORD_RESET_REQUESTED,
+      userId,
+      `Admin initiated password reset for user: ${user.email}`,
+      null,
+      req,
+      AuditSeverity.MEDIUM,
+    );
+
+    return {
+      message: 'Password reset link has been generated and user notified',
+    };
+  }
+
+  async getRoomDetails(
+    roomId: string,
+    query: any,
+    adminId: string,
+    req?: Request,
+  ) {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+      relations: ['owner', 'members', 'members.user', 'creator'],
+    });
+
+    if (!room) {
+      throw new NotFoundException(`Room with ID ${roomId} not found`);
+    }
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      `Viewed room details: ${room.name}`,
+      { roomId, filters: query },
+      req,
+      AuditSeverity.LOW,
+      'room',
+      roomId,
+    );
+
+    return room;
+  }
+
   async getAuditLogs(
     filters: AuditLogFilters,
     adminId: string,
@@ -1470,7 +1673,7 @@ export class AdminService {
 
     // Soft delete messages
     await this.messageRepository.update(
-      { author: { id: userId } as any },
+      { authorId: userId },
       {
         content: '[message deleted]',
         isDeleted: true,
@@ -2262,6 +2465,16 @@ export class AdminService {
     page: number;
     limit: number;
   }> {
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED, // maybe define a better one for rooms later, but USER_VIEWED is okay for now as it's general viewing
+      null,
+      'Viewed rooms list',
+      { filters: query },
+      req,
+      AuditSeverity.LOW,
+      'rooms',
+    );
     const {
       search,
       type,

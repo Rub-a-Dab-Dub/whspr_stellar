@@ -31,6 +31,8 @@ import { RoomMember } from '../room/entities/room-member.entity';
 import { RoomPayment } from '../room/entities/room-payment.entity';
 import { TransferModule } from '../transfer/transfer.module';
 import { PlatformConfig } from './entities/platform-config.entity';
+import { PlatformWalletWithdrawal } from './entities/platform-wallet-withdrawal.entity';
+import { WithdrawalWhitelist } from './entities/withdrawal-whitelist.entity';
 import { LeaderboardModule } from '../leaderboard/leaderboard.module';
 import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
 import { SessionModule } from '../sessions/sessions.module';
@@ -52,6 +54,7 @@ import { QueueService } from '../queue/queue.service';
     LeaderboardModule,
     SessionModule,
     MessageModule,
+    UsersModule,
     NotificationsModule,
     QueueModule,
     TypeOrmModule.forFeature([

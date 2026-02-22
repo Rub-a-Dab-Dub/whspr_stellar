@@ -59,7 +59,7 @@ import { DeleteRoomDto } from '../dto/delete-room.dto';
 import { RestoreRoomDto } from '../dto/restore-room.dto';
 import { AdjustUserXpDto } from '../dto/adjust-user-xp.dto';
 
-@ApiTags('admin')
+@ApiUseTags('admin')
 @ApiBearerAuth()
 @Controller('admin')
 @UseGuards(RoleGuard, PermissionGuard)
@@ -271,7 +271,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.getUserSessions(userId);
+    return await this.adminService.getUserSessions(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Delete('users/:id/sessions/:sessionId')

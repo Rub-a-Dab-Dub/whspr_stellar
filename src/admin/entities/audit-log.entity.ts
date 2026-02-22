@@ -19,6 +19,7 @@ export enum AuditAction {
   USER_VERIFIED = 'user.verified',
   USER_UNVERIFIED = 'user.unverified',
   USER_VIEWED = 'user.viewed',
+  VIEW_USER_PROFILE = 'view.user.profile',
   USER_UPDATED = 'user.updated',
   USER_DELETED = 'user.deleted',
   USER_XP_ADJUSTED = 'user.xp.adjusted',
