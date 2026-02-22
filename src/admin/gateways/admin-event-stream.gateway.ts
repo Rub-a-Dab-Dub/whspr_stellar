@@ -17,6 +17,7 @@ import type { AdminStreamEventPayload } from '../events/admin-stream.events';
 
 export const ADMIN_STREAM_EVENTS = {
   USER_BANNED: 'admin.stream.user.banned',
+  USER_UNBANNED: 'admin.stream.user.unbanned',
   USER_REGISTERED: 'admin.stream.user.registered',
   TRANSACTION_LARGE: 'admin.stream.transaction.large',
   ROOM_FLAGGED: 'admin.stream.room.flagged',
@@ -28,8 +29,7 @@ export const ADMIN_STREAM_EVENTS = {
   namespace: '/admin/ws',
 })
 export class AdminEventStreamGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
@@ -41,7 +41,7 @@ export class AdminEventStreamGateway
     private readonly configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async handleConnection(client: Socket): Promise<void> {
     try {

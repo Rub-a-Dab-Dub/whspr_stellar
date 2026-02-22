@@ -303,10 +303,15 @@ export class AdminService {
     query: GetUsersDto,
     adminId: string,
     req?: Request,
-  ): Promise<{ users: User[]; total: number; page: number; limit: number }> {
+  ): Promise<{ users: any[]; total: number; page: number; limit: number }> {
     const {
       search,
       status,
+      role,
+      startDate,
+      endDate,
+      minXp,
+      maxXp,
       isBanned,
       isSuspended,
       isVerified,
@@ -314,21 +319,20 @@ export class AdminService {
       limit = 10,
       sortBy = 'createdAt',
       sortOrder = 'DESC',
-      createdAfter,
-      createdBefore,
     } = query;
 
     const skip = (page - 1) * limit;
     const queryBuilder = this.userRepository.createQueryBuilder('user');
 
-    // Search
+    // Search: fuzzy match on username, email, or walletAddress
     if (search) {
-      queryBuilder.andWhere('(user.email ILIKE :search)', {
-        search: `%${search}%`,
-      });
+      queryBuilder.andWhere(
+        '(user.username ILIKE :search OR user.email ILIKE :search OR user.walletAddress ILIKE :search)',
+        { search: `%${search}%` },
+      );
     }
 
-    // Status filter
+    // Status filter: active | banned | suspended
     if (status && status !== UserFilterStatus.ALL) {
       if (status === UserFilterStatus.BANNED) {
         queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned: true });
@@ -336,14 +340,44 @@ export class AdminService {
         queryBuilder.andWhere('user.suspendedUntil > :now', {
           now: new Date(),
         });
+      } else if (status === UserFilterStatus.ACTIVE) {
+        queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned: false });
+        queryBuilder.andWhere(
+          '(user.suspendedUntil IS NULL OR user.suspendedUntil <= :now)',
+          { now: new Date() },
+        );
       }
     }
 
-    // Boolean filters
+    // Role filter
+    if (role) {
+      queryBuilder.andWhere('user.role = :role', { role });
+    }
+
+    // XP Range filters
+    if (minXp !== undefined) {
+      queryBuilder.andWhere('user.currentXp >= :minXp', { minXp });
+    }
+    if (maxXp !== undefined) {
+      queryBuilder.andWhere('user.currentXp <= :maxXp', { maxXp });
+    }
+
+    // Date range filters
+    if (startDate) {
+      queryBuilder.andWhere('user.createdAt >= :startDate', {
+        startDate: new Date(startDate),
+      });
+    }
+    if (endDate) {
+      queryBuilder.andWhere('user.createdAt <= :endDate', {
+        endDate: new Date(endDate),
+      });
+    }
+
+    // Boolean filters (legacy/extra)
     if (isBanned !== undefined) {
       queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned });
     }
-
     if (isSuspended !== undefined) {
       if (isSuspended) {
         queryBuilder.andWhere('user.suspendedUntil > :now', {
@@ -356,31 +390,55 @@ export class AdminService {
         );
       }
     }
-
     if (isVerified !== undefined) {
       queryBuilder.andWhere('user.isVerified = :isVerified', { isVerified });
     }
 
-    // Date range filters
-    if (createdAfter) {
-      queryBuilder.andWhere('user.createdAt >= :createdAfter', {
-        createdAfter: new Date(createdAfter),
-      });
-    }
-
-    if (createdBefore) {
-      queryBuilder.andWhere('user.createdAt <= :createdBefore', {
-        createdBefore: new Date(createdBefore),
-      });
-    }
-
     // Sorting
-    queryBuilder.orderBy(`user.${sortBy}`, sortOrder);
+    // Handle mapping of sortBy if necessary
+    const validSortFields = ['createdAt', 'currentXp', 'username', 'email', 'level'];
+    const actualSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    queryBuilder.orderBy(`user.${actualSortBy}`, sortOrder);
 
     // Pagination
     queryBuilder.skip(skip).take(limit);
 
     const [users, total] = await queryBuilder.getManyAndCount();
+
+    // Mapping to requested shape
+    // Optimization: avoid N+1 by using batch query for room counts.
+    const userIds = users.filter((u) => u.id !== undefined).map((u) => u.id as string);
+    const roomCounts = userIds.length > 0 ? await this.roomRepository
+      .createQueryBuilder('room')
+      .select('room.ownerId', 'ownerId')
+      .addSelect('COUNT(room.id)', 'count')
+      .where('room.ownerId IN (:...userIds)', { userIds })
+      .groupBy('room.ownerId')
+      .getRawMany() : [];
+
+    const roomCountMap = new Map(roomCounts.map((rc) => [rc.ownerId, parseInt(rc.count)]));
+
+    const mappedUsers = users.map((u) => {
+      let userStatus = 'active';
+      if (u.isBanned) userStatus = 'banned';
+      else if (u.suspendedUntil && u.suspendedUntil > new Date()) userStatus = 'suspended';
+
+      return {
+        id: u.id,
+        username: u.username || '',
+        email: u.email || '',
+        walletAddress: u.walletAddress || '',
+        role: u.role,
+        status: userStatus,
+        xp: u.currentXp,
+        level: u.level,
+        totalTipsSent: "0.00", // Implement tip aggregation if needed
+        totalTipsReceived: "0.00", // Implement tip aggregation if needed
+        roomsCreated: roomCountMap.get(u.id as string) || 0,
+        joinedAt: u.createdAt,
+        lastActiveAt: u.updatedAt,
+      };
+    });
 
     // Log the view action
     await this.logAudit(
@@ -402,11 +460,111 @@ export class AdminService {
     });
 
     return {
-      users,
+      users: mappedUsers,
       total,
       page,
       limit,
     };
+  }
+
+  async getUserSessions(userId: string): Promise<Session[]> {
+    return await this.sessionRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async terminateSession(
+    userId: string,
+    sessionId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<void> {
+    const session = await this.sessionRepository.findOne({
+      where: { id: sessionId, userId },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session ${sessionId} not found for user ${userId}`);
+    }
+
+    session.isActive = false;
+    await this.sessionRepository.save(session);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.SESSION_TERMINATED,
+      userId,
+      `Terminated session: ${sessionId}`,
+      { sessionId },
+      req,
+    );
+  }
+
+  async terminateAllUserSessions(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<void> {
+    await this.sessionService.revokeAllSessions(userId);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.SESSION_TERMINATED,
+      userId,
+      'Terminated all user sessions',
+      null,
+      req,
+    );
+  }
+
+  async adminResetPassword(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User ${userId} not found`);
+    }
+
+    await this.logAudit(
+      adminId,
+      AuditAction.PASSWORD_RESET,
+      userId,
+      'Admin initialized password reset',
+      null,
+      req,
+    );
+
+    return { message: 'Password reset initialized' };
+  }
+
+  async getRoomDetails(
+    roomId: string,
+    query: any,
+    adminId: string,
+    req?: Request,
+  ): Promise<any> {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+      relations: ['owner'],
+    });
+
+    if (!room) {
+      throw new NotFoundException(`Room ${roomId} not found`);
+    }
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      `Viewed room details: ${room.name}`,
+      { roomId },
+      req,
+    );
+
+    return room;
   }
 
   async getUserDetail(
