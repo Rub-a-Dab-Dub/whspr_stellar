@@ -39,6 +39,7 @@ import { ImpersonateUserDto } from '../dto/impersonate-user.dto';
 import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
 import { GetRevenueAnalyticsDto } from '../dto/get-revenue-analytics.dto';
 import { GetOverviewAnalyticsDto } from '../dto/get-overview-analytics.dto';
+import { GetRetentionAnalyticsDto } from '../dto/get-retention-analytics.dto';
 import { GetTransactionsDto } from '../dto/get-transactions.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
@@ -608,6 +609,19 @@ export class AdminController {
     );
   }
 
+  @Get('analytics/retention')
+  @ApiOperation({ summary: 'Get cohort retention analytics' })
+  @ApiResponse({ status: 200, description: 'Cohort retention analytics' })
+  async getRetentionAnalytics(
+    @Query() query: GetRetentionAnalyticsDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.getRetentionCohortAnalytics(
+      query,
+      currentUser.userId,
+      req,
+    );
   @Get('transactions')
   @ApiOperation({ title: 'Get on-chain transactions ledger (paginated & filterable)' })
   @ApiResponse({ status: 200, description: 'Paginated transactions list' })
