@@ -13,15 +13,15 @@ import { RedisModule } from '../../redis/redis.module';
 import { AdminModule } from '../admin.module';
 
 @Module({
-    imports: [
-        PassportModule,
-        JwtModule.register({}), // Secrets configured per call in service
-        UsersModule,
-        RedisModule,
-        forwardRef(() => AdminModule), // AuditLogService lives in AdminModule
-    ],
-    providers: [AdminAuthService, AdminJwtStrategy, AdminJwtRefreshStrategy],
-    controllers: [AdminAuthController],
-    exports: [AdminAuthService],
+  imports: [
+    PassportModule,
+    JwtModule.register({}), // Secrets configured per call in service
+    UsersModule,
+    RedisModule,
+    forwardRef(() => AdminModule), // AuditLogService lives in AdminModule
+  ],
+  providers: [AdminAuthService, AdminJwtStrategy, AdminJwtRefreshStrategy],
+  controllers: [AdminAuthController],
+  exports: [AdminAuthService],
 })
-export class AdminAuthModule { }
+export class AdminAuthModule {}

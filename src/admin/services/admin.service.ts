@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository, In, MoreThanOrEqual, LessThan, Between } from 'typeorm';
+import { randomBytes } from 'crypto';
 import { User } from '../../user/entities/user.entity';
 import {
   AuditLog,
@@ -19,6 +20,8 @@ import {
 } from '../entities/audit-log.entity';
 import { GetUsersDto, UserFilterStatus } from '../dto/get-users.dto';
 import { GetRoomsDto, RoomFilterStatus } from '../dto/get-rooms.dto';
+import { GetRoomDetailsDto } from '../dto/get-room-details.dto';
+import { BanUserDto } from '../dto/ban-user.dto';
 import { BanUserDto, BanType } from '../dto/ban-user.dto';
 import { UnbanUserDto } from '../dto/unban-user.dto';
 import { SuspendUserDto } from '../dto/suspend-user.dto';
@@ -53,7 +56,10 @@ import {
 } from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
-import { GetOverviewAnalyticsDto, AnalyticsPeriod } from '../dto/get-overview-analytics.dto';
+import {
+  GetOverviewAnalyticsDto,
+  AnalyticsPeriod,
+} from '../dto/get-overview-analytics.dto';
 import { CacheService } from '../../cache/cache.service';
 import { SessionService } from '../../sessions/services/sessions.service';
 import { MessagesGateway } from '../../message/gateways/messages.gateway';
@@ -61,6 +67,11 @@ import { NotificationGateway } from '../../notifications/gateways/notification.g
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
+import { CloseRoomDto } from '../dto/close-room.dto';
+import { DeleteRoomDto } from '../dto/delete-room.dto';
+import { RestoreRoomDto } from '../dto/restore-room.dto';
+import { AdjustUserXpDto } from '../dto/adjust-user-xp.dto';
+import { XpService } from '../../users/services/xp.service';
 
 @Injectable()
 export class AdminService {
@@ -94,9 +105,12 @@ export class AdminService {
     private readonly sessionService: SessionService,
     private readonly messagesGateway: MessagesGateway,
     private readonly notificationGateway: NotificationGateway,
+    private readonly xpService: XpService,
     @InjectQueue(QUEUE_NAMES.NOTIFICATIONS)
     private readonly notificationsQueue: Queue,
-  ) { }
+    private readonly notificationService: NotificationService,
+    private readonly queueService: QueueService,
+  ) {}
 
   async getTransactions(
     query: any,
@@ -635,6 +649,13 @@ export class AdminService {
     if (targetIsSuperAdmin) {
       throw new ForbiddenException('Cannot ban super admin users');
     }
+    const userRoles = userWithRoles?.roles || [];
+    const isAdmin = userRoles.some(
+      (role) =>
+        role.name === UserRole.ADMIN || role.name === UserRole.SUPER_ADMIN,
+    );
+    if (isAdmin) {
+      throw new ForbiddenException('Cannot ban admin users');
 
     if (targetIsAdmin && !isSuperAdmin) {
       throw new ForbiddenException(
@@ -894,7 +915,10 @@ export class AdminService {
       });
     }
     const userRoles = userWithRoles?.roles || [];
-    const isAdmin = userRoles.some((role) => role.name === 'admin');
+    const isAdmin = userRoles.some(
+      (role) =>
+        role.name === UserRole.ADMIN || role.name === UserRole.SUPER_ADMIN,
+    );
     if (isAdmin) {
       throw new ForbiddenException('Cannot suspend admin users');
     }
@@ -1040,7 +1064,10 @@ export class AdminService {
     for (const user of users) {
       try {
         const userRoles = user.roles || [];
-        const isAdmin = userRoles.some((role) => role.name === 'admin');
+        const isAdmin = userRoles.some(
+          (role) =>
+            role.name === UserRole.ADMIN || role.name === UserRole.SUPER_ADMIN,
+        );
 
         switch (action) {
           case BulkActionType.BAN:
@@ -1800,7 +1827,9 @@ export class AdminService {
     // Try to get from cache
     const cached = await this.cacheService.get<any>(cacheKey);
     if (cached) {
-      this.logger.debug(`Returning cached overview analytics for period: ${period}`);
+      this.logger.debug(
+        `Returning cached overview analytics for period: ${period}`,
+      );
       return cached;
     }
 
@@ -1861,28 +1890,32 @@ export class AdminService {
     const activeUserCount = parseInt(activeUsersThisPeriod?.count || '0', 10);
 
     // Calculate growth rate
-    const growthRate = newUsersPreviousPeriod > 0
-      ? (newUsersThisPeriod - newUsersPreviousPeriod) / newUsersPreviousPeriod
-      : newUsersThisPeriod > 0 ? 1 : 0;
+    const growthRate =
+      newUsersPreviousPeriod > 0
+        ? (newUsersThisPeriod - newUsersPreviousPeriod) / newUsersPreviousPeriod
+        : newUsersThisPeriod > 0
+          ? 1
+          : 0;
 
     // Room metrics
-    const [totalRooms, activeRoomsThisPeriod, roomsCreatedThisPeriod] = await Promise.all([
-      this.roomRepository.count({ where: { isDeleted: false } }),
-      this.roomRepository
-        .createQueryBuilder('room')
-        .innerJoin('room.members', 'member')
-        .where('room.isDeleted = :isDeleted', { isDeleted: false })
-        .andWhere('member.lastActiveAt >= :startDate', { startDate })
-        .select('COUNT(DISTINCT room.id)', 'count')
-        .getRawOne()
-        .then(result => parseInt(result?.count || '0', 10)),
-      this.roomRepository.count({
-        where: {
-          createdAt: MoreThanOrEqual(startDate),
-          isDeleted: false,
-        },
-      }),
-    ]);
+    const [totalRooms, activeRoomsThisPeriod, roomsCreatedThisPeriod] =
+      await Promise.all([
+        this.roomRepository.count({ where: { isDeleted: false } }),
+        this.roomRepository
+          .createQueryBuilder('room')
+          .innerJoin('room.members', 'member')
+          .where('room.isDeleted = :isDeleted', { isDeleted: false })
+          .andWhere('member.lastActiveAt >= :startDate', { startDate })
+          .select('COUNT(DISTINCT room.id)', 'count')
+          .getRawOne()
+          .then((result) => parseInt(result?.count || '0', 10)),
+        this.roomRepository.count({
+          where: {
+            createdAt: MoreThanOrEqual(startDate),
+            isDeleted: false,
+          },
+        }),
+      ]);
 
     // Expired rooms in period
     const timedExpiredRooms = await this.roomRepository.count({
@@ -1900,9 +1933,8 @@ export class AdminService {
       },
     });
 
-    const avgMessagesPerActiveUser = activeUserCount > 0
-      ? messagesThisPeriod / activeUserCount
-      : 0;
+    const avgMessagesPerActiveUser =
+      activeUserCount > 0 ? messagesThisPeriod / activeUserCount : 0;
 
     // Transaction metrics (room payments + tips)
     const roomPayments = await this.roomPaymentRepository
@@ -1938,9 +1970,8 @@ export class AdminService {
     }
 
     const transactionCount = roomPayments.length + tips.length;
-    const avgTransactionValue = transactionCount > 0
-      ? totalVolume / transactionCount
-      : 0;
+    const avgTransactionValue =
+      transactionCount > 0 ? totalVolume / transactionCount : 0;
 
     // Top rooms by activity
     const topRooms = await this.roomRepository
@@ -1969,10 +2000,12 @@ export class AdminService {
       name: room.name,
       memberCount: room.memberCount,
       activeMembers: parseInt(topRooms.raw[index]?.activeMembers || '0', 10),
-      owner: room.owner ? {
-        id: room.owner.id,
-        username: room.owner.username || room.owner.email,
-      } : null,
+      owner: room.owner
+        ? {
+            id: room.owner.id,
+            username: room.owner.username || room.owner.email,
+          }
+        : null,
     }));
 
     // Top tippers
@@ -1982,19 +2015,18 @@ export class AdminService {
       .where("message.type = 'tip'")
       .andWhere('message.isDeleted = :isDeleted', { isDeleted: false })
       .andWhere('message.createdAt >= :startDate', { startDate })
-      .select([
-        'author.id',
-        'author.username',
-        'author.email',
-      ])
+      .select(['author.id', 'author.username', 'author.email'])
       .addSelect('COUNT(message.id)', 'tipCount')
-      .addSelect('SUM(CAST(message.metadata->>\'amount\' AS DECIMAL))', 'totalAmount')
+      .addSelect(
+        "SUM(CAST(message.metadata->>'amount' AS DECIMAL))",
+        'totalAmount',
+      )
       .groupBy('author.id')
       .orderBy('totalAmount', 'DESC')
       .limit(10)
       .getRawMany();
 
-    const topTippersFormatted = topTippers.map(tipper => ({
+    const topTippersFormatted = topTippers.map((tipper) => ({
       userId: tipper.author_id,
       username: tipper.author_username || tipper.author_email,
       tipCount: parseInt(tipper.tipCount || '0', 10),
@@ -2045,9 +2077,173 @@ export class AdminService {
     return response;
   }
 
-  async getRooms(
-    query: GetRoomsDto,
-  ): Promise<{
+  async getUserSessions(userId: string): Promise<{
+    sessions: Session[];
+    total: number;
+  }> {
+    const sessions = await this.sessionRepository.find({
+      where: { userId },
+      order: { lastActivity: 'DESC' },
+    });
+    return { sessions, total: sessions.length };
+  }
+
+  async terminateSession(
+    userId: string,
+    sessionId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    await this.sessionRepository.update(
+      { id: sessionId, userId },
+      { isActive: false },
+    );
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_UPDATED,
+      userId,
+      `Terminated session ${sessionId}`,
+      { sessionId },
+      req,
+      AuditSeverity.MEDIUM,
+      'session',
+      sessionId,
+    );
+
+    return { message: 'Session terminated' };
+  }
+
+  async terminateAllUserSessions(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    await this.sessionRepository.update(
+      { userId, isActive: true },
+      { isActive: false },
+    );
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_UPDATED,
+      userId,
+      'Terminated all active sessions',
+      null,
+      req,
+      AuditSeverity.HIGH,
+      'session',
+      userId,
+    );
+
+    return { message: 'All active sessions terminated' };
+  }
+
+  async adminResetPassword(
+    userId: string,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const resetToken = randomBytes(32).toString('hex');
+    const resetExpiry = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.userRepository.update(userId, {
+      passwordResetToken: resetToken,
+      passwordResetExpires: resetExpiry,
+    } as any);
+
+    await this.sessionRepository
+      .createQueryBuilder()
+      .update(Session)
+      .set({ isActive: false })
+      .where('user_id = :userId AND is_active = :isActive', {
+        userId,
+        isActive: true,
+      })
+      .execute();
+
+    try {
+      this.eventEmitter.emit('user.password.reset.admin', {
+        userId,
+        email: user.email,
+        resetToken,
+        adminId,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Password-reset event emit failed for user ${userId}: ${(error as Error).message}`,
+      );
+    }
+
+    await this.auditLogService.createAuditLog({
+      actorUserId: adminId,
+      action: AuditAction.AUTH_PASSWORD_RESET_REQUESTED,
+      eventType: AuditEventType.AUTH,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.HIGH,
+      targetUserId: userId,
+      details: 'Admin triggered password reset',
+      metadata: { adminInitiated: true },
+      req,
+    });
+
+    return { message: 'Password reset email sent to user' };
+  }
+
+  async getRoomDetails(
+    roomId: string,
+    query: GetRoomDetailsDto,
+    adminId: string,
+    req?: Request,
+  ) {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+      relations: ['owner'],
+    });
+
+    if (!room) {
+      throw new NotFoundException(`Room with ID ${roomId} not found`);
+    }
+
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const [payments, totalPayments] =
+      await this.roomPaymentRepository.findAndCount({
+        where: { roomId },
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limit,
+      });
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      `Viewed room details for ${roomId}`,
+      { roomId, page, limit },
+      req,
+      AuditSeverity.LOW,
+      'room',
+      roomId,
+    );
+
+    return {
+      ...room,
+      payments,
+      totalPayments,
+      page,
+      limit,
+    };
+  }
+
+  async getRooms(query: GetRoomsDto): Promise<{
     rooms: Array<{
       id: string;
       name: string;
@@ -2134,7 +2330,9 @@ export class AdminService {
           );
           break;
         case RoomFilterStatus.CLOSED:
-          queryBuilder.andWhere('room.isExpired = :isExpired', { isExpired: true });
+          queryBuilder.andWhere('room.isExpired = :isExpired', {
+            isExpired: true,
+          });
           break;
         case RoomFilterStatus.FLAGGED:
           queryBuilder.andWhere('room.warningNotificationSent = :flagged', {
@@ -2142,7 +2340,9 @@ export class AdminService {
           });
           break;
         case RoomFilterStatus.DELETED:
-          queryBuilder.andWhere('room.isDeleted = :isDeleted', { isDeleted: true });
+          queryBuilder.andWhere('room.isDeleted = :isDeleted', {
+            isDeleted: true,
+          });
           break;
       }
     }
@@ -2172,7 +2372,9 @@ export class AdminService {
           .createQueryBuilder('payment')
           .select('SUM(CAST(payment.amount as DECIMAL))', 'total')
           .where('payment.roomId = :roomId', { roomId: room.id })
-          .andWhere('payment.status = :status', { status: PaymentStatus.COMPLETED })
+          .andWhere('payment.status = :status', {
+            status: PaymentStatus.COMPLETED,
+          })
           .getRawOne();
 
         const totalFeesCollected = feeResult?.total || '0';
@@ -2213,4 +2415,445 @@ export class AdminService {
     if (room.isActive) return RoomFilterStatus.ACTIVE;
     return 'unknown';
   }
-}
+
+  /**
+   * Close a room (prevent new messages and new members)
+   */
+  async closeRoom(
+    roomId: string,
+    closeRoomDto: CloseRoomDto,
+    adminId: string,
+    req: Request,
+  ): Promise<{ success: boolean; message: string; room: Room }> {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+      relations: ['members'],
+    });
+
+    if (!room) {
+      throw new NotFoundException(`Room ${roomId} not found`);
+    }
+
+    // Check if already closed or deleted
+    if (room.isClosed || room.isDeleted) {
+      throw new BadRequestException('Room is already closed or deleted');
+    }
+
+    // Update room status
+    room.isClosed = true;
+    room.closedAt = new Date();
+    room.closedBy = adminId;
+    room.closeReason = closeRoomDto.reason;
+
+    await this.roomRepository.save(room);
+
+    // Log audit action
+    await this.auditLogService.log({
+      actorUserId: adminId,
+      action: AuditAction.ROOM_CLOSED,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.MEDIUM,
+      resourceType: 'room',
+      resourceId: roomId,
+      details: closeRoomDto.reason,
+      req,
+    });
+
+    // Broadcast system message to room members
+    const systemMessage = {
+      id: 'system-' + Date.now(),
+      type: 'system',
+      content: `Room has been closed by moderator. Reason: ${closeRoomDto.reason}`,
+      createdAt: new Date(),
+      sender: null,
+    };
+
+    this.messagesGateway.broadcastToRoom(
+      roomId,
+      'room-closed',
+      {
+        reason: closeRoomDto.reason,
+        closedAt: new Date(),
+        systemMessage,
+      },
+    );
+
+    return {
+      success: true,
+      message: 'Room closed successfully',
+      room,
+    };
+  }
+
+  /**
+   * Soft delete a room and all its messages
+   */
+  async deleteRoom(
+    roomId: string,
+    deleteRoomDto: DeleteRoomDto,
+    adminId: string,
+    req: Request,
+  ): Promise<{ success: boolean; message: string; refundedAmount?: string }> {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+      relations: ['members', 'payments'],
+    });
+
+    if (!room) {
+      throw new NotFoundException(`Room ${roomId} not found`);
+    }
+
+    // Check if already deleted
+    if (room.isDeleted) {
+      throw new BadRequestException('Room is already deleted');
+    }
+
+    // Calculate if refund should be issued
+    const roomAgeHours = (Date.now() - room.createdAt.getTime()) / (1000 * 60 * 60);
+    const shouldRefund =
+      roomAgeHours < 24 && parseFloat(room.entryFee) > 0;
+
+    let refundedAmount = '0';
+
+    // Process refunds if applicable
+    if (shouldRefund) {
+      refundedAmount = await this.refundRoomEntryFees(
+        roomId,
+        room,
+        adminId,
+        deleteRoomDto.forceRefund || false,
+        req,
+      );
+    }
+
+    // Soft delete room
+    room.isDeleted = true;
+    room.deletedAt = new Date();
+
+    await this.roomRepository.save(room);
+
+    // Soft delete all messages in the room using query builder
+    await this.messageRepository
+      .createQueryBuilder('message')
+      .update()
+      .set({ isDeleted: true })
+      .where('message.roomId = :roomId', { roomId })
+      .execute();
+
+    // Log audit action
+    await this.auditLogService.log({
+      actorUserId: adminId,
+      action: AuditAction.ROOM_DELETED,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.HIGH,
+      resourceType: 'room',
+      resourceId: roomId,
+      details: deleteRoomDto.reason,
+      metadata: {
+        roomAgeHours: Math.round(roomAgeHours),
+        refunded: shouldRefund,
+        refundedAmount,
+      },
+      req,
+    });
+
+    // Broadcast room deleted message
+    const systemMessage = {
+      id: 'system-' + Date.now(),
+      type: 'system',
+      content: `Room has been deleted. Reason: ${deleteRoomDto.reason}`,
+      createdAt: new Date(),
+      sender: null,
+    };
+
+    this.messagesGateway.broadcastToRoom(
+      roomId,
+      'room-deleted',
+      {
+        reason: deleteRoomDto.reason,
+        deletedAt: new Date(),
+        refunded: shouldRefund,
+        refundedAmount,
+        systemMessage,
+      },
+    );
+
+    return {
+      success: true,
+      message: 'Room deleted successfully',
+      refundedAmount: shouldRefund ? refundedAmount : undefined,
+    };
+  }
+
+  /**
+   * Restore a closed or deleted room
+   */
+  async restoreRoom(
+    roomId: string,
+    restoreRoomDto: RestoreRoomDto,
+    adminId: string,
+    req: Request,
+  ): Promise<{ success: boolean; message: string; room: Room }> {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      throw new NotFoundException(`Room ${roomId} not found`);
+    }
+
+    // Check if room can be restored
+    if (!room.isClosed && !room.isDeleted) {
+      throw new BadRequestException('Room is not closed or deleted');
+    }
+
+    // Restore room
+    room.isClosed = false;
+    room.closedAt = null;
+    room.closedBy = null;
+    room.closeReason = null;
+    room.isDeleted = false;
+    room.deletedAt = null;
+
+    await this.roomRepository.save(room);
+
+    // Restore deleted messages if it was soft-deleted using query builder
+    await this.messageRepository
+      .createQueryBuilder('message')
+      .update()
+      .set({ isDeleted: false })
+      .where('message.roomId = :roomId', { roomId })
+      .andWhere('message.isDeleted = :isDeleted', { isDeleted: true })
+      .execute();
+
+    // Log audit action
+    await this.auditLogService.log({
+      actorUserId: adminId,
+      action: AuditAction.ROOM_RESTORED,
+      eventType: AuditEventType.ADMIN,
+      outcome: AuditOutcome.SUCCESS,
+      severity: AuditSeverity.MEDIUM,
+      resourceType: 'room',
+      resourceId: roomId,
+      details: restoreRoomDto.reason,
+      req,
+    });
+
+    // Broadcast room restored message
+    const systemMessage = {
+      id: 'system-' + Date.now(),
+      type: 'system',
+      content: `Room has been restored. Reason: ${restoreRoomDto.reason}`,
+      createdAt: new Date(),
+      sender: null,
+    };
+
+    this.messagesGateway.broadcastToRoom(
+      roomId,
+      'room-restored',
+      {
+        reason: restoreRoomDto.reason,
+        restoredAt: new Date(),
+        systemMessage,
+      },
+    );
+
+    return {
+      success: true,
+      message: 'Room restored successfully',
+      room,
+    };
+  }
+
+  /**
+   * Refund entry fees for room members
+   */
+  private async refundRoomEntryFees(
+    roomId: string,
+    room: Room,
+    adminId: string,
+    forceRefund: boolean,
+    req: Request,
+  ): Promise<string> {
+    // Get all room payments that were completed
+    const payments = await this.roomPaymentRepository.find({
+      where: {
+        roomId,
+        status: PaymentStatus.COMPLETED,
+      },
+    });
+
+    if (payments.length === 0) {
+      return '0';
+    }
+
+    let totalRefunded = '0';
+
+    // Process refunds for each payment
+    for (const payment of payments) {
+      try {
+        // Create a refund transfer
+        const refundAmount = payment.amount;
+
+        // Update payment status to refunded
+        payment.status = PaymentStatus.REFUNDED;
+        payment.refundedAt = new Date();
+        payment.refundTransactionHash = `refund-${roomId}-${Date.now()}`;
+
+        await this.roomPaymentRepository.save(payment);
+
+        // Credit the user (would integrate with WalletsService if available)
+        // For now, log the refund intention
+        this.logger.log(
+          `Refund issued for user ${payment.userId}: ${refundAmount} for room ${roomId}`,
+        );
+
+        // Add refund amount
+        totalRefunded = (
+          parseFloat(totalRefunded) + parseFloat(refundAmount)
+        ).toFixed(8);
+      } catch (error) {
+        this.logger.error(
+          `Failed to refund payment ${payment.id}: ${error.message}`,
+        );
+      }
+    }
+
+    return totalRefunded;
+  }
+
+  /**
+   * Adjust user XP for edge cases (exploit mitigation, compensation, contest rewards, etc.)
+   */
+  async adjustUserXp(
+    userId: string,
+    adjustXpDto: AdjustUserXpDto,
+    adminId: string,
+    req: Request,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    user: User;
+    previousXp: number;
+    newXp: number;
+    delta: number;
+    oldLevel: number;
+    newLevel: number;
+    levelChanged: boolean;
+  }> {
+    // Fetch user
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const { delta, reason } = adjustXpDto;
+    const previousXp = user.currentXp;
+
+    // Calculate new XP
+    const newXp = previousXp + delta;
+
+    // Validate XP doesn't go below 0
+    if (newXp < 0) {
+      throw new BadRequestException(
+        `XP adjustment would result in negative XP. Current: ${previousXp}, Delta: ${delta}. New XP would be: ${newXp}`,
+      );
+    }
+
+    // Calculate levels before and after
+    const oldLevel = this.xpService.calculateLevel(previousXp);
+    const newLevel = this.xpService.calculateLevel(newXp);
+    const levelChanged = newLevel !== oldLevel;
+
+    // Update user XP and level
+    user.currentXp = newXp;
+    user.level = newLevel;
+
+    await this.userRepository.save(user);
+
+    // Update leaderboard with the delta
+    if (delta !== 0) {
+      await this.leaderboardService.updateLeaderboard({
+        userId: user.id,
+        username: user.username,
+        category: LeaderboardCategory.XP,
+        scoreIncrement: delta,
+      });
+    }
+
+    // Queue notifications if level changed
+    if (levelChanged) {
+      if (newLevel > oldLevel) {
+        // Level up: queue level up notification
+        await this.notificationsQueue.add(
+          'send-notification',
+          {
+            type: 'LEVEL_UP',
+            userId: user.id,
+            username: user.username,
+            oldLevel,
+            newLevel,
+            currentXp: user.currentXp,
+            adminAdjustment: true,
+            reason,
+          },
+          { delay: 1000 },
+        );
+      } else {
+        // Level down: queue level down notification (if supported)
+        await this.notificationsQueue.add(
+          'send-notification',
+          {
+            type: 'LEVEL_DOWN',
+            userId: user.id,
+            username: user.username,
+            oldLevel,
+            newLevel,
+            currentXp: user.currentXp,
+            adminAdjustment: true,
+            reason,
+          },
+          { delay: 1000 },
+        );
+      }
+    }
+
+    // Create audit log entry
+    await this.auditLogService.log({
+      adminId,
+      action: AuditAction.USER_XP_ADJUSTED,
+      resourceType: 'USER',
+      resourceId: userId,
+      details: reason,
+      changes: {
+        previousXp,
+        newXp,
+        delta,
+        oldLevel,
+        newLevel,
+      },
+      severity: AuditSeverity.MEDIUM,
+      outcome: AuditOutcome.SUCCESS,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    this.logger.log(
+      `XP adjusted for user ${userId}: ${previousXp} → ${newXp} (delta: ${delta}, reason: ${reason})`,
+    );
+
+    return {
+      success: true,
+      message: `XP adjusted successfully. Previous: ${previousXp}, New: ${newXp}, Delta: ${delta}`,
+      user,
+      previousXp,
+      newXp,
+      delta,
+      oldLevel,
+      newLevel,
+      levelChanged,
+    };
+  }
+

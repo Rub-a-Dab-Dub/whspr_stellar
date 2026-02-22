@@ -10,7 +10,8 @@ import {
   Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { Role, UserRole } from '../../roles/entities/role.entity';
+import { Role } from '../../roles/entities/role.entity';
+import { UserRole } from '../../roles/entities/user-role.enum';
 import { UserProfile } from './user-profile.entity';
 
 @Entity('users')
@@ -115,15 +116,23 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | undefined;
 
-  @Column({ default: false })
-  @Index()
-  isVerified: boolean = false;
-
   @Column({ type: 'timestamp', nullable: true })
-  verifiedAt: Date | undefined;
+  suspendedAt: Date | null;
 
   @Column({ type: 'uuid', nullable: true })
-  verifiedBy: string | undefined;
+  suspendedBy: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  suspensionReason: string | null;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  verifiedAt: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  verifiedBy: string | null;
 
   // Timestamps
   @CreateDateColumn()
