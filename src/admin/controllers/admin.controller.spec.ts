@@ -26,6 +26,7 @@ describe('AdminController', () => {
     updateConfig: jest.fn(),
     getRevenueAnalytics: jest.fn(),
     getOverviewAnalytics: jest.fn(),
+    getRetentionCohortAnalytics: jest.fn(),
     getLeaderboardTypes: jest.fn(),
     getLeaderboardEntries: jest.fn(),
     resetLeaderboard: jest.fn(),
@@ -214,6 +215,11 @@ describe('AdminController', () => {
       currentUser,
       req,
     );
+    await controller.getRetentionAnalytics(
+      { cohortPeriod: 'week', periods: 8 } as any,
+      currentUser,
+      req,
+    );
 
     expect(adminService.getUserSessions).toHaveBeenCalledWith('u1');
     expect(adminService.terminateSession).toHaveBeenCalledWith(
@@ -226,6 +232,11 @@ describe('AdminController', () => {
     expect(adminService.updateConfig).toHaveBeenCalledWith(
       'key1',
       expect.any(Object),
+      'admin-1',
+      req,
+    );
+    expect(adminService.getRetentionCohortAnalytics).toHaveBeenCalledWith(
+      expect.objectContaining({ cohortPeriod: 'week', periods: 8 }),
       'admin-1',
       req,
     );

@@ -58,6 +58,7 @@ import {
   GetOverviewAnalyticsDto,
   AnalyticsPeriod,
 } from '../dto/get-overview-analytics.dto';
+import { GetRetentionAnalyticsDto } from '../dto/get-retention-analytics.dto';
 import { CacheService } from '../../cache/cache.service';
 
 @Injectable()
@@ -1556,6 +1557,105 @@ export class AdminService {
       null,
       'Viewed overview analytics',
       { period },
+      req,
+      AuditSeverity.LOW,
+    );
+
+    return response;
+  }
+
+  async getRetentionCohortAnalytics(
+    query: GetRetentionAnalyticsDto,
+    adminId: string,
+    req?: Request,
+  ) {
+    const { cohortPeriod, periods } = query;
+    const cacheKey = `retention:${cohortPeriod}:${periods}`;
+
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const queryText = `
+      WITH cohorts AS (
+        SELECT
+          u.id AS user_id,
+          DATE_TRUNC($1, u."createdAt") AS cohort_period
+        FROM users u
+        WHERE u."createdAt" IS NOT NULL
+      ),
+      cohort_sizes AS (
+        SELECT
+          c.user_id,
+          c.cohort_period,
+          COUNT(*) OVER (PARTITION BY c.cohort_period) AS total_users
+        FROM cohorts c
+      ),
+      activity AS (
+        SELECT DISTINCT
+          s.user_id,
+          DATE_TRUNC($1, s.created_at) AS active_period
+        FROM sessions s
+        WHERE s.created_at IS NOT NULL
+      ),
+      cohort_activity AS (
+        SELECT
+          cs.cohort_period,
+          cs.total_users,
+          cs.user_id,
+          a.active_period,
+          CASE
+            WHEN $1 = 'week' THEN
+              FLOOR(EXTRACT(EPOCH FROM (a.active_period - cs.cohort_period)) / 604800)::int
+            ELSE
+              (
+                (
+                  DATE_PART('year', a.active_period) * 12 + DATE_PART('month', a.active_period)
+                ) - (
+                  DATE_PART('year', cs.cohort_period) * 12 + DATE_PART('month', cs.cohort_period)
+                )
+              )::int
+          END AS period_number
+        FROM cohort_sizes cs
+        INNER JOIN activity a ON a.user_id = cs.user_id
+        WHERE a.active_period >= cs.cohort_period
+      )
+      SELECT
+        ca.cohort_period,
+        MAX(ca.total_users)::int AS total_users,
+        COUNT(DISTINCT ca.user_id)::int AS retained_users,
+        ROUND(
+          (
+            COUNT(DISTINCT ca.user_id) * 100.0 / NULLIF(MAX(ca.total_users), 0)
+          )::numeric,
+          2
+        ) AS retention_pct,
+        ca.period_number::int AS period_number
+      FROM cohort_activity ca
+      WHERE ca.period_number BETWEEN 0 AND ($2::int - 1)
+      GROUP BY ca.cohort_period, ca.period_number
+      ORDER BY ca.cohort_period, ca.period_number
+    `;
+
+    const rows = await this.userRepository.query(queryText, [
+      cohortPeriod,
+      periods,
+    ]);
+    const response = {
+      cohortPeriod,
+      periods,
+      rows,
+    };
+
+    await this.redisService.set(cacheKey, JSON.stringify(response), 3600);
+
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_VIEWED,
+      null,
+      'Viewed retention analytics',
+      { query },
       req,
       AuditSeverity.LOW,
     );
