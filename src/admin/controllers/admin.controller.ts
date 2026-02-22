@@ -745,4 +745,14 @@ export class AdminController {
     return await this.platformWalletService.getWithdrawals(query);
   }
 
+  @Post('transactions/:txId/refund')
+  async refundTransaction(
+    @Param('txId') txId: string,
+    @Body() dto: RefundTransactionDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return this.adminService.refundTransaction(txId, dto, currentUser.id, req);
+  }
+
 }

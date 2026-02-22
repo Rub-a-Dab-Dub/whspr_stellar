@@ -108,6 +108,8 @@ export class AdminService {
     private readonly xpService: XpService,
     @InjectQueue(QUEUE_NAMES.NOTIFICATIONS)
     private readonly notificationsQueue: Queue,
+    private readonly notificationService: NotificationService,
+    private readonly queueService: QueueService,
   ) {}
 
   async getTransactions(
