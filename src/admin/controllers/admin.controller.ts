@@ -13,8 +13,14 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
-import { ApiUseTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { Request, Response } from 'express';
+import { IsModeratorGuard } from '../guards/is-moderator.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../../roles/guards/role.guard';
 import { PermissionGuard } from '../../roles/guards/permission.guard';
@@ -37,6 +43,7 @@ import { GetTransactionsDto } from '../dto/get-transactions.dto';
 import { IsAdmin } from '../decorators/is-admin.decorator';
 import { DeleteUserDto } from '../dto/delete-user.dto';
 import { UpdateConfigDto } from '../dto/update-config.dto';
+import { GetRoomDetailsDto } from '../dto/get-room-details.dto';
 import {
   LeaderboardCategory,
   LeaderboardPeriod,
@@ -47,11 +54,14 @@ import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
 import { PlatformWalletService } from '../services/platform-wallet.service';
 import { PlatformWalletWithdrawDto } from '../dto/platform-wallet-withdraw.dto';
 import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
+import { CloseRoomDto } from '../dto/close-room.dto';
+import { DeleteRoomDto } from '../dto/delete-room.dto';
+import { RestoreRoomDto } from '../dto/restore-room.dto';
+import { AdjustUserXpDto } from '../dto/adjust-user-xp.dto';
 
 @ApiUseTags('admin')
 @ApiBearerAuth()
 @Controller('admin')
-@IsAdmin()
 @UseGuards(RoleGuard, PermissionGuard)
 export class AdminController {
   constructor(
@@ -71,6 +81,7 @@ export class AdminController {
   }
 
   @Get('users')
+  @UseGuards(IsModeratorGuard)
   @ApiOperation({ title: 'List users with filters and pagination' })
   @ApiResponse({ status: 200, description: 'Paginated list of users' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -84,7 +95,7 @@ export class AdminController {
   }
 
   @Get('users/:id')
-  @ApiOperation({ title: 'Get user deep-dive detail' })
+  @ApiOperation({ title: 'Get user detail by ID' })
   @ApiResponse({ status: 200, description: 'User details' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserDetail(
@@ -203,6 +214,26 @@ export class AdminController {
     );
   }
 
+  @Patch('users/:id/xp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Adjust user XP (exploit mitigation, compensation, etc.)' })
+  @ApiResponse({ status: 200, description: 'XP adjusted successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid XP adjustment (would go below 0)' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async adjustUserXp(
+    @Param('id') userId: string,
+    @Body() adjustXpDto: AdjustUserXpDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.adjustUserXp(
+      userId,
+      adjustXpDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
   @Post('users/bulk-action')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ title: 'Perform bulk action on multiple users' })
@@ -233,6 +264,7 @@ export class AdminController {
   }
 
   @Get('users/:id/sessions')
+  @ApiOperation({ title: 'Get user active sessions' })
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   async getUserSessions(
     @Param('id') userId: string,
@@ -247,6 +279,7 @@ export class AdminController {
   }
 
   @Delete('users/:id/sessions/:sessionId')
+  @ApiOperation({ title: 'Terminate specific user session' })
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
   async terminateSession(
@@ -264,6 +297,7 @@ export class AdminController {
   }
 
   @Delete('users/:id/sessions')
+  @ApiOperation({ title: 'Terminate all user sessions' })
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
   async terminateAllUserSessions(
@@ -279,14 +313,73 @@ export class AdminController {
   }
 
   @Get('rooms')
-  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
-  @ApiOperation({ title: 'Get rooms (with filters)' })
-  async getRooms(
-    @Query() query: GetRoomsDto,
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ title: 'Get rooms list with filters' })
+  async getRooms(@Query() query: GetRoomsDto) {
+    return await this.adminService.getRooms(query);
+  }
+
+  @Post('rooms/:roomId/close')
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Close a room (no new messages/members)' })
+  @ApiResponse({ status: 200, description: 'Room closed successfully' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  async closeRoom(
+    @Param('roomId') roomId: string,
+    @Body() closeRoomDto: CloseRoomDto,
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.getRooms(query, currentUser.userId, req);
+    return await this.adminService.closeRoom(
+      roomId,
+      closeRoomDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Delete('rooms/:roomId')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Soft delete a room and all its messages' })
+  @ApiResponse({ status: 200, description: 'Room deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  async deleteRoom(
+    @Param('roomId') roomId: string,
+    @Body() deleteRoomDto: DeleteRoomDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.deleteRoom(
+      roomId,
+      deleteRoomDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Post('rooms/:roomId/restore')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Restore a closed or deleted room' })
+  @ApiResponse({ status: 200, description: 'Room restored successfully' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  async restoreRoom(
+    @Param('roomId') roomId: string,
+    @Body() restoreRoomDto: RestoreRoomDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.restoreRoom(
+      roomId,
+      restoreRoomDto,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Get('statistics')
@@ -391,7 +484,10 @@ export class AdminController {
   @RequirePermissions('user.impersonate')
   @ApiOperation({ title: 'Start impersonation session' })
   @ApiResponse({ status: 200, description: 'Impersonation started' })
-  @ApiResponse({ status: 403, description: 'user.impersonate permission required' })
+  @ApiResponse({
+    status: 403,
+    description: 'user.impersonate permission required',
+  })
   @ApiResponse({ status: 404, description: 'Target user not found' })
   async impersonateUser(
     @Body() impersonateDto: ImpersonateUserDto,
@@ -499,6 +595,7 @@ export class AdminController {
   }
 
   @Get('analytics/overview')
+  @ApiOperation({ title: 'Get platform overview analytics' })
   async getOverviewAnalytics(
     @Query() query: GetOverviewAnalyticsDto,
     @CurrentUser() currentUser: any,
@@ -608,11 +705,16 @@ export class AdminController {
   }
 
   @Get('rooms/:roomId')
+  @ApiOperation({ title: 'Get room details' })
   async getRoomDetails(
     @Param('roomId') roomId: string,
-    @Query() query: any,
+    @Query() query: GetRoomDetailsDto,
     @CurrentUser() currentUser: any,
     @Req() req: Request,
+  @Param('roomId') roomId: string,
+  @Query() query: any,
+  @CurrentUser() currentUser: any,
+  @Req() req: Request,
   ) {
     return await this.adminService.getRoomDetails(
       roomId,
@@ -652,6 +754,16 @@ export class AdminController {
   @ApiResponse({ status: 200, description: 'Withdrawal history' })
   async getWithdrawals(@Query() query: GetWithdrawalsDto) {
     return await this.platformWalletService.getWithdrawals(query);
+  }
+
+  @Post('transactions/:txId/refund')
+  async refundTransaction(
+    @Param('txId') txId: string,
+    @Body() dto: RefundTransactionDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return this.adminService.refundTransaction(txId, dto, currentUser.id, req);
   }
 
 }

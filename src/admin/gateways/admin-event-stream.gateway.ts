@@ -58,7 +58,7 @@ export class AdminEventStreamGateway
 
       const decoded = this.jwtService.verify(token, {
         secret: this.configService.get('JWT_ACCESS_SECRET'),
-      }) as { sub?: string; id?: string };
+      });
       const userId = decoded.sub || decoded.id;
 
       if (!userId) {

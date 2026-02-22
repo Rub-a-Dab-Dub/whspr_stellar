@@ -22,6 +22,7 @@ export enum AuditAction {
   VIEW_USER_PROFILE = 'view.user.profile',
   USER_UPDATED = 'user.updated',
   USER_DELETED = 'user.deleted',
+  USER_XP_ADJUSTED = 'user.xp.adjusted',
   BULK_ACTION = 'bulk.action',
   IMPERSONATION_STARTED = 'impersonation.started',
   IMPERSONATION_ENDED = 'impersonation.ended',
@@ -42,10 +43,18 @@ export enum AuditAction {
   PLATFORM_CONFIG_UPDATED = 'platform.config.updated',
   IP_WHITELIST_ADDED = 'ip_whitelist.added',
   IP_WHITELIST_REMOVED = 'ip_whitelist.removed',
+  ADMIN_LISTED = 'admin.listed',
+  ADMIN_INVITED = 'admin.invited',
+  ADMIN_ROLE_CHANGED = 'admin.role.changed',
+  ADMIN_DEACTIVATED = 'admin.deactivated',
+  ADMIN_REACTIVATED = 'admin.reactivated',
   PLATFORM_WALLET_WITHDRAWAL_INITIATED = 'platform.wallet.withdrawal.initiated',
   PLATFORM_WALLET_WITHDRAWAL_COMPLETED = 'platform.wallet.withdrawal.completed',
   PLATFORM_WALLET_WITHDRAWAL_FAILED = 'platform.wallet.withdrawal.failed',
   PLATFORM_WALLET_WITHDRAWAL_ATTEMPTED = 'platform.wallet.withdrawal.attempted',
+  ROOM_CLOSED = 'room.closed',
+  ROOM_DELETED = 'room.deleted',
+  ROOM_RESTORED = 'room.restored',
 }
 
 export enum AuditEventType {
