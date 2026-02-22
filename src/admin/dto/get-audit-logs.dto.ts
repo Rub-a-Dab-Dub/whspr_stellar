@@ -31,7 +31,9 @@ export class GetAuditLogsDto {
   @IsEnum(AuditOutcome)
   outcome?: AuditOutcome;
 
-  @ApiPropertyOptional({ description: 'Admin user ID who performed the action' })
+  @ApiPropertyOptional({
+    description: 'Admin user ID who performed the action',
+  })
   @IsOptional()
   @IsString()
   adminId?: string; // Alias for actorUserId

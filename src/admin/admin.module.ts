@@ -68,7 +68,7 @@ import { QueueService } from '../queue/queue.service';
       RoomMember,
       RoomPayment,
       PlatformConfig,
-      ModerationQueue,   
+      ModerationQueue,
       FlaggedMessage,
       PlatformWalletWithdrawal,
       WithdrawalWhitelist,
