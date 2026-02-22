@@ -47,6 +47,9 @@ import { AdminLeaderboardQueryDto } from '../dto/admin-leaderboard-query.dto';
 import { PlatformWalletService } from '../services/platform-wallet.service';
 import { PlatformWalletWithdrawDto } from '../dto/platform-wallet-withdraw.dto';
 import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
+import { CloseRoomDto } from '../dto/close-room.dto';
+import { DeleteRoomDto } from '../dto/delete-room.dto';
+import { RestoreRoomDto } from '../dto/restore-room.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -278,6 +281,69 @@ export class AdminController {
   @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   async getRooms(@Query() query: GetRoomsDto) {
     return await this.adminService.getRooms(query);
+  }
+
+  @Post('rooms/:roomId/close')
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Close a room (no new messages/members)' })
+  @ApiResponse({ status: 200, description: 'Room closed successfully' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  async closeRoom(
+    @Param('roomId') roomId: string,
+    @Body() closeRoomDto: CloseRoomDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.closeRoom(
+      roomId,
+      closeRoomDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Delete('rooms/:roomId')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Soft delete a room and all its messages' })
+  @ApiResponse({ status: 200, description: 'Room deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  async deleteRoom(
+    @Param('roomId') roomId: string,
+    @Body() deleteRoomDto: DeleteRoomDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.deleteRoom(
+      roomId,
+      deleteRoomDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Post('rooms/:roomId/restore')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Restore a closed or deleted room' })
+  @ApiResponse({ status: 200, description: 'Room restored successfully' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  async restoreRoom(
+    @Param('roomId') roomId: string,
+    @Body() restoreRoomDto: RestoreRoomDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminService.restoreRoom(
+      roomId,
+      restoreRoomDto,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Get('statistics')
