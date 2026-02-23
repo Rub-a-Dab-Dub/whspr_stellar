@@ -1,13 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as StellarSdk from '@stellar/stellar-sdk';
+import { User } from '../../user/entities/user.entity';
 
 @Injectable()
 export class TransferBalanceService {
   private readonly logger = new Logger(TransferBalanceService.name);
   private server: StellarSdk.Horizon.Server;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {
     const horizonUrl =
       this.configService.get<string>('STELLAR_HORIZON_URL') ||
       'https://horizon-testnet.stellar.org';
@@ -59,9 +66,13 @@ export class TransferBalanceService {
     userId: string,
     network: string,
   ): Promise<string | null> {
-    // TODO: Implement database lookup for user's wallet address
-    // This should query the user's wallet entity based on network
-    return null;
+    // Stellar / default: use the user's walletAddress field
+    // For EVM networks the same field stores an EVM address — extend here as needed
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'walletAddress'],
+    });
+    return user?.walletAddress ?? null;
   }
 
   async recordBalanceSnapshot(

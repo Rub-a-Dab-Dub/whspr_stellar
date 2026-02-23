@@ -1,6 +1,9 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as StellarSdk from '@stellar/stellar-sdk';
+import { User } from '../../user/entities/user.entity';
 
 export interface TransferResult {
   transactionHash: string;
@@ -14,7 +17,11 @@ export class TransferBlockchainService {
   private server: StellarSdk.Horizon.Server;
   private networkPassphrase: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {
     const horizonUrl =
       this.configService.get<string>('STELLAR_HORIZON_URL') ||
       'https://horizon-testnet.stellar.org';
@@ -110,8 +117,10 @@ export class TransferBlockchainService {
   }
 
   async getUserPublicKey(userId: string): Promise<string | null> {
-    // TODO: Implement database lookup for user's Stellar public key
-    // This should query the user's wallet entity
-    return null;
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'walletAddress'],
+    });
+    return user?.walletAddress ?? null;
   }
 }

@@ -40,7 +40,7 @@ export class TransferController {
     private readonly limitService: TransferLimitService,
     private readonly scheduledTransferService: ScheduledTransferService,
     private readonly disputeService: TransferDisputeService,
-  ) {}
+  ) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -154,6 +154,25 @@ export class TransferController {
 
     return {
       success: true,
+      data: transfer,
+    };
+  }
+
+  @Post(':transferId/confirm')
+  @HttpCode(HttpStatus.OK)
+  async confirmTransfer(
+    @Request() req,
+    @Param('transferId') transferId: string,
+  ) {
+    const userId = req.user.id || req.user.sub;
+    const transfer = await this.transferService.confirmTransfer(
+      transferId,
+      userId,
+    );
+
+    return {
+      success: true,
+      message: 'Transfer confirmed and queued for blockchain execution',
       data: transfer,
     };
   }
