@@ -64,11 +64,12 @@ export enum AuditAction {
   WEBHOOK_UPDATED = 'webhook.updated',
   WEBHOOK_DELETED = 'webhook.deleted',
   WEBHOOK_TESTED = 'webhook.tested',
-  XP_BOOST_CREATED = 'xp_boost.created',
-  XP_BOOST_UPDATED = 'xp_boost.updated',
-  XP_BOOST_DELETED = 'xp_boost.deleted',
-  XP_BOOST_ACTIVATED = 'xp_boost.activated',
-  XP_BOOST_DEACTIVATED = 'xp_boost.deactivated',
+  TICKET_ASSIGNED = 'ticket.assigned',
+  TICKET_STATUS_CHANGED = 'ticket.status.changed',
+  TICKET_RESOLVED = 'ticket.resolved',
+  VIEW_WALLET = 'wallet.viewed',
+  RETRY_WALLET_CREATION = 'wallet.creation.retried',
+  SYNC_WALLETS = 'wallets.synced',
 }
 
 export enum AuditEventType {

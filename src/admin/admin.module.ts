@@ -58,10 +58,16 @@ import { WebhookDelivery } from './entities/webhook-delivery.entity';
 import { WebhookService } from './services/webhook.service';
 import { WebhookDeliveryProcessor } from './jobs/webhook-delivery.processor';
 import { WebhookController } from './controllers/webhook.controller';
-import { XpBoostEvent } from './entities/xp-boost-event.entity';
-import { XpBoostService } from './services/xp-boost.service';
-import { XpBoostCronJob } from './jobs/xp-boost-cron.job';
-import { XpBoostController } from './controllers/xp-boost.controller';
+import { SupportTicket } from './entities/support-ticket.entity';
+import { TicketMessage } from './entities/ticket-message.entity';
+import { SupportTicketService } from './services/support-ticket.service';
+import { SupportTicketController } from './controllers/support-ticket.controller';
+import { SupportTicketAnalyticsService } from './services/support-ticket-analytics.service';
+import { SupportAnalyticsController } from './controllers/support-analytics.controller';
+import { UsersModule } from '../users/users.module';
+import { ChainModule } from '../chain/chain.module';
+import { AdminWalletsController } from './controllers/admin-wallets.controller';
+import { AdminWalletsService } from './services/admin-wallets.service';
 
 @Module({
   imports: [
@@ -75,6 +81,7 @@ import { XpBoostController } from './controllers/xp-boost.controller';
     UsersModule,
     NotificationsModule,
     QueueModule,
+    ChainModule,
     TypeOrmModule.forFeature([
       User,
       AuditLog,
@@ -100,10 +107,18 @@ import { XpBoostController } from './controllers/xp-boost.controller';
       NotificationDelivery,
       WebhookSubscription,
       WebhookDelivery,
-      XpBoostEvent,
+      SupportTicket,
+      TicketMessage,
     ]),
   ],
-  controllers: [AdminController, IpWhitelistController, WebhookController, XpBoostController],
+  controllers: [
+    AdminController,
+    IpWhitelistController,
+    WebhookController,
+    SupportAnalyticsController,
+    SupportTicketController,
+    AdminWalletsController,
+  ],
   providers: [
     AdminConfigService,
     AdminService,
@@ -120,8 +135,9 @@ import { XpBoostController } from './controllers/xp-boost.controller';
     BroadcastDeliveryStatsService,
     WebhookService,
     WebhookDeliveryProcessor,
-    XpBoostService,
-    XpBoostCronJob,
+    SupportTicketService,
+    SupportTicketAnalyticsService,
+    AdminWalletsService,
   ],
   exports: [
     AdminConfigService,
@@ -131,7 +147,7 @@ import { XpBoostController } from './controllers/xp-boost.controller';
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
     WebhookService,
-    XpBoostService,
+    SupportTicketService,
   ],
 })
 export class AdminModule {

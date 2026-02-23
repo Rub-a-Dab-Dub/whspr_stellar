@@ -7,6 +7,14 @@ import {
   Index,
 } from 'typeorm';
 
+export enum Chain {
+  ALL = 'all',
+  ETH = 'eth',
+  BSC = 'bsc',
+  POLYGON = 'polygon',
+  SOLANA = 'solana',
+}
+
 @Entity('withdrawal_whitelist')
 export class WithdrawalWhitelist {
   @PrimaryGeneratedColumn('uuid')
