@@ -28,3 +28,7 @@ Thumbs.db
 
 package-lock.json
 requirements.md
+
+# Python virtual environment
+venv/
+django-app/venv/
