@@ -14,12 +14,12 @@ import { CreateQuestDto } from './dto/create-quest.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 
 // Assuming you have these guards
-// import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 // import { AdminGuard } from '../auth/guards/admin.guard';
 
 @Controller('quests')
 export class QuestController {
-  constructor(private readonly questService: QuestService) {}
+  constructor(private readonly questService: QuestService) { }
 
   // Admin endpoints
   @Post('admin/create')
@@ -35,34 +35,42 @@ export class QuestController {
   }
 
   // User endpoints
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  async getQuests(@Request() req) {
+    const userId = req.user.id || req.user.sub;
+    return await this.questService.getActiveQuests(userId);
+  }
+
   @Get('active')
-  // @UseGuards(JwtAuthGuard)
-  async getActiveQuests() {
-    return await this.questService.getActiveQuests();
+  @UseGuards(JwtAuthGuard)
+  async getMyActiveQuests(@Request() req) {
+    const userId = req.user.id || req.user.sub;
+    return await this.questService.getUserQuestProgress(userId);
   }
 
   @Get('my-progress')
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   async getMyProgress(@Request() req) {
-    const userId = req.user?.id || 'test-user'; // Replace with actual user ID from JWT
+    const userId = req.user.id || req.user.sub;
     return await this.questService.getUserQuestProgress(userId);
   }
 
   @Get('my-progress/:questId')
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   async getMyQuestProgress(@Request() req, @Param('questId') questId: string) {
-    const userId = req.user?.id || 'test-user';
+    const userId = req.user.id || req.user.sub;
     return await this.questService.getUserQuestProgress(userId, questId);
   }
 
   @Post('update-progress')
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async updateProgress(
     @Request() req,
     @Body() updateProgressDto: UpdateProgressDto,
   ) {
-    const userId = req.user?.id || 'test-user';
+    const userId = req.user.id || req.user.sub;
     return await this.questService.updateQuestProgress(
       userId,
       updateProgressDto.questId,
@@ -71,9 +79,9 @@ export class QuestController {
   }
 
   @Get('check-completion/:questId')
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   async checkCompletion(@Request() req, @Param('questId') questId: string) {
-    const userId = req.user?.id || 'test-user';
+    const userId = req.user.id || req.user.sub;
     const isCompleted = await this.questService.checkQuestCompletion(
       userId,
       questId,
@@ -82,10 +90,10 @@ export class QuestController {
   }
 
   @Post('claim-reward/:questId')
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async claimReward(@Request() req, @Param('questId') questId: string) {
-    const userId = req.user?.id || 'test-user';
+    const userId = req.user.id || req.user.sub;
     return await this.questService.claimQuestReward(userId, questId);
   }
 }

@@ -79,8 +79,8 @@ export class CreateRoomDto {
   isActive?: boolean;
 
   @IsInt()
-  @Min(1)
-  @Max(10080)
+  @Min(60) // Min 1 hour
+  @Max(43200) // Max 30 days
   @IsOptional()
   durationMinutes?: number;
 

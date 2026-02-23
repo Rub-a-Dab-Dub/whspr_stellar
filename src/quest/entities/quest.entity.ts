@@ -17,6 +17,7 @@ export enum QuestType {
   WEEKLY = 'weekly',
   REPEATABLE = 'repeatable',
   SPECIAL = 'special',
+  SEASONAL = 'seasonal',
 }
 
 export enum QuestStatus {
@@ -57,11 +58,30 @@ export class Quest {
   @Column({ type: 'jsonb', nullable: true })
   condition?: Record<string, any>;
 
+  @Column({ type: 'varchar', nullable: true })
+  requirement?: string;
+
+  @Column({ type: 'int', default: 1 })
+  requirementCount: number;
+
+  @Column({ type: 'int', default: 1 })
+  difficulty: number;
+
+  @Column({ type: 'uuid', nullable: true })
+  requiredQuestId?: string;
+
+  @ManyToOne(() => Quest, { nullable: true })
+  @JoinColumn({ name: 'requiredQuestId' })
+  requiredQuest?: Quest;
+
   @Column({ type: 'timestamp', nullable: true })
   startDate?: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   endDate?: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  activeUntil?: Date;
 
   @Column({ type: 'uuid' })
   createdById: string;
