@@ -10,8 +10,11 @@ import { XpService } from './services/xp.service';
 import { Streak } from './entities/streak.entity';
 import { StreakReward } from './entities/streak-reward.entity';
 import { StreakBadge } from './entities/streak-badge.entity';
+import { Badge } from './entities/badge.entity';
+import { UserBadge } from './entities/user-badge.entity';
 import { StreakHistory } from './entities/streak-history.entity';
 import { StreakService } from './services/streak.service';
+import { UserBadgeService } from './services/user-badge.service';
 import { CacheModule } from '../cache/cache.module';
 import { UserStats } from './entities/user-stats.entity';
 import { UserStatsDaily } from './entities/user-stats-daily.entity';
@@ -28,6 +31,8 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
       Streak,
       StreakReward,
       StreakBadge,
+      Badge,
+      UserBadge,
       StreakHistory,
       UserStats,
       UserStatsDaily,
@@ -43,9 +48,11 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
     PinataService,
     XpService,
     StreakService,
+    // user-badge management
+    UserBadgeService,
     UserStatsService,
     UserStatsAggregationJob,
   ],
-  exports: [UsersService, XpService, StreakService, UserStatsService],
+  exports: [UsersService, XpService, StreakService, UserStatsService, UserBadgeService],
 })
 export class UsersModule {}

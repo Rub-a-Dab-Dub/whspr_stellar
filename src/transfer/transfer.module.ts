@@ -21,6 +21,7 @@ import { TransferDisputeService } from './services/transfer-dispute.service';
 import { UsersModule } from '../user/user.module';
 import { QueueModule } from '../queue/queue.module';
 import { AdminModule } from '../admin/admin.module';
+import { User } from '../user/entities/user.entity';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AdminModule } from '../admin/admin.module';
       ScheduledTransfer,
       TransferLimit,
       TransferDispute,
+      User,
     ]),
     UsersModule,
     QueueModule,
@@ -57,4 +59,4 @@ import { AdminModule } from '../admin/admin.module';
     TransferBalanceService,
   ],
 })
-export class TransferModule {}
+export class TransferModule { }

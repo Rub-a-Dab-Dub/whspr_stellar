@@ -29,6 +29,10 @@ import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
 import { Quest } from '../quest/entities/quest.entity';
 import { UserQuestProgress } from '../quest/entities/user-quest-progress.entity';
 import { AdminQuestService } from './services/admin-quest.service';
+import { AdminBadgesService } from './services/admin-badges.service';
+import { AdminBadgesController } from './controllers/admin-badges.controller';
+import { Badge } from '../users/entities/badge.entity';
+import { UserBadge } from '../users/entities/user-badge.entity';
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { RoomPayment } from '../room/entities/room-payment.entity';
@@ -42,6 +46,7 @@ import { SessionModule } from '../sessions/sessions.module';
 import { MessageModule } from '../message/message.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { QueueModule } from '../queue/queue.module';
+import { UsersModule } from '../users/users.module';
 import { AdminAuthModule } from './auth/admin-auth.module';
 import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
@@ -95,6 +100,8 @@ import { RateLimitsService } from './services/rate-limits.service';
       Message,
       Quest,
       UserQuestProgress,
+      Badge,
+      UserBadge,
       Room,
       RoomMember,
       RoomPayment,
@@ -115,6 +122,7 @@ import { RateLimitsService } from './services/rate-limits.service';
   controllers: [
     AdminController,
     IpWhitelistController,
+    AdminBadgesController,
     WebhookController,
     SupportAnalyticsController,
     SupportTicketController,
@@ -131,6 +139,7 @@ import { RateLimitsService } from './services/rate-limits.service';
     AutoUnbanProcessor,
     AdminEventStreamGateway,
     AdminQuestService,
+    AdminBadgesService,
     NotificationService,
     QueueService,
     AdminBroadcastService,
@@ -147,6 +156,7 @@ import { RateLimitsService } from './services/rate-limits.service';
     AdminService,
     AuditLogService,
     AdminQuestService,
+    AdminBadgesService,
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
     WebhookService,

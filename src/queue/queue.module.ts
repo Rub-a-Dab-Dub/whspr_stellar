@@ -1,4 +1,4 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QueueService } from './queue.service';
@@ -6,6 +6,7 @@ import { WalletCreationProcessor } from './processors/wallet-creation.processor'
 import { NotificationProcessor } from './processors/notification.processor';
 import { BlockchainTaskProcessor } from './processors/blockchain-task.processor';
 import { QUEUE_NAMES } from './queue.constants';
+import { WalletsModule } from '../wallets/wallets.module';
 
 @Global()
 @Module({
@@ -39,7 +40,9 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.NOTIFICATIONS },
       { name: QUEUE_NAMES.BLOCKCHAIN_TASKS },
       { name: QUEUE_NAMES.WEBHOOK_DELIVERIES },
+      { name: QUEUE_NAMES.STELLAR_EVENT_PROCESSING },
     ),
+    forwardRef(() => WalletsModule),
   ],
   providers: [
     QueueService,
@@ -49,4 +52,4 @@ import { QUEUE_NAMES } from './queue.constants';
   ],
   exports: [QueueService, BullModule],
 })
-export class QueueModule {}
+export class QueueModule { }

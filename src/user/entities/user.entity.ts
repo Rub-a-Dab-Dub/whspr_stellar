@@ -116,7 +116,6 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | undefined;
 
-
   @Column({ default: false })
   isVerified: boolean;
 

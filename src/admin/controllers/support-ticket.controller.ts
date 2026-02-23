@@ -29,6 +29,7 @@ import { UpdateTicketDto } from '../dto/support-ticket/update-ticket.dto';
 import { ReplyTicketDto } from '../dto/support-ticket/reply-ticket.dto';
 import { AssignTicketDto } from '../dto/support-ticket/assign-ticket.dto';
 import { ResolveTicketDto } from '../dto/support-ticket/resolve-ticket.dto';
+import { BulkTicketActionDto } from '../dto/support-ticket/bulk-ticket-action.dto';
 
 @ApiTags('admin-support')
 @ApiBearerAuth()
@@ -123,5 +124,22 @@ export class SupportTicketController {
   @ApiParam({ name: 'ticketId', description: 'Ticket UUID' })
   async close(@Param('ticketId') ticketId: string) {
     return this.supportTicketService.closeTicket(ticketId);
+  }
+
+  @Post('bulk')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Run bulk action on support tickets (partial success supported)' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Bulk action result with succeeded ticket IDs and failed ticket IDs with reasons',
+  })
+  async bulkAction(
+    @Body() dto: BulkTicketActionDto,
+    @CurrentUser() user: any,
+    @Req() req: Request,
+  ) {
+    const adminId = (user?.user ?? user)?.id;
+    return this.supportTicketService.bulkActionTickets(dto, adminId, req);
   }
 }
