@@ -67,6 +67,8 @@ import { UsersModule } from '../users/users.module';
 import { ChainModule } from '../chain/chain.module';
 import { AdminWalletsController } from './controllers/admin-wallets.controller';
 import { AdminWalletsService } from './services/admin-wallets.service';
+import { RateLimitsController } from './controllers/rate-limits.controller';
+import { RateLimitsService } from './services/rate-limits.service';
 
 @Module({
   imports: [
@@ -117,6 +119,7 @@ import { AdminWalletsService } from './services/admin-wallets.service';
     SupportAnalyticsController,
     SupportTicketController,
     AdminWalletsController,
+    RateLimitsController,
   ],
   providers: [
     AdminConfigService,
@@ -137,6 +140,7 @@ import { AdminWalletsService } from './services/admin-wallets.service';
     SupportTicketService,
     SupportTicketAnalyticsService,
     AdminWalletsService,
+    RateLimitsService,
   ],
   exports: [
     AdminConfigService,
