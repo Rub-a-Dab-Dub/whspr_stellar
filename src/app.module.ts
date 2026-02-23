@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import evmConfig from './config/evm.config';
+import stellarConfig from './config/stellar.config';
 import redisConfig from './config/redis.config';
 import pinataConfig from './config/pinata.config';
 import adminConfig from './config/admin.config';
@@ -32,6 +33,7 @@ import { RewardsModule } from './rewards/rewards.module';
 import { ChainModule } from './chain/chain.module';
 import { TransferModule } from './transfer/transfer.module';
 import { RoomModule } from './room/room.module';
+import { StellarModule } from './chain/stellar/stellar.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SystemConfigModule } from './system-config/system-config.module';
 import { QueueModule } from './queue/queue.module';
@@ -44,7 +46,7 @@ import { MaintainanceModule } from './maintainance/maintainance.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig, adminConfig],
+      load: [databaseConfig, jwtConfig, evmConfig, stellarConfig, redisConfig, pinataConfig, adminConfig],
       validationSchema,
     }),
     EventEmitterModule.forRoot(),
@@ -114,6 +116,7 @@ import { MaintainanceModule } from './maintainance/maintainance.module';
     NotificationsModule,
     SystemConfigModule,
     MaintainanceModule,
+    StellarModule,
   ],
   controllers: [AppController],
   providers: [
@@ -133,7 +136,7 @@ import { MaintainanceModule } from './maintainance/maintainance.module';
   ],
 })
 export class AppModule implements OnModuleInit {
-  constructor(private readonly rolesSeeder: RolesSeederService) {}
+  constructor(private readonly rolesSeeder: RolesSeederService) { }
 
   async onModuleInit() {
     // Seed roles and permissions on app initialization

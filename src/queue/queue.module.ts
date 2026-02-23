@@ -39,6 +39,7 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.NOTIFICATIONS },
       { name: QUEUE_NAMES.BLOCKCHAIN_TASKS },
       { name: QUEUE_NAMES.WEBHOOK_DELIVERIES },
+      { name: QUEUE_NAMES.STELLAR_EVENT_PROCESSING },
     ),
   ],
   providers: [
@@ -49,4 +50,4 @@ import { QUEUE_NAMES } from './queue.constants';
   ],
   exports: [QueueService, BullModule],
 })
-export class QueueModule {}
+export class QueueModule { }
