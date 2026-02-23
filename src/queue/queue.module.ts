@@ -38,6 +38,7 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.WALLET_CREATION },
       { name: QUEUE_NAMES.NOTIFICATIONS },
       { name: QUEUE_NAMES.BLOCKCHAIN_TASKS },
+      { name: QUEUE_NAMES.WEBHOOK_DELIVERIES },
     ),
   ],
   providers: [

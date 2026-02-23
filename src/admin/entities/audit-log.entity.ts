@@ -60,6 +60,10 @@ export enum AuditAction {
   ROOM_DELETED = 'room.deleted',
   ROOM_RESTORED = 'room.restored',
   BROADCAST_NOTIFICATION = 'broadcast.notification',
+  WEBHOOK_CREATED = 'webhook.created',
+  WEBHOOK_UPDATED = 'webhook.updated',
+  WEBHOOK_DELETED = 'webhook.deleted',
+  WEBHOOK_TESTED = 'webhook.tested',
 }
 
 export enum AuditEventType {
