@@ -4,6 +4,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MinLength,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ReportType, ReportStatus } from '../entities/report.entity';
@@ -42,4 +44,17 @@ export class AppealReportDto {
   @IsString()
   @IsNotEmpty()
   appealReason: string;
+}
+
+export class DeleteMessageDto {
+  @ApiProperty({
+    description: 'Reason for deleting the message',
+    minLength: 1,
+    maxLength: 1000,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(1)
+  @MaxLength(1000)
+  reason: string;
 }

@@ -29,6 +29,7 @@ import { ChainModule } from './chain/chain.module';
 import { AdminModule } from './admin/admin.module';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ModerationModule } from './moderation/moderation.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     RewardsModule,
     ChainModule,
     AdminModule,
+    ModerationModule,
   ],
   controllers: [AppController],
   providers: [
