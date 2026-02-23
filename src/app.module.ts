@@ -39,6 +39,7 @@ import { AdminModule } from './admin/admin.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { MaintainanceModule } from './maintainance/maintainance.module';
+import { WalletsModule } from './wallets/wallets.module';
 
 @Module({
   imports: [
@@ -114,6 +115,7 @@ import { MaintainanceModule } from './maintainance/maintainance.module';
     NotificationsModule,
     SystemConfigModule,
     MaintainanceModule,
+    WalletsModule,
   ],
   controllers: [AppController],
   providers: [
