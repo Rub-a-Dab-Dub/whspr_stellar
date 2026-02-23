@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Like, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Readable } from 'stream';
 import { User } from '../user/entities/user.entity';
 import { AuditLog, AuditAction } from './entities/audit-log.entity';
 import { GetUsersDto, UserFilterStatus } from './dto/get-users.dto';
@@ -140,6 +141,148 @@ export class AdminService {
       page,
       limit,
     };
+  }
+
+  async exportUsers(
+    query: GetUsersDto,
+    adminId: string,
+    req?: Request,
+  ): Promise<{ stream: Readable; filename: string }> {
+    const {
+      search,
+      status,
+      isBanned,
+      isSuspended,
+      isVerified,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      createdAfter,
+      createdBefore,
+    } = query;
+
+    const queryBuilder = this.userRepository.createQueryBuilder('user');
+    queryBuilder.leftJoinAndSelect('user.roles', 'roles');
+
+    // Apply same filters as getUsers
+    if (search) {
+      queryBuilder.andWhere(
+        '(user.email ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (status && status !== UserFilterStatus.ALL) {
+      if (status === UserFilterStatus.BANNED) {
+        queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned: true });
+      } else if (status === UserFilterStatus.SUSPENDED) {
+        queryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+      }
+    }
+
+    if (isBanned !== undefined) {
+      queryBuilder.andWhere('user.isBanned = :isBanned', { isBanned });
+    }
+
+    if (isSuspended !== undefined) {
+      if (isSuspended) {
+        queryBuilder.andWhere('user.suspendedUntil > :now', { now: new Date() });
+      } else {
+        queryBuilder.andWhere(
+          '(user.suspendedUntil IS NULL OR user.suspendedUntil <= :now)',
+          { now: new Date() },
+        );
+      }
+    }
+
+    if (isVerified !== undefined) {
+      queryBuilder.andWhere('user.isVerified = :isVerified', { isVerified });
+    }
+
+    if (createdAfter) {
+      queryBuilder.andWhere('user.createdAt >= :createdAfter', {
+        createdAfter: new Date(createdAfter),
+      });
+    }
+
+    if (createdBefore) {
+      queryBuilder.andWhere('user.createdAt <= :createdBefore', {
+        createdBefore: new Date(createdBefore),
+      });
+    }
+
+    queryBuilder.orderBy(`user.${sortBy}`, sortOrder);
+
+    // Check count before export
+    const count = await queryBuilder.getCount();
+    if (count > 10000) {
+      throw new BadRequestException(
+        `Export would exceed maximum of 10,000 rows (${count} rows match filters). Please narrow your filters.`,
+      );
+    }
+
+    // Stream results
+    const users = await queryBuilder.getMany();
+
+    // Create CSV content
+    const csvLines: string[] = [];
+
+    // CSV Header
+    csvLines.push(
+      'id,username,email,walletAddress,role,status,xp,level,totalTipsSent,totalTipsReceived,joinedAt,lastActiveAt',
+    );
+
+    // CSV Rows
+    for (const user of users) {
+      const role = user.roles && user.roles.length > 0
+        ? user.roles.map(r => r.name).join(';')
+        : 'user';
+
+      const status = user.isBanned
+        ? 'banned'
+        : (user.suspendedUntil && user.suspendedUntil > new Date() ? 'suspended' : 'active');
+
+      // Use empty strings for fields that don't exist in this User entity
+      const username = (user as any).username || user.email?.split('@')[0] || '';
+      const walletAddress = (user as any).walletAddress || '';
+      const xp = (user as any).currentXp || (user as any).xp || 0;
+      const level = (user as any).level || 1;
+      const totalTipsSent = (user as any).totalTipsSent || 0;
+      const totalTipsReceived = (user as any).totalTipsReceived || 0;
+      const lastActiveAt = (user as any).lastActiveAt || user.updatedAt
+        ? new Date((user as any).lastActiveAt || user.updatedAt).toISOString()
+        : '';
+
+      csvLines.push(
+        `${user.id},${this.escapeCsv(username)},${this.escapeCsv(user.email || '')},${this.escapeCsv(walletAddress)},${this.escapeCsv(role)},${status},${xp},${level},${totalTipsSent},${totalTipsReceived},${user.createdAt ? new Date(user.createdAt).toISOString() : ''},${lastActiveAt}`,
+      );
+    }
+
+    const csvContent = csvLines.join('\n');
+    const stream = Readable.from([csvContent]);
+
+    // Log the export action
+    await this.logAudit(
+      adminId,
+      AuditAction.USER_EXPORTED,
+      null,
+      `Exported ${users.length} users to CSV`,
+      { filters: query, rowCount: users.length },
+      req,
+    );
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `users-export-${timestamp}.csv`;
+
+    return { stream, filename };
+  }
+
+  private escapeCsv(value: string): string {
+    if (!value) return '';
+    const stringValue = String(value);
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
   }
 
   async getUserDetail(userId: string, adminId: string, req?: Request): Promise<User> {
