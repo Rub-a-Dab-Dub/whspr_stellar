@@ -29,6 +29,10 @@ import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
 import { Quest } from '../quest/entities/quest.entity';
 import { UserQuestProgress } from '../quest/entities/user-quest-progress.entity';
 import { AdminQuestService } from './services/admin-quest.service';
+import { AdminBadgesService } from './services/admin-badges.service';
+import { AdminBadgesController } from './controllers/admin-badges.controller';
+import { Badge } from '../users/entities/badge.entity';
+import { UserBadge } from '../users/entities/user-badge.entity';
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { RoomPayment } from '../room/entities/room-payment.entity';
@@ -94,6 +98,8 @@ import { AdminWalletsService } from './services/admin-wallets.service';
       Message,
       Quest,
       UserQuestProgress,
+      Badge,
+      UserBadge,
       Room,
       RoomMember,
       RoomPayment,
@@ -114,6 +120,7 @@ import { AdminWalletsService } from './services/admin-wallets.service';
   controllers: [
     AdminController,
     IpWhitelistController,
+    AdminBadgesController,
     WebhookController,
     SupportAnalyticsController,
     SupportTicketController,
@@ -129,6 +136,7 @@ import { AdminWalletsService } from './services/admin-wallets.service';
     AutoUnbanProcessor,
     AdminEventStreamGateway,
     AdminQuestService,
+    AdminBadgesService,
     NotificationService,
     QueueService,
     AdminBroadcastService,
@@ -144,6 +152,7 @@ import { AdminWalletsService } from './services/admin-wallets.service';
     AdminService,
     AuditLogService,
     AdminQuestService,
+    AdminBadgesService,
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
     WebhookService,
