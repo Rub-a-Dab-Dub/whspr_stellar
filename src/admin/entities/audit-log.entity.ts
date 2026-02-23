@@ -67,6 +67,9 @@ export enum AuditAction {
   TICKET_ASSIGNED = 'ticket.assigned',
   TICKET_STATUS_CHANGED = 'ticket.status.changed',
   TICKET_RESOLVED = 'ticket.resolved',
+  VIEW_WALLET = 'wallet.viewed',
+  RETRY_WALLET_CREATION = 'wallet.creation.retried',
+  SYNC_WALLETS = 'wallets.synced',
 }
 
 export enum AuditEventType {
