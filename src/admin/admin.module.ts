@@ -61,6 +61,8 @@ import { SupportTicket } from './entities/support-ticket.entity';
 import { TicketMessage } from './entities/ticket-message.entity';
 import { SupportTicketService } from './services/support-ticket.service';
 import { SupportTicketController } from './controllers/support-ticket.controller';
+import { SupportTicketAnalyticsService } from './services/support-ticket-analytics.service';
+import { SupportAnalyticsController } from './controllers/support-analytics.controller';
 
 @Module({
   imports: [
@@ -103,7 +105,7 @@ import { SupportTicketController } from './controllers/support-ticket.controller
       TicketMessage,
     ]),
   ],
-  controllers: [AdminController, IpWhitelistController, WebhookController, SupportTicketController],
+  controllers: [AdminController, IpWhitelistController, WebhookController, SupportAnalyticsController, SupportTicketController],
   providers: [
     AdminConfigService,
     AdminService,
@@ -121,6 +123,7 @@ import { SupportTicketController } from './controllers/support-ticket.controller
     WebhookService,
     WebhookDeliveryProcessor,
     SupportTicketService,
+    SupportTicketAnalyticsService,
   ],
   exports: [
     AdminConfigService,
