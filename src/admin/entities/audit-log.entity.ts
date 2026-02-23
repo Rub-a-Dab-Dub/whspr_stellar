@@ -64,6 +64,9 @@ export enum AuditAction {
   WEBHOOK_UPDATED = 'webhook.updated',
   WEBHOOK_DELETED = 'webhook.deleted',
   WEBHOOK_TESTED = 'webhook.tested',
+  TICKET_ASSIGNED = 'ticket.assigned',
+  TICKET_STATUS_CHANGED = 'ticket.status.changed',
+  TICKET_RESOLVED = 'ticket.resolved',
 }
 
 export enum AuditEventType {

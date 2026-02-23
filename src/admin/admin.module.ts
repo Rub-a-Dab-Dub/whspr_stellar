@@ -57,6 +57,10 @@ import { WebhookDelivery } from './entities/webhook-delivery.entity';
 import { WebhookService } from './services/webhook.service';
 import { WebhookDeliveryProcessor } from './jobs/webhook-delivery.processor';
 import { WebhookController } from './controllers/webhook.controller';
+import { SupportTicket } from './entities/support-ticket.entity';
+import { TicketMessage } from './entities/ticket-message.entity';
+import { SupportTicketService } from './services/support-ticket.service';
+import { SupportTicketController } from './controllers/support-ticket.controller';
 
 @Module({
   imports: [
@@ -95,9 +99,11 @@ import { WebhookController } from './controllers/webhook.controller';
       NotificationDelivery,
       WebhookSubscription,
       WebhookDelivery,
+      SupportTicket,
+      TicketMessage,
     ]),
   ],
-  controllers: [AdminController, IpWhitelistController, WebhookController],
+  controllers: [AdminController, IpWhitelistController, WebhookController, SupportTicketController],
   providers: [
     AdminConfigService,
     AdminService,
@@ -114,6 +120,7 @@ import { WebhookController } from './controllers/webhook.controller';
     BroadcastDeliveryStatsService,
     WebhookService,
     WebhookDeliveryProcessor,
+    SupportTicketService,
   ],
   exports: [
     AdminConfigService,
@@ -123,6 +130,7 @@ import { WebhookController } from './controllers/webhook.controller';
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
     WebhookService,
+    SupportTicketService,
   ],
 })
 export class AdminModule {
