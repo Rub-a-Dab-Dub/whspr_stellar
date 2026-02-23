@@ -63,6 +63,10 @@ import { SupportTicketService } from './services/support-ticket.service';
 import { SupportTicketController } from './controllers/support-ticket.controller';
 import { SupportTicketAnalyticsService } from './services/support-ticket-analytics.service';
 import { SupportAnalyticsController } from './controllers/support-analytics.controller';
+import { UsersModule } from '../users/users.module';
+import { ChainModule } from '../chain/chain.module';
+import { AdminWalletsController } from './controllers/admin-wallets.controller';
+import { AdminWalletsService } from './services/admin-wallets.service';
 
 @Module({
   imports: [
@@ -106,7 +110,14 @@ import { SupportAnalyticsController } from './controllers/support-analytics.cont
       TicketMessage,
     ]),
   ],
-  controllers: [AdminController, IpWhitelistController, WebhookController, SupportAnalyticsController, SupportTicketController],
+  controllers: [
+    AdminController,
+    IpWhitelistController,
+    WebhookController,
+    SupportAnalyticsController,
+    SupportTicketController,
+    AdminWalletsController,
+  ],
   providers: [
     AdminConfigService,
     AdminService,
@@ -125,6 +136,7 @@ import { SupportAnalyticsController } from './controllers/support-analytics.cont
     WebhookDeliveryProcessor,
     SupportTicketService,
     SupportTicketAnalyticsService,
+    AdminWalletsService,
   ],
   exports: [
     AdminConfigService,
