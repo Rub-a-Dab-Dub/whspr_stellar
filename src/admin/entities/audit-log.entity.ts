@@ -38,6 +38,10 @@ export enum AuditAction {
   AUDIT_LOG_VIEWED = 'audit.logs.viewed',
   AUDIT_LOG_EXPORTED = 'audit.logs.exported',
   DATA_EXPORT = 'data.exported',
+  QUEST_CREATED = 'quest.created',
+  QUEST_UPDATED = 'quest.updated',
+  QUEST_STATUS_CHANGED = 'quest.status.changed',
+  QUEST_DELETED = 'quest.deleted',
 }
 
 export enum AuditEventType {

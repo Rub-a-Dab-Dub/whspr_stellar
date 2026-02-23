@@ -1,17 +1,34 @@
 
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { UserQuestProgress } from './user-quest-progress.entity';
+import { User } from '../../user/entities/user.entity';
 
 export enum QuestType {
+  ONE_TIME = 'one_time',
   DAILY = 'daily',
   WEEKLY = 'weekly',
-  SPECIAL = 'special'
+  REPEATABLE = 'repeatable',
+}
+
+export enum QuestStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  ARCHIVED = 'archived',
 }
 
 export enum RewardType {
   XP = 'xp',
   TOKEN = 'token',
-  BOTH = 'both'
+  BOTH = 'both',
 }
 
 @Entity('quests')
@@ -20,33 +37,46 @@ export class Quest {
   id: string;
 
   @Column()
-  description: string;
+  title: string;
 
   @Column()
-  requirement: string;
-
-  @Column({ type: 'int' })
-  requirementCount: number;
+  description: string;
 
   @Column({ type: 'enum', enum: QuestType })
-  questType: QuestType;
+  type: QuestType;
 
-  @Column({ type: 'enum', enum: RewardType })
-  rewardType: RewardType;
+  @Column({ type: 'enum', enum: QuestStatus, default: QuestStatus.INACTIVE })
+  status: QuestStatus;
 
   @Column({ type: 'int' })
-  rewardAmount: number;
+  xpReward: number;
 
-  @Column({ type: 'timestamp' })
-  activeUntil: Date;
+  @Column({ type: 'uuid', nullable: true })
+  badgeRewardId?: string;
 
-  @Column({ default: true })
-  isActive: boolean;
+  @Column({ type: 'jsonb', nullable: true })
+  condition?: Record<string, any>;
+
+  @Column({ type: 'timestamp', nullable: true })
+  startDate?: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  endDate?: Date;
+
+  @Column({ type: 'uuid' })
+  createdById: string;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'createdById' })
+  createdBy: User;
 
   @Column({ type: 'json', nullable: true })
   metadata?: Record<string, any>;
 
-  @OneToMany(() => UserQuestProgress, progress => progress.quest)
+  @Column({ default: false })
+  deletedAt?: boolean;
+
+  @OneToMany(() => UserQuestProgress, (progress) => progress.quest)
   userProgress: UserQuestProgress[];
 
   @CreateDateColumn()

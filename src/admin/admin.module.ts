@@ -16,6 +16,9 @@ import { Transfer } from '../transfer/entities/transfer.entity';
 import { Session } from '../sessions/entities/session.entity';
 import { Message } from '../message/entities/message.entity';
 import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
+import { Quest } from '../quest/entities/quest.entity';
+import { UserQuestProgress } from '../quest/entities/user-quest-progress.entity';
+import { AdminQuestService } from './services/admin-quest.service';
 
 @Module({
   imports: [
@@ -31,6 +34,8 @@ import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
       Transfer,
       Session,
       Message,
+      Quest,
+      UserQuestProgress,
     ]),
   ],
   controllers: [AdminController],
@@ -39,7 +44,8 @@ import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
     AuditLogService,
     AuditLogRetentionJob,
     AdminEventStreamGateway,
+    AdminQuestService,
   ],
-  exports: [AdminService, AuditLogService],
+  exports: [AdminService, AuditLogService, AdminQuestService],
 })
 export class AdminModule {}

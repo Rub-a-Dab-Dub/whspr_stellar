@@ -22,19 +22,27 @@ import { RequirePermissions } from '../roles/decorators/permissions.decorator';
 import { RoleType } from '../roles/entities/role.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
+import { AdminQuestService } from './services/admin-quest.service';
 import { GetUsersDto } from './dto/get-users.dto';
 import { BanUserDto } from './dto/ban-user.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { BulkActionDto } from './dto/bulk-action.dto';
 import { ImpersonateUserDto } from './dto/impersonate-user.dto';
 import { GetAuditLogsDto } from './dto/get-audit-logs.dto';
+import { CreateQuestDto } from './dto/create-quest.dto';
+import { UpdateQuestDto } from './dto/update-quest.dto';
+import { UpdateQuestStatusDto } from './dto/update-quest-status.dto';
+import { GetQuestsDto } from './dto/get-quests.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RoleGuard, PermissionGuard)
 @Roles(RoleType.ADMIN)
 @RequirePermissions('user.manage')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly adminQuestService: AdminQuestService,
+  ) {}
 
   @Get('users')
   async getUsers(
@@ -258,5 +266,80 @@ export class AdminController {
       // In production, return a special impersonation token here
       // impersonationToken: await this.generateImpersonationToken(...)
     };
+  }
+
+  // ====== QUEST MANAGEMENT ENDPOINTS ======
+
+  @Get('quests')
+  async getQuests(
+    @Query() query: GetQuestsDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminQuestService.getQuests(query, currentUser.userId, req);
+  }
+
+  @Get('quests/:questId')
+  async getQuestDetail(
+    @Param('questId') questId: string,
+    @CurrentUser() currentUser: any,
+  ) {
+    return await this.adminQuestService.getQuestById(questId, currentUser.userId);
+  }
+
+  @Post('quests')
+  @HttpCode(HttpStatus.CREATED)
+  async createQuest(
+    @Body() createQuestDto: CreateQuestDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminQuestService.createQuest(
+      createQuestDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Patch('quests/:questId')
+  @HttpCode(HttpStatus.OK)
+  async updateQuest(
+    @Param('questId') questId: string,
+    @Body() updateQuestDto: UpdateQuestDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminQuestService.updateQuest(
+      questId,
+      updateQuestDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Patch('quests/:questId/status')
+  @HttpCode(HttpStatus.OK)
+  async updateQuestStatus(
+    @Param('questId') questId: string,
+    @Body() statusDto: UpdateQuestStatusDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminQuestService.updateQuestStatus(
+      questId,
+      statusDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Delete('quests/:questId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteQuest(
+    @Param('questId') questId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    await this.adminQuestService.deleteQuest(questId, currentUser.userId, req);
   }
 }
