@@ -47,6 +47,9 @@ import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
 import { NotificationService } from '../notifications/services/notification.service';
 import { QueueService } from '../queue/queue.service';
+import { BroadcastNotification } from '../notifications/entities/broadcast-notification.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { AdminBroadcastService } from './services/admin-broadcast.service';
 
 @Module({
   imports: [
@@ -80,6 +83,8 @@ import { QueueService } from '../queue/queue.service';
       FlaggedMessage,
       PlatformWalletWithdrawal,
       WithdrawalWhitelist,
+      BroadcastNotification,
+      Notification,
     ]),
     NotificationsModule,
     QueueModule,
@@ -97,8 +102,15 @@ import { QueueService } from '../queue/queue.service';
     AdminQuestService,
     NotificationService,
     QueueService,
+    AdminBroadcastService,
   ],
-  exports: [AdminConfigService, AdminService, AuditLogService, AdminQuestService],
+  exports: [
+    AdminConfigService,
+    AdminService,
+    AuditLogService,
+    AdminQuestService,
+    AdminBroadcastService,
+  ],
 })
 export class AdminModule {
   configure(consumer: MiddlewareConsumer) {

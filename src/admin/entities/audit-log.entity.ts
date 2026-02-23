@@ -59,6 +59,7 @@ export enum AuditAction {
   ROOM_CLOSED = 'room.closed',
   ROOM_DELETED = 'room.deleted',
   ROOM_RESTORED = 'room.restored',
+  BROADCAST_NOTIFICATION = 'broadcast.notification',
 }
 
 export enum AuditEventType {

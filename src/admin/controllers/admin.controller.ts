@@ -59,6 +59,8 @@ import { CloseRoomDto } from '../dto/close-room.dto';
 import { DeleteRoomDto } from '../dto/delete-room.dto';
 import { RestoreRoomDto } from '../dto/restore-room.dto';
 import { AdjustUserXpDto } from '../dto/adjust-user-xp.dto';
+import { BroadcastNotificationDto } from '../dto/broadcast-notification.dto';
+import { AdminBroadcastService } from '../services/admin-broadcast.service';
 
 @ApiUseTags('admin')
 @ApiBearerAuth()
@@ -68,6 +70,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly platformWalletService: PlatformWalletService,
+    private readonly adminBroadcastService: AdminBroadcastService,
   ) { }
 
   @Get('health')
@@ -778,6 +781,35 @@ export class AdminController {
     @Req() req: Request,
   ) {
     return this.adminService.refundTransaction(txId, dto, currentUser.id, req);
+  }
+
+  @Post('notifications/broadcast')
+  @HttpCode(HttpStatus.CREATED)
+  async broadcastNotification(
+    @Body() dto: BroadcastNotificationDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminBroadcastService.broadcast(
+      dto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Get('notifications/broadcasts')
+  async getBroadcasts(@Query('page') page = 1, @Query('limit') limit = 10) {
+    return await this.adminBroadcastService.getBroadcasts(page, limit);
+  }
+
+  @Delete('notifications/broadcasts/:jobId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async cancelBroadcast(
+    @Param('jobId') jobId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    await this.adminBroadcastService.cancelBroadcast(jobId, currentUser.userId, req);
   }
 
 }
