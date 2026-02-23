@@ -57,10 +57,10 @@ import { WebhookDelivery } from './entities/webhook-delivery.entity';
 import { WebhookService } from './services/webhook.service';
 import { WebhookDeliveryProcessor } from './jobs/webhook-delivery.processor';
 import { WebhookController } from './controllers/webhook.controller';
-import { ChainHealthRecord } from './entities/chain-health-record.entity';
-import { ChainHealthService } from './services/chain-health.service';
-import { ChainHealthController } from './controllers/chain-health.controller';
-import { ChainModule } from '../chain/chain.module';
+import { SupportTicket } from './entities/support-ticket.entity';
+import { TicketMessage } from './entities/ticket-message.entity';
+import { SupportTicketService } from './services/support-ticket.service';
+import { SupportTicketController } from './controllers/support-ticket.controller';
 
 @Module({
   imports: [
@@ -100,10 +100,11 @@ import { ChainModule } from '../chain/chain.module';
       NotificationDelivery,
       WebhookSubscription,
       WebhookDelivery,
-      ChainHealthRecord,
+      SupportTicket,
+      TicketMessage,
     ]),
   ],
-  controllers: [AdminController, IpWhitelistController, WebhookController, ChainHealthController],
+  controllers: [AdminController, IpWhitelistController, WebhookController, SupportTicketController],
   providers: [
     AdminConfigService,
     AdminService,
@@ -120,7 +121,7 @@ import { ChainModule } from '../chain/chain.module';
     BroadcastDeliveryStatsService,
     WebhookService,
     WebhookDeliveryProcessor,
-    ChainHealthService,
+    SupportTicketService,
   ],
   exports: [
     AdminConfigService,
@@ -130,7 +131,7 @@ import { ChainModule } from '../chain/chain.module';
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
     WebhookService,
-    ChainHealthService,
+    SupportTicketService,
   ],
 })
 export class AdminModule {

@@ -38,6 +38,7 @@ import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './admin/admin.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
+import { MaintainanceModule } from './maintainance/maintainance.module';
 
 @Module({
   imports: [
@@ -112,6 +113,7 @@ import { MaintenanceGuard } from './common/guards/maintenance.guard';
     RoomModule,
     NotificationsModule,
     SystemConfigModule,
+    MaintainanceModule,
   ],
   controllers: [AppController],
   providers: [
