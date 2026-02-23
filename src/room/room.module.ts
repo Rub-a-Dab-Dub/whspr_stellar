@@ -18,6 +18,7 @@ import { RoomBan } from './entities/room-ban.entity';
 import { RoomWhitelist } from './entities/room-whitelist.entity';
 import { RoomEmergencyPause } from './entities/room-emergency-pause.entity';
 import { RoomSearchAnalytics } from './entities/room-search-analytics.entity';
+import { ArchivedMessage } from '../message/entities/archived-message.entity';
 
 // Controllers
 import {
@@ -41,6 +42,7 @@ import { RoomAnalyticsService } from './room-analytics.service';
 import { PaymentVerificationService } from './services/payment-verification.service';
 import { RoomPaymentService } from './services/room-payment.service';
 import { RoomRoleService } from './services/room-role.service';
+import { RoomExpirationService } from './services/room-expiration.service';
 
 // Repositories
 import { RoomMemberRepository } from './repositories/room-member.repository';
@@ -60,6 +62,11 @@ import { MessagesGateway } from '../message/gateways/messages.gateway';
 // Jobs
 import { InvitationExpirationJob } from './jobs/invitation-expiration.job';
 import { PaymentExpirationJob } from './jobs/payment-expiration.job';
+import { RoomExpirationProcessor } from './jobs/room-expiration.processor';
+import { RoomExpirationScheduler } from './jobs/room-expiration.scheduler';
+import { BullModule } from '@nestjs/bull';
+import { Message } from '../message/entities/message.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -73,7 +80,10 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
       RoomWhitelist,
       RoomEmergencyPause,
       RoomSearchAnalytics,
+      ArchivedMessage,
+      Message,
     ]),
+    BullModule.registerQueue({ name: 'room-expiration' }),
     ChainModule,
     CacheModule,
     RedisModule,
@@ -81,6 +91,7 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     ScheduleModule.forRoot(),
     UsersModule,
     AdminModule,
+    NotificationsModule,
   ],
   controllers: [
     RoomSearchController,  // must be registered before RoomController to avoid :id swallowing /search
@@ -103,6 +114,7 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     PaymentVerificationService,
     RoomPaymentService,
     RoomRoleService,
+    RoomExpirationService,
     RoomMemberRepository,
     RoomInvitationRepository,
     RoomRepository,
@@ -114,6 +126,8 @@ import { PaymentExpirationJob } from './jobs/payment-expiration.job';
     MessagesGateway,
     InvitationExpirationJob,
     PaymentExpirationJob,
+    RoomExpirationProcessor,
+    RoomExpirationScheduler,
   ],
   exports: [
     RoomService,

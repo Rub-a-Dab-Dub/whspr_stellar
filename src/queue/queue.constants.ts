@@ -3,4 +3,5 @@ export const QUEUE_NAMES = {
   NOTIFICATIONS: 'notifications',
   BLOCKCHAIN_TASKS: 'blockchain-tasks',
   WEBHOOK_DELIVERIES: 'webhook-deliveries',
+  ROOM_EXPIRATION: 'room-expiration',
 };
