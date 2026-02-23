@@ -26,11 +26,9 @@ import { Transfer } from '../transfer/entities/transfer.entity';
 import { Session } from '../sessions/entities/session.entity';
 import { Message } from '../message/entities/message.entity';
 import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
-<<<<<<< HEAD
 import { Quest } from '../quest/entities/quest.entity';
 import { UserQuestProgress } from '../quest/entities/user-quest-progress.entity';
 import { AdminQuestService } from './services/admin-quest.service';
-=======
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { RoomPayment } from '../room/entities/room-payment.entity';
@@ -49,7 +47,6 @@ import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
 import { NotificationService } from '../notifications/services/notification.service';
 import { QueueService } from '../queue/queue.service';
->>>>>>> 66270babe87cc62e819fbe1afca932360ca7a87c
 
 @Module({
   imports: [
@@ -73,10 +70,8 @@ import { QueueService } from '../queue/queue.service';
       Transfer,
       Session,
       Message,
-<<<<<<< HEAD
       Quest,
       UserQuestProgress,
-=======
       Room,
       RoomMember,
       RoomPayment,
@@ -85,7 +80,6 @@ import { QueueService } from '../queue/queue.service';
       FlaggedMessage,
       PlatformWalletWithdrawal,
       WithdrawalWhitelist,
->>>>>>> 66270babe87cc62e819fbe1afca932360ca7a87c
     ]),
     NotificationsModule,
     QueueModule,
@@ -100,16 +94,11 @@ import { QueueService } from '../queue/queue.service';
     TemporaryBanCleanupJob,
     AutoUnbanProcessor,
     AdminEventStreamGateway,
-<<<<<<< HEAD
     AdminQuestService,
-  ],
-  exports: [AdminService, AuditLogService, AdminQuestService],
-=======
     NotificationService,
     QueueService,
   ],
-  exports: [AdminConfigService, AdminService, AuditLogService],
->>>>>>> 66270babe87cc62e819fbe1afca932360ca7a87c
+  exports: [AdminConfigService, AdminService, AuditLogService, AdminQuestService],
 })
 export class AdminModule {
   configure(consumer: MiddlewareConsumer) {

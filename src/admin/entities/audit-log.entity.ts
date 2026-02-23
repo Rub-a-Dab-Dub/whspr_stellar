@@ -40,12 +40,10 @@ export enum AuditAction {
   AUDIT_LOG_VIEWED = 'audit.logs.viewed',
   AUDIT_LOG_EXPORTED = 'audit.logs.exported',
   DATA_EXPORT = 'data.exported',
-<<<<<<< HEAD
   QUEST_CREATED = 'quest.created',
   QUEST_UPDATED = 'quest.updated',
   QUEST_STATUS_CHANGED = 'quest.status.changed',
   QUEST_DELETED = 'quest.deleted',
-=======
   PLATFORM_CONFIG_UPDATED = 'platform.config.updated',
   IP_WHITELIST_ADDED = 'ip_whitelist.added',
   IP_WHITELIST_REMOVED = 'ip_whitelist.removed',
@@ -61,7 +59,6 @@ export enum AuditAction {
   ROOM_CLOSED = 'room.closed',
   ROOM_DELETED = 'room.deleted',
   ROOM_RESTORED = 'room.restored',
->>>>>>> 66270babe87cc62e819fbe1afca932360ca7a87c
 }
 
 export enum AuditEventType {
