@@ -40,6 +40,17 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.ttl(key);
   }
 
+  async keys(pattern: string): Promise<string[]> {
+    return await this.client.keys(pattern);
+  }
+
+  async getInt(key: string): Promise<number> {
+    const val = await this.client.get(key);
+    if (!val) return 0;
+    const n = parseInt(val, 10);
+    return Number.isNaN(n) ? 0 : n;
+  }
+
   onModuleDestroy() {
     this.client.disconnect();
   }
