@@ -26,6 +26,9 @@ import { Transfer } from '../transfer/entities/transfer.entity';
 import { Session } from '../sessions/entities/session.entity';
 import { Message } from '../message/entities/message.entity';
 import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
+import { Quest } from '../quest/entities/quest.entity';
+import { UserQuestProgress } from '../quest/entities/user-quest-progress.entity';
+import { AdminQuestService } from './services/admin-quest.service';
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { RoomPayment } from '../room/entities/room-payment.entity';
@@ -67,6 +70,8 @@ import { QueueService } from '../queue/queue.service';
       Transfer,
       Session,
       Message,
+      Quest,
+      UserQuestProgress,
       Room,
       RoomMember,
       RoomPayment,
@@ -89,10 +94,11 @@ import { QueueService } from '../queue/queue.service';
     TemporaryBanCleanupJob,
     AutoUnbanProcessor,
     AdminEventStreamGateway,
+    AdminQuestService,
     NotificationService,
     QueueService,
   ],
-  exports: [AdminConfigService, AdminService, AuditLogService],
+  exports: [AdminConfigService, AdminService, AuditLogService, AdminQuestService],
 })
 export class AdminModule {
   configure(consumer: MiddlewareConsumer) {
