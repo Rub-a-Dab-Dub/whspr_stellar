@@ -61,6 +61,7 @@ import { RestoreRoomDto } from '../dto/restore-room.dto';
 import { AdjustUserXpDto } from '../dto/adjust-user-xp.dto';
 import { BroadcastNotificationDto } from '../dto/broadcast-notification.dto';
 import { AdminBroadcastService } from '../services/admin-broadcast.service';
+import { BroadcastDeliveryStatsService } from '../services/broadcast-delivery-stats.service';
 
 @ApiUseTags('admin')
 @ApiBearerAuth()
@@ -71,6 +72,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly platformWalletService: PlatformWalletService,
     private readonly adminBroadcastService: AdminBroadcastService,
+    private readonly broadcastDeliveryStatsService: BroadcastDeliveryStatsService,
   ) { }
 
   @Get('health')
@@ -810,6 +812,41 @@ export class AdminController {
     @Req() req: Request,
   ) {
     await this.adminBroadcastService.cancelBroadcast(jobId, currentUser.userId, req);
+  }
+
+  @Get('notifications/broadcasts/:broadcastId/stats')
+  @ApiOperation({ title: 'Get broadcast delivery statistics' })
+  @ApiResponse({ status: 200, description: 'Broadcast statistics' })
+  @ApiResponse({ status: 404, description: 'Broadcast not found' })
+  async getBroadcastStats(
+    @Param('broadcastId') broadcastId: string,
+    @CurrentUser() currentUser: any,
+  ) {
+    return await this.broadcastDeliveryStatsService.getStats(broadcastId);
+  }
+
+  @Get('notifications/broadcasts/:broadcastId/failed-recipients')
+  @ApiOperation({ title: 'Export failed recipients as CSV' })
+  @ApiResponse({ status: 200, description: 'CSV file download' })
+  @ApiResponse({ status: 404, description: 'Broadcast not found' })
+  async getFailedRecipientsCsv(
+    @Param('broadcastId') broadcastId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const failedUserIds = await this.broadcastDeliveryStatsService.getFailedRecipients(broadcastId);
+    
+    // Generate CSV
+    const csvHeader = 'userId\n';
+    const csvData = failedUserIds.map((id) => `${id}\n`).join('');
+    const csvContent = csvHeader + csvData;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="failed-recipients-${broadcastId}.csv"`,
+    );
+
+    return csvContent;
   }
 
 }

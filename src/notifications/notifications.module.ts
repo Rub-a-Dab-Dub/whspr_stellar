@@ -7,6 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { Notification } from './entities/notification.entity';
 import { NotificationPreference } from './entities/notification-preference.entity';
 import { PushSubscription } from './entities/push-subscription.entity';
+import { NotificationDelivery } from './entities/notification-delivery.entity';
 import { User } from '../user/entities/user.entity';
 
 // Services
@@ -37,6 +38,7 @@ import { AuthModule } from '../auth/auth.module';
       Notification,
       NotificationPreference,
       PushSubscription,
+      NotificationDelivery,
       User,
     ]),
     ScheduleModule.forRoot(),

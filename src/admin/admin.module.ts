@@ -50,6 +50,8 @@ import { QueueService } from '../queue/queue.service';
 import { BroadcastNotification } from '../notifications/entities/broadcast-notification.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { AdminBroadcastService } from './services/admin-broadcast.service';
+import { NotificationDelivery } from '../notifications/entities/notification-delivery.entity';
+import { BroadcastDeliveryStatsService } from './services/broadcast-delivery-stats.service';
 
 @Module({
   imports: [
@@ -85,9 +87,8 @@ import { AdminBroadcastService } from './services/admin-broadcast.service';
       WithdrawalWhitelist,
       BroadcastNotification,
       Notification,
+      NotificationDelivery,
     ]),
-    NotificationsModule,
-    QueueModule,
   ],
   controllers: [AdminController, IpWhitelistController],
   providers: [
@@ -103,6 +104,7 @@ import { AdminBroadcastService } from './services/admin-broadcast.service';
     NotificationService,
     QueueService,
     AdminBroadcastService,
+    BroadcastDeliveryStatsService,
   ],
   exports: [
     AdminConfigService,
@@ -110,6 +112,7 @@ import { AdminBroadcastService } from './services/admin-broadcast.service';
     AuditLogService,
     AdminQuestService,
     AdminBroadcastService,
+    BroadcastDeliveryStatsService,
   ],
 })
 export class AdminModule {
