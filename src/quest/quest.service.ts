@@ -6,10 +6,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
-import { Quest, QuestType, RewardType } from './entities/quest.entity';
+import { Quest, QuestType, RewardType, QuestStatus } from './entities/quest.entity';
 import { UserQuestProgress } from './entities/user-quest-progress.entity';
 import { CreateQuestDto } from './dto/create-quest.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { UsersService } from '../user/user.service';
+import { TransferService } from '../transfer/transfer.service';
 
 @Injectable()
 export class QuestService {
@@ -20,7 +22,34 @@ export class QuestService {
     private questRepository: Repository<Quest>,
     @InjectRepository(UserQuestProgress)
     private progressRepository: Repository<UserQuestProgress>,
-  ) {}
+    private readonly usersService: UsersService,
+    private readonly transferService: TransferService,
+  ) {
+    // Optional: Auto-seed on startup in dev environment
+    if (process.env.NODE_ENV === 'development') {
+      this.seedQuests();
+    }
+  }
+
+  async seedQuests(): Promise<void> {
+    const dailyTemplates = this.getQuestTemplates(QuestType.DAILY);
+    const weeklyTemplates = this.getQuestTemplates(QuestType.WEEKLY);
+    const seasonalTemplates = this.getQuestTemplates(QuestType.SEASONAL);
+
+    const allTemplates = [...dailyTemplates, ...weeklyTemplates, ...seasonalTemplates];
+
+    for (const template of allTemplates) {
+      const existing = await this.questRepository.findOne({
+        where: { title: template.title, type: template.type }
+      });
+
+      if (!existing) {
+        await this.createQuest(template);
+      }
+    }
+
+    this.logger.log('Quest seeding complete');
+  }
 
   // Admin function to create quests
   async createQuest(createQuestDto: CreateQuestDto): Promise<Quest> {
@@ -32,14 +61,26 @@ export class QuestService {
     return await this.questRepository.save(quest);
   }
 
-  // Get all active quests
-  async getActiveQuests(): Promise<Quest[]> {
-    return await this.questRepository.find({
+  // Get all active quests available for a user
+  async getActiveQuests(userId: string): Promise<Quest[]> {
+    const allActiveQuests = await this.questRepository.find({
       where: {
-        isActive: true,
+        status: QuestStatus.ACTIVE,
         activeUntil: MoreThan(new Date()),
       },
-      order: { createdAt: 'DESC' },
+      order: { difficulty: 'ASC', createdAt: 'DESC' },
+    });
+
+    // Filter by quest chains
+    const userProgress = await this.progressRepository.find({
+      where: { userId, isCompleted: true },
+      select: ['questId'],
+    });
+    const completedQuestIds = new Set(userProgress.map((p) => p.questId));
+
+    return allActiveQuests.filter((quest) => {
+      if (!quest.requiredQuestId) return true;
+      return completedQuestIds.has(quest.requiredQuestId);
     });
   }
 
@@ -167,25 +208,36 @@ export class QuestService {
     const result: any = {
       success: true,
       rewardType: quest.rewardType,
-      rewardAmount: quest.rewardAmount,
+      rewardAmount: quest.rewardAmount || quest.xpReward, // Handle both naming conventions
     };
+
+    const rewardValue = quest.rewardAmount || quest.xpReward;
 
     if (
       quest.rewardType === RewardType.XP ||
       quest.rewardType === RewardType.BOTH
     ) {
-      result.xpGained = quest.rewardAmount;
-      // Here you would call your user service to add XP
-      // await this.userService.addXP(userId, quest.rewardAmount);
+      result.xpGained = rewardValue;
+      // Actual user service call to add XP
+      await this.usersService.addXp(userId, rewardValue);
     }
 
     if (
       quest.rewardType === RewardType.TOKEN ||
       quest.rewardType === RewardType.BOTH
     ) {
-      result.tokensGained = quest.rewardAmount;
-      // Here you would call your token service to add tokens
-      // await this.tokenService.addTokens(userId, quest.rewardAmount);
+      result.tokensGained = rewardValue;
+      // Actual transfer service call to reward tokens (from system wallet)
+      // This assumes a system user/wallet exists for rewards
+      const SYSTEM_USER_ID = this.usersService.getSystemUserId();
+      if (SYSTEM_USER_ID) {
+        await this.transferService.createTransfer(SYSTEM_USER_ID, {
+          recipientId: userId,
+          amount: rewardValue,
+          memo: `Quest Reward: ${quest.title}`,
+          blockchainNetwork: 'stellar',
+        });
+      }
     }
 
     this.logger.log(`User ${userId} claimed reward for quest ${questId}`);
@@ -234,6 +286,24 @@ export class QuestService {
     this.logger.log('Weekly quests reset complete');
   }
 
+  // Reset seasonal quests - runs every month
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
+  async resetSeasonalQuests() {
+    this.logger.log('Resetting seasonal quests...');
+
+    await this.questRepository.update(
+      {
+        type: QuestType.SEASONAL,
+        activeUntil: LessThan(new Date()),
+      },
+      { status: QuestStatus.INACTIVE },
+    );
+
+    await this.createRecurringQuests(QuestType.SEASONAL);
+
+    this.logger.log('Seasonal quests reset complete');
+  }
+
   // Create recurring quests (you can customize this)
   private async createRecurringQuests(type: QuestType) {
     // Example: Create standard daily/weekly quests
@@ -253,35 +323,58 @@ export class QuestService {
       activeUntil.setDate(activeUntil.getDate() + 1);
       return [
         {
-          description: 'Complete 5 tasks',
-          requirement: 'task_completion',
+          title: 'Daily Messenger',
+          description: 'Send 5 messages in any room',
+          requirement: 'SEND_MESSAGES',
           requirementCount: 5,
-          questType: QuestType.DAILY,
+          type: QuestType.DAILY,
           rewardType: RewardType.XP,
-          rewardAmount: 100,
+          xpReward: 100,
           activeUntil: activeUntil.toISOString(),
+          difficulty: 1,
         },
         {
-          description: 'Log in for the day',
-          requirement: 'daily_login',
-          requirementCount: 1,
-          questType: QuestType.DAILY,
+          title: 'Daily Tipper',
+          description: 'Tip 3 different users',
+          requirement: 'TIP_USERS',
+          requirementCount: 3,
+          type: QuestType.DAILY,
           rewardType: RewardType.TOKEN,
-          rewardAmount: 10,
+          rewardAmount: 5,
           activeUntil: activeUntil.toISOString(),
+          difficulty: 2,
         },
       ];
     } else if (type === QuestType.WEEKLY) {
       activeUntil.setDate(activeUntil.getDate() + 7);
       return [
         {
-          description: 'Complete 25 tasks this week',
-          requirement: 'task_completion',
-          requirementCount: 25,
-          questType: QuestType.WEEKLY,
+          title: 'Room Architect',
+          description: 'Create 10 new rooms this week',
+          requirement: 'CREATE_ROOM',
+          requirementCount: 10,
+          type: QuestType.WEEKLY,
           rewardType: RewardType.BOTH,
-          rewardAmount: 500,
+          xpReward: 500,
+          rewardAmount: 50,
           activeUntil: activeUntil.toISOString(),
+          difficulty: 3,
+        },
+      ];
+    } else if (type === QuestType.SEASONAL) {
+      activeUntil.setMonth(activeUntil.getMonth() + 1);
+      return [
+        {
+          title: 'Season Pioneer',
+          description: 'Be active throughout the season',
+          requirement: 'seasonal_activity',
+          requirementCount: 30,
+          type: QuestType.SEASONAL,
+          rewardType: RewardType.BOTH,
+          xpReward: 5000,
+          rewardAmount: 100,
+          activeUntil: activeUntil.toISOString(),
+          difficulty: 5,
         },
       ];
     }
