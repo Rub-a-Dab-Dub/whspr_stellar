@@ -74,6 +74,7 @@ import { SupportTicketController } from './controllers/support-ticket.controller
     UsersModule,
     NotificationsModule,
     QueueModule,
+    ChainModule,
     TypeOrmModule.forFeature([
       User,
       AuditLog,

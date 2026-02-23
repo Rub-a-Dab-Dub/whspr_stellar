@@ -7,7 +7,8 @@ export type AdminStreamEventType =
   | 'user.registered'
   | 'transaction.large'
   | 'room.flagged'
-  | 'platform.error';
+  | 'platform.error'
+  | 'security.alert';
 
 export interface AdminStreamEventPayload {
   type: AdminStreamEventType;
@@ -47,4 +48,12 @@ export interface PlatformErrorEntity {
   message: string;
   code?: string;
   context?: string;
+}
+
+export interface SecurityAlertEntity {
+  alertType: string;
+  chain: string;
+  details: string;
+  paymasterBalance?: string;
+  threshold?: string;
 }
