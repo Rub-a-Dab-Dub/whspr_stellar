@@ -191,7 +191,7 @@ export class CreateSystemConfigTables1769800000000 implements MigrationInterface
 
     await queryRunner.createIndex(
       'system_configs',
-      new Index('UQ_system_configs_key', ['key'], { isUnique: true }),
+      new Index('UQ_system_configs_key', ['key'], { unique: true }),
     );
 
     await queryRunner.createIndex(
@@ -200,7 +200,7 @@ export class CreateSystemConfigTables1769800000000 implements MigrationInterface
         'UQ_system_config_versions_config_version',
         ['configId', 'version'],
         {
-          isUnique: true,
+          unique: true,
         },
       ),
     );
