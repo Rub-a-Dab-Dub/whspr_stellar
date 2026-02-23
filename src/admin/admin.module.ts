@@ -42,6 +42,7 @@ import { SessionModule } from '../sessions/sessions.module';
 import { MessageModule } from '../message/message.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { QueueModule } from '../queue/queue.module';
+import { UsersModule } from '../users/users.module';
 import { AdminAuthModule } from './auth/admin-auth.module';
 import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';

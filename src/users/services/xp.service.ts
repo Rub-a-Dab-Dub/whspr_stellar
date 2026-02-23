@@ -15,6 +15,8 @@ import { QueueService } from '../../queue/queue.service';
 import { AdminService } from '../../admin/services/admin.service';
 import { LeaderboardService } from '../../leaderboard/leaderboard.service';
 import { LeaderboardCategory } from '../../leaderboard/leaderboard.interface';
+import { RedisService } from '../../redis/redis.service';
+import { XP_BOOST_REDIS_KEY } from '../../admin/services/xp-boost.service';
 
 @Injectable()
 export class XpService {
@@ -26,6 +28,7 @@ export class XpService {
     private readonly queueService: QueueService,
     private readonly adminService: AdminService,
     private readonly leaderboardService: LeaderboardService,
+    private readonly redisService: RedisService,
   ) {}
 
   async addXp(
@@ -48,11 +51,32 @@ export class XpService {
       1.0,
     );
 
+    let boostMultiplier = 1.0;
+    try {
+      const boostRaw = await this.redisService.get(XP_BOOST_REDIS_KEY);
+      if (boostRaw) {
+        const boost = JSON.parse(boostRaw) as {
+          multiplier: number;
+          appliesToActions: string[];
+        };
+        const appliesToThis =
+          boost.appliesToActions.includes('all') ||
+          boost.appliesToActions.includes(action);
+        if (appliesToThis) {
+          boostMultiplier = boost.multiplier;
+        }
+      }
+    } catch {
+      // Redis unavailable or parse error — proceed without boost
+    }
+
     let baseXp = XP_VALUES[action];
     const userMultiplier = user.isPremium
       ? user.xpMultiplier || PREMIUM_XP_MULTIPLIER
       : 1.0;
-    const xpToAdd = Math.floor(baseXp * userMultiplier * globalXpMultiplier);
+    const xpToAdd = Math.floor(
+      baseXp * userMultiplier * globalXpMultiplier * boostMultiplier,
+    );
 
     const oldLevel = user.level;
     const oldXp = user.currentXp;
