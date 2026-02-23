@@ -31,6 +31,10 @@ import { ReplyTicketDto } from '../dto/support-ticket/reply-ticket.dto';
 import { AssignTicketDto } from '../dto/support-ticket/assign-ticket.dto';
 import { ResolveTicketDto } from '../dto/support-ticket/resolve-ticket.dto';
 import {
+  BulkTicketAction,
+  BulkTicketActionDto,
+} from '../dto/support-ticket/bulk-ticket-action.dto';
+import {
   NotificationType,
   NotificationPriority,
 } from '../../notifications/enums/notification-type.enum';
@@ -332,6 +336,168 @@ export class SupportTicketService {
     return this.getTicket(ticketId);
   }
 
+  async bulkActionTickets(
+    dto: BulkTicketActionDto,
+    adminId: string,
+    req?: Request,
+  ): Promise<{
+    succeeded: string[];
+    failed: Array<{ ticketId: string; reason: string }>;
+  }> {
+    this.validateBulkActionPayload(dto);
+
+    const result: {
+      succeeded: string[];
+      failed: Array<{ ticketId: string; reason: string }>;
+    } = {
+      succeeded: [],
+      failed: [],
+    };
+
+    for (const ticketId of dto.ticketIds) {
+      try {
+        await this.ticketRepository.manager.transaction(async (manager) => {
+          const txTicketRepository = manager.getRepository(SupportTicket);
+          const txUserRepository = manager.getRepository(User);
+
+          const ticket = await txTicketRepository.findOne({
+            where: { id: ticketId },
+          });
+          if (!ticket) {
+            throw new NotFoundException(`Ticket ${ticketId} not found`);
+          }
+
+          switch (dto.action) {
+            case BulkTicketAction.ASSIGN: {
+              const assignedTo = dto.payload!.assignedTo!;
+              const assignee = await txUserRepository.findOne({
+                where: { id: assignedTo },
+              });
+              if (!assignee) {
+                throw new NotFoundException(`Admin user ${assignedTo} not found`);
+              }
+
+              await txTicketRepository.update(ticketId, {
+                assignedToId: assignedTo,
+                status:
+                  ticket.status === TicketStatus.OPEN
+                    ? TicketStatus.IN_PROGRESS
+                    : ticket.status,
+              });
+
+              await this.auditLogService.createAuditLog({
+                actorUserId: adminId,
+                targetUserId: ticket.userId,
+                action: AuditAction.TICKET_ASSIGNED,
+                eventType: AuditEventType.ADMIN,
+                outcome: AuditOutcome.SUCCESS,
+                severity: AuditSeverity.LOW,
+                resourceType: 'support_ticket',
+                resourceId: ticketId,
+                details: `Bulk assign to admin ${assignedTo}`,
+                metadata: { bulk: true, action: dto.action },
+                req,
+              });
+              break;
+            }
+            case BulkTicketAction.CLOSE: {
+              if (ticket.status === TicketStatus.CLOSED) {
+                throw new BadRequestException('Ticket already closed');
+              }
+              if (ticket.status !== TicketStatus.RESOLVED) {
+                throw new BadRequestException(
+                  'Only resolved tickets can be closed',
+                );
+              }
+
+              await txTicketRepository.update(ticketId, {
+                status: TicketStatus.CLOSED,
+              });
+
+              await this.auditLogService.createAuditLog({
+                actorUserId: adminId,
+                targetUserId: ticket.userId,
+                action: AuditAction.TICKET_STATUS_CHANGED,
+                eventType: AuditEventType.ADMIN,
+                outcome: AuditOutcome.SUCCESS,
+                severity: AuditSeverity.LOW,
+                resourceType: 'support_ticket',
+                resourceId: ticketId,
+                details: `Bulk close from ${ticket.status} to ${TicketStatus.CLOSED}`,
+                metadata: { bulk: true, action: dto.action },
+                req,
+              });
+              break;
+            }
+            case BulkTicketAction.CHANGE_PRIORITY: {
+              const priority = dto.payload!.priority!;
+              await txTicketRepository.update(ticketId, { priority });
+
+              await this.auditLogService.createAuditLog({
+                actorUserId: adminId,
+                targetUserId: ticket.userId,
+                action: AuditAction.BULK_ACTION,
+                eventType: AuditEventType.ADMIN,
+                outcome: AuditOutcome.SUCCESS,
+                severity: AuditSeverity.LOW,
+                resourceType: 'support_ticket',
+                resourceId: ticketId,
+                details: `Bulk priority changed from ${ticket.priority} to ${priority}`,
+                metadata: {
+                  bulk: true,
+                  action: dto.action,
+                  previousPriority: ticket.priority,
+                  priority,
+                },
+                req,
+              });
+              break;
+            }
+            case BulkTicketAction.CHANGE_STATUS: {
+              const status = dto.payload!.status!;
+              if (ticket.status === TicketStatus.CLOSED) {
+                throw new BadRequestException('Ticket already closed');
+              }
+
+              await txTicketRepository.update(ticketId, { status });
+
+              await this.auditLogService.createAuditLog({
+                actorUserId: adminId,
+                targetUserId: ticket.userId,
+                action: AuditAction.TICKET_STATUS_CHANGED,
+                eventType: AuditEventType.ADMIN,
+                outcome: AuditOutcome.SUCCESS,
+                severity: AuditSeverity.LOW,
+                resourceType: 'support_ticket',
+                resourceId: ticketId,
+                details: `Bulk status changed from ${ticket.status} to ${status}`,
+                metadata: {
+                  bulk: true,
+                  action: dto.action,
+                  previousStatus: ticket.status,
+                  status,
+                },
+                req,
+              });
+              break;
+            }
+            default:
+              throw new BadRequestException('Unsupported bulk action');
+          }
+        });
+
+        result.succeeded.push(ticketId);
+      } catch (error) {
+        result.failed.push({
+          ticketId,
+          reason: this.getErrorMessage(error),
+        });
+      }
+    }
+
+    return result;
+  }
+
   // ─── Auto-close job ──────────────────────────────────────────────────────
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -361,6 +527,63 @@ export class SupportTicketService {
       throw new NotFoundException(`Ticket ${ticketId} not found`);
     }
     return ticket;
+  }
+
+  private validateBulkActionPayload(dto: BulkTicketActionDto): void {
+    const payload = dto.payload ?? {};
+
+    switch (dto.action) {
+      case BulkTicketAction.ASSIGN:
+        if (!payload.assignedTo) {
+          throw new BadRequestException(
+            'payload.assignedTo is required for assign action',
+          );
+        }
+        break;
+      case BulkTicketAction.CHANGE_PRIORITY:
+        if (!payload.priority) {
+          throw new BadRequestException(
+            'payload.priority is required for change_priority action',
+          );
+        }
+        break;
+      case BulkTicketAction.CHANGE_STATUS:
+        if (!payload.status) {
+          throw new BadRequestException(
+            'payload.status is required for change_status action',
+          );
+        }
+        break;
+      case BulkTicketAction.CLOSE:
+        break;
+      default:
+        throw new BadRequestException('Unsupported bulk action');
+    }
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      const response = error.getResponse();
+      if (typeof response === 'string') {
+        return response;
+      }
+      if (response && typeof response === 'object' && 'message' in response) {
+        const message = response.message;
+        if (typeof message === 'string') {
+          return message;
+        }
+        if (Array.isArray(message) && typeof message[0] === 'string') {
+          return message[0];
+        }
+      }
+      return error.message;
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Unknown error';
   }
 
   private async sendNotification(

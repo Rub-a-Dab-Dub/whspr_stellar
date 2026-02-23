@@ -10,6 +10,7 @@ import { AuditLogService } from './audit-log.service';
 import { TicketStatus } from '../enums/ticket-status.enum';
 import { TicketCategory } from '../enums/ticket-category.enum';
 import { TicketPriority } from '../enums/ticket-priority.enum';
+import { BulkTicketAction } from '../dto/support-ticket/bulk-ticket-action.dto';
 
 const ADMIN_ID = 'admin-uuid-001';
 const USER_ID = 'user-uuid-001';
@@ -40,6 +41,8 @@ describe('SupportTicketService', () => {
   let userRepo: any;
   let notificationRepo: any;
   let auditLogService: any;
+  let txTicketRepo: any;
+  let txUserRepo: any;
 
   beforeEach(async () => {
     const qbMock = {
@@ -59,6 +62,9 @@ describe('SupportTicketService', () => {
       findOne: jest.fn(),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       createQueryBuilder: jest.fn().mockReturnValue(qbMock),
+      manager: {
+        transaction: jest.fn(),
+      },
     };
     messageRepo = {
       create: jest.fn().mockImplementation((d) => d),
@@ -74,6 +80,24 @@ describe('SupportTicketService', () => {
     auditLogService = {
       createAuditLog: jest.fn().mockResolvedValue({}),
     };
+
+    txTicketRepo = {
+      findOne: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    txUserRepo = {
+      findOne: jest.fn(),
+    };
+
+    ticketRepo.manager.transaction.mockImplementation(async (cb) =>
+      cb({
+        getRepository: (entity) => {
+          if (entity === SupportTicket) return txTicketRepo;
+          if (entity === User) return txUserRepo;
+          return null;
+        },
+      }),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -362,6 +386,74 @@ describe('SupportTicketService', () => {
         'resolvedAt <= :cutoff',
         expect.objectContaining({ cutoff: expect.any(Date) }),
       );
+    });
+  });
+
+  // ─── bulkActionTickets ────────────────────────────────────────────────────
+
+  describe('bulkActionTickets', () => {
+    it('returns partial success when one ticket closes and one fails as already closed', async () => {
+      const firstTicketId = 'ticket-uuid-001';
+      const secondTicketId = 'ticket-uuid-002';
+      txTicketRepo.findOne
+        .mockResolvedValueOnce(mockTicket({ id: firstTicketId, status: TicketStatus.RESOLVED }))
+        .mockResolvedValueOnce(mockTicket({ id: secondTicketId, status: TicketStatus.CLOSED }));
+
+      const result = await service.bulkActionTickets(
+        {
+          ticketIds: [firstTicketId, secondTicketId],
+          action: BulkTicketAction.CLOSE,
+        },
+        ADMIN_ID,
+      );
+
+      expect(result.succeeded).toEqual([firstTicketId]);
+      expect(result.failed).toEqual([
+        {
+          ticketId: secondTicketId,
+          reason: 'Ticket already closed',
+        },
+      ]);
+      expect(txTicketRepo.update).toHaveBeenCalledWith(firstTicketId, {
+        status: TicketStatus.CLOSED,
+      });
+      expect(auditLogService.createAuditLog).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps processing remaining tickets when assign fails for one ticket', async () => {
+      const firstTicketId = 'ticket-uuid-001';
+      const secondTicketId = 'ticket-uuid-002';
+      const assigneeId = 'admin-assignee-uuid';
+
+      txTicketRepo.findOne
+        .mockResolvedValueOnce(mockTicket({ id: firstTicketId }))
+        .mockResolvedValueOnce(mockTicket({ id: secondTicketId }));
+      txUserRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: assigneeId });
+
+      const result = await service.bulkActionTickets(
+        {
+          ticketIds: [firstTicketId, secondTicketId],
+          action: BulkTicketAction.ASSIGN,
+          payload: { assignedTo: assigneeId },
+        },
+        ADMIN_ID,
+      );
+
+      expect(result.succeeded).toEqual([secondTicketId]);
+      expect(result.failed).toEqual([
+        {
+          ticketId: firstTicketId,
+          reason: `Admin user ${assigneeId} not found`,
+        },
+      ]);
+      expect(txTicketRepo.update).toHaveBeenCalledTimes(1);
+      expect(txTicketRepo.update).toHaveBeenCalledWith(secondTicketId, {
+        assignedToId: assigneeId,
+        status: TicketStatus.IN_PROGRESS,
+      });
+      expect(auditLogService.createAuditLog).toHaveBeenCalledTimes(1);
     });
   });
 });
