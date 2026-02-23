@@ -57,6 +57,10 @@ import { WebhookDelivery } from './entities/webhook-delivery.entity';
 import { WebhookService } from './services/webhook.service';
 import { WebhookDeliveryProcessor } from './jobs/webhook-delivery.processor';
 import { WebhookController } from './controllers/webhook.controller';
+import { ChainHealthRecord } from './entities/chain-health-record.entity';
+import { ChainHealthService } from './services/chain-health.service';
+import { ChainHealthController } from './controllers/chain-health.controller';
+import { ChainModule } from '../chain/chain.module';
 
 @Module({
   imports: [
@@ -70,6 +74,7 @@ import { WebhookController } from './controllers/webhook.controller';
     UsersModule,
     NotificationsModule,
     QueueModule,
+    ChainModule,
     TypeOrmModule.forFeature([
       User,
       AuditLog,
@@ -95,9 +100,10 @@ import { WebhookController } from './controllers/webhook.controller';
       NotificationDelivery,
       WebhookSubscription,
       WebhookDelivery,
+      ChainHealthRecord,
     ]),
   ],
-  controllers: [AdminController, IpWhitelistController, WebhookController],
+  controllers: [AdminController, IpWhitelistController, WebhookController, ChainHealthController],
   providers: [
     AdminConfigService,
     AdminService,
@@ -114,6 +120,7 @@ import { WebhookController } from './controllers/webhook.controller';
     BroadcastDeliveryStatsService,
     WebhookService,
     WebhookDeliveryProcessor,
+    ChainHealthService,
   ],
   exports: [
     AdminConfigService,
@@ -123,6 +130,7 @@ import { WebhookController } from './controllers/webhook.controller';
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
     WebhookService,
+    ChainHealthService,
   ],
 })
 export class AdminModule {
