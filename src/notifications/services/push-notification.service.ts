@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PushSubscription } from '../entities/push-subscription.entity';
-import { CreatePushSubscriptionDto, PushNotificationDto } from '../dto/push-subscription.dto';
+import {
+  CreatePushSubscriptionDto,
+  PushNotificationDto,
+} from '../dto/push-subscription.dto';
 import * as webpush from 'web-push';
 import { ConfigService } from '@nestjs/config';
 
@@ -24,13 +27,18 @@ export class PushNotificationService {
   private initializeWebPush(): void {
     const vapidPublicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
     const vapidPrivateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-    const vapidSubject = this.configService.get<string>('VAPID_SUBJECT', 'mailto:admin@whspr.com');
+    const vapidSubject = this.configService.get<string>(
+      'VAPID_SUBJECT',
+      'mailto:admin@whspr.com',
+    );
 
     if (vapidPublicKey && vapidPrivateKey) {
       webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
       this.logger.log('Web push configured successfully');
     } else {
-      this.logger.warn('VAPID keys not configured - push notifications will not work');
+      this.logger.warn(
+        'VAPID keys not configured - push notifications will not work',
+      );
     }
   }
 
@@ -55,7 +63,8 @@ export class PushNotificationService {
         isActive: true,
         lastUsedAt: new Date(),
       });
-      const updated = await this.subscriptionRepository.save(existingSubscription);
+      const updated =
+        await this.subscriptionRepository.save(existingSubscription);
       this.logger.log(`Updated push subscription for user ${userId}`);
       return updated;
     }
@@ -120,13 +129,15 @@ export class PushNotificationService {
         url: notification.url,
         ...notification.data,
       },
-      actions: notification.url ? [
-        {
-          action: 'open',
-          title: 'Open',
-          icon: '/icons/open-icon.png',
-        },
-      ] : undefined,
+      actions: notification.url
+        ? [
+            {
+              action: 'open',
+              title: 'Open',
+              icon: '/icons/open-icon.png',
+            },
+          ]
+        : undefined,
     });
 
     for (const subscription of subscriptions) {
@@ -153,10 +164,15 @@ export class PushNotificationService {
         );
 
         sent++;
-        this.logger.debug(`Push notification sent to subscription ${subscription.id}`);
+        this.logger.debug(
+          `Push notification sent to subscription ${subscription.id}`,
+        );
       } catch (error) {
         failed++;
-        this.logger.error(`Failed to send push notification to subscription ${subscription.id}:`, error);
+        this.logger.error(
+          `Failed to send push notification to subscription ${subscription.id}:`,
+          error,
+        );
 
         // Handle expired subscriptions
         if (error.statusCode === 410 || error.statusCode === 404) {
@@ -164,12 +180,16 @@ export class PushNotificationService {
             { id: subscription.id },
             { isActive: false },
           );
-          this.logger.log(`Deactivated expired subscription ${subscription.id}`);
+          this.logger.log(
+            `Deactivated expired subscription ${subscription.id}`,
+          );
         }
       }
     }
 
-    this.logger.log(`Push notification sent to user ${userId}: ${sent} sent, ${failed} failed`);
+    this.logger.log(
+      `Push notification sent to user ${userId}: ${sent} sent, ${failed} failed`,
+    );
     return { sent, failed };
   }
 
@@ -208,7 +228,9 @@ export class PushNotificationService {
   /**
    * Clean up inactive subscriptions
    */
-  async cleanupInactiveSubscriptions(daysInactive: number = 30): Promise<number> {
+  async cleanupInactiveSubscriptions(
+    daysInactive: number = 30,
+  ): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
 
@@ -217,14 +239,18 @@ export class PushNotificationService {
       lastUsedAt: cutoffDate,
     });
 
-    this.logger.log(`Cleaned up ${result.affected || 0} inactive push subscriptions`);
+    this.logger.log(
+      `Cleaned up ${result.affected || 0} inactive push subscriptions`,
+    );
     return result.affected || 0;
   }
 
   /**
    * Test push notification
    */
-  async testPushNotification(userId: string): Promise<{ sent: number; failed: number }> {
+  async testPushNotification(
+    userId: string,
+  ): Promise<{ sent: number; failed: number }> {
     const testNotification: PushNotificationDto = {
       title: 'Test Notification',
       body: 'This is a test push notification from Whspr Stellar',

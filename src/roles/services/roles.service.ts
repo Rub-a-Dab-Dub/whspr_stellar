@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Role, RoleType } from '../entities/role.entity';
+import { Role, UserRole } from '../entities/role.entity';
 import { User } from '../../user/entities/user.entity';
 import { RoleRepository } from '../repositories/role.repository';
 import { AuditLogService } from '../../admin/services/audit-log.service';
@@ -32,7 +32,7 @@ export class RolesService {
 
   async assignRoleToUser(
     userId: string,
-    roleName: RoleType,
+    roleName: UserRole,
     actorUserId?: string,
     req?: Request,
   ): Promise<User> {
@@ -80,7 +80,7 @@ export class RolesService {
 
   async revokeRoleFromUser(
     userId: string,
-    roleName: RoleType,
+    roleName: UserRole,
     actorUserId?: string,
     req?: Request,
   ): Promise<User> {
@@ -129,7 +129,7 @@ export class RolesService {
     return this.roleRepository.findAllWithPermissions();
   }
 
-  async getRoleByName(name: RoleType): Promise<Role> {
+  async getRoleByName(name: UserRole): Promise<Role> {
     const role = await this.roleRepository.findByName(name);
 
     if (!role) {

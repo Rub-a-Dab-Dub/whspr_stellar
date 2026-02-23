@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from .models import Conversation, Message
+from .models import Conversation, Message, Flag, ModerationLog
 from apps.users.serializers import UserSerializer
-
 
 class MessageSerializer(serializers.ModelSerializer):
     """
@@ -89,3 +88,32 @@ class ConversationCreateSerializer(serializers.Serializer):
         participant_id (int): User ID to create conversation with
     """
     participant_id = serializers.IntegerField()
+
+
+class FlagSerializer(serializers.ModelSerializer):
+    reported_by = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Flag
+        fields = '__all__'
+
+
+class FlagCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Flag
+        fields = ['reason']
+
+
+class ResolveFlagSerializer(serializers.Serializer):
+    ACTION_CHOICES = (
+        ('delete', 'Delete'),
+        ('warn', 'Warn'),
+        ('dismiss', 'Dismiss'),
+    )
+    action = serializers.ChoiceField(choices=ACTION_CHOICES)
+    note = serializers.CharField(required=False, allow_blank=True)
+
+class ModerationLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModerationLog
+        fields = '__all__'

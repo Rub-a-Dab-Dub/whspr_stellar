@@ -47,7 +47,11 @@ export class RoomMemberController {
     @Body() dto: JoinRoomDto,
     @CurrentUser() user: any,
   ): Promise<RoomMember> {
-    const member = await this.memberService.joinRoom(user.id, roomId, dto.inviteToken);
+    const member = await this.memberService.joinRoom(
+      user.id,
+      roomId,
+      dto.inviteToken,
+    );
     await this.userStatsService.recordRoomJoined(user.id);
     return member;
   }
@@ -70,7 +74,12 @@ export class RoomMemberController {
     @Query('take') take: number = 20,
     @Query('role') role?: string,
   ): Promise<MembersListResponseDto> {
-    const { members, total } = await this.memberService.getMembers(roomId, skip, take, role as any);
+    const { members, total } = await this.memberService.getMembers(
+      roomId,
+      skip,
+      take,
+      role as any,
+    );
     return {
       total,
       skip,
@@ -119,7 +128,12 @@ export class RoomMemberController {
     @Body() dto: UpdateMemberRoleDto,
     @CurrentUser() user: any,
   ): Promise<RoomMember> {
-    return await this.memberService.updateMemberRole(roomId, userId, dto.role, user.id);
+    return await this.memberService.updateMemberRole(
+      roomId,
+      userId,
+      dto.role,
+      user.id,
+    );
   }
 
   @Get(':id/members/:userId/permissions')
@@ -128,7 +142,10 @@ export class RoomMemberController {
     @Param('id') roomId: string,
     @Param('userId') userId: string,
   ): Promise<any> {
-    const perms = await this.permissionsService.getMemberActions(userId, roomId);
+    const perms = await this.permissionsService.getMemberActions(
+      userId,
+      roomId,
+    );
     return perms;
   }
 
@@ -145,7 +162,11 @@ export class RoomMemberController {
     @Param('id') roomId: string,
     @CurrentUser() user: any,
   ): Promise<void> {
-    await this.activityService.recordActivity(user.id, roomId, 'MESSAGE_SENT' as any);
+    await this.activityService.recordActivity(
+      user.id,
+      roomId,
+      'MESSAGE_SENT' as any,
+    );
   }
 
   @Get(':id/activity/stats')

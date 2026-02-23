@@ -75,10 +75,14 @@ export class CreateUserStatsTables1769750400000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "public"."IDX_user_stats_weekly_user_id"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_user_stats_weekly_user_id"`,
+    );
     await queryRunner.query(`DROP TABLE "user_stats_weekly"`);
 
-    await queryRunner.query(`DROP INDEX "public"."IDX_user_stats_daily_user_id"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_user_stats_daily_user_id"`,
+    );
     await queryRunner.query(`DROP TABLE "user_stats_daily"`);
 
     await queryRunner.query(`DROP INDEX "public"."IDX_user_stats_user_id"`);

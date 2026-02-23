@@ -3,13 +3,19 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 
-from .models import Conversation, Message
+from .models import Conversation, Message, Flag, ModerationLog
 from .serializers import (
     ConversationSerializer,
     ConversationCreateSerializer,
     MessageSerializer,
     MessageCreateSerializer,
+    FlagSerializer,
+    FlagCreateSerializer,
+    ResolveFlagSerializer,
 )
+from rest_framework import permissions
+from django.shortcuts import get_object_or_404
+from .permissions import IsModeratorOrAdmin
 
 User = get_user_model()
 
@@ -166,3 +172,109 @@ class MessageReadView(APIView):
         message.save()
 
         return Response(MessageSerializer(message).data)
+
+
+class AdminFlagListView(generics.ListAPIView):
+    """
+    GET /admin/moderation/flags
+    Returns all open flags paginated, filterable by type, status, reportedBy
+    """
+    serializer_class = FlagSerializer
+    permission_classes = [permissions.IsAuthenticated, IsModeratorOrAdmin]
+    
+    def get_queryset(self):
+        queryset = Flag.objects.all()
+        flag_type = self.request.query_params.get('type')
+        status_param = self.request.query_params.get('status')
+        reported_by = self.request.query_params.get('reportedBy')
+        
+        if flag_type:
+            queryset = queryset.filter(flag_type=flag_type)
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        else:
+            queryset = queryset.filter(status='pending')
+            
+        if reported_by:
+            queryset = queryset.filter(reported_by_id=reported_by)
+            
+        return queryset
+
+class AdminFlagResolveView(APIView):
+    """
+    POST /admin/moderation/flags/:flagId/resolve
+    """
+    permission_classes = [permissions.IsAuthenticated, IsModeratorOrAdmin]
+    
+    def post(self, request, flag_id):
+        flag = get_object_or_404(Flag, id=flag_id)
+        serializer = ResolveFlagSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            action = serializer.validated_data['action']
+            note = serializer.validated_data.get('note', '')
+            
+            # create audit log
+            ModerationLog.objects.create(
+                flag=flag,
+                action=action,
+                note=note,
+                moderator=request.user
+            )
+            
+            flag.status = 'resolved'
+            flag.save()
+            
+            if action == 'delete':
+                if flag.flag_type == 'message' and flag.message:
+                    flag.message.delete()
+                elif flag.flag_type == 'room' and flag.room:
+                    flag.room.delete()
+                    
+            return Response({"status": "Flag resolved", "action": action})
+            
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminRoomFlagCreateView(APIView):
+    """
+    POST /admin/rooms/:roomId/flag
+    """
+    permission_classes = [permissions.IsAuthenticated, IsModeratorOrAdmin]
+    
+    def post(self, request, room_id):
+        room = get_object_or_404(Conversation, id=room_id)
+        # Note: we use FlagCreateSerializer which expects a 'reason' field
+        serializer = FlagCreateSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            flag = serializer.save(
+                flag_type='room',
+                room=room,
+                reported_by=request.user
+            )
+            return Response(FlagSerializer(flag).data, status=status.HTTP_201_CREATED)
+            
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminMessageFlagCreateView(APIView):
+    """
+    POST /admin/rooms/:roomId/messages/:messageId/flag
+    """
+    permission_classes = [permissions.IsAuthenticated, IsModeratorOrAdmin]
+    
+    def post(self, request, room_id, message_id):
+        message = get_object_or_404(Message, id=message_id, conversation_id=room_id)
+        serializer = FlagCreateSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            flag = serializer.save(
+                flag_type='message',
+                room_id=room_id,
+                message=message,
+                reported_by=request.user
+            )
+            return Response(FlagSerializer(flag).data, status=status.HTTP_201_CREATED)
+            
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

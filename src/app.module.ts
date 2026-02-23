@@ -9,6 +9,7 @@ import jwtConfig from './config/jwt.config';
 import evmConfig from './config/evm.config';
 import redisConfig from './config/redis.config';
 import pinataConfig from './config/pinata.config';
+import adminConfig from './config/admin.config';
 import { validationSchema } from './config/validation.schema';
 import { HealthModule } from './health/health.module';
 import { MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
@@ -36,12 +37,13 @@ import { SystemConfigModule } from './system-config/system-config.module';
 import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './admin/admin.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig],
+      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig, adminConfig],
       validationSchema,
     }),
     EventEmitterModule.forRoot(),
@@ -102,7 +104,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     UsersModule,
     RolesModule,
     AdminModule,
-    SessionsModule,
+    SessionModule,
     MessageModule,
     RewardsModule,
     ChainModule,
@@ -122,7 +124,10 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
       provide: APP_GUARD,
       useClass: UserThrottlerGuard, // Apply rate limiting globally (User + IP)
     },
-
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
+    },
   ],
 })
 export class AppModule implements OnModuleInit {

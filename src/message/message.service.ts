@@ -20,6 +20,7 @@ import { GetMessagesDto } from './dto/get-messages.dto';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { MessageType } from './enums/message-type.enum';
 import { UserStatsService } from '../users/services/user-stats.service';
+import { AdminService } from '../admin/services/admin.service';
 import { NotificationService } from '../notifications/services/notification.service';
 import { Attachment } from './entities/attachment.entity';
 import { IpfsStorageService } from '../storage/services/ipfs-storage.service';
@@ -42,6 +43,7 @@ export class MessageService {
     private readonly attachmentRepository: Repository<Attachment>,
     private readonly profanityFilterService: ProfanityFilterService,
     private readonly userStatsService: UserStatsService,
+    private readonly adminService: AdminService,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -73,12 +75,31 @@ export class MessageService {
     createMessageDto: CreateMessageDto,
     userId: string,
   ): Promise<MessageResponseDto> {
+    // Check if tipping is enabled
+    if (createMessageDto.type === MessageType.TIP) {
+      const isTippingEnabled = await this.adminService.getConfigValue<boolean>(
+        'tipping_enabled',
+        true,
+      );
+      if (!isTippingEnabled) {
+        throw new BadRequestException('Tipping is currently disabled');
+      }
+    }
+
     // Validate content
     this.validateMessageContent(createMessageDto.content);
 
     // Check for profanity
-    if (this.profanityFilterService.containsProfanity(createMessageDto.content)) {
+    if (
+      this.profanityFilterService.containsProfanity(createMessageDto.content)
+    ) {
       throw new BadRequestException('Message contains inappropriate content');
+    }
+
+    const metadata: Record<string, any> = {};
+    if (createMessageDto.type === MessageType.TIP) {
+      metadata.tipAmount = createMessageDto.tipAmount || 0;
+      metadata.platformFee = (metadata.tipAmount * 0.02).toFixed(8); // 2% platform fee
     }
 
     const message = this.messageRepository.create({
@@ -91,6 +112,7 @@ export class MessageService {
       fileName: createMessageDto.fileName || null,
       originalContent: null,
       isEdited: false,
+      metadata,
     });
 
     const savedMessage = await this.messageRepository.save(message);
@@ -219,10 +241,10 @@ export class MessageService {
         new Brackets((qb) => {
           qb.where('message.createdAt < :date', {
             date: decoded.createdAt,
-          }).orWhere(
-            'message.createdAt = :date AND message.id < :id',
-            { date: decoded.createdAt, id: decoded.id },
-          );
+          }).orWhere('message.createdAt = :date AND message.id < :id', {
+            date: decoded.createdAt,
+            id: decoded.id,
+          });
         }),
       );
     }
@@ -280,7 +302,9 @@ export class MessageService {
     this.validateMessageContent(updateMessageDto.content);
 
     // Check for profanity
-    if (this.profanityFilterService.containsProfanity(updateMessageDto.content)) {
+    if (
+      this.profanityFilterService.containsProfanity(updateMessageDto.content)
+    ) {
       throw new BadRequestException('Message contains inappropriate content');
     }
 
@@ -481,7 +505,7 @@ export class MessageService {
       newContent: history.newContent,
       editedAt: history.editedAt,
     };
-    }
+  }
 
   async uploadFile(
     messageId: string,
@@ -492,7 +516,9 @@ export class MessageService {
     const message = await this.findByIdOrFail(messageId);
 
     if (message.authorId !== userId) {
-      throw new ForbiddenException('You can only attach files to your own messages');
+      throw new ForbiddenException(
+        'You can only attach files to your own messages',
+      );
     }
 
     // 1. Virus Scan
@@ -504,16 +530,19 @@ export class MessageService {
     // 2. Generate Thumbnail (if image)
     let thumbnailUrl: string | undefined;
     if (file.mimetype.startsWith('image/')) {
-        try {
-            const thumbBuffer = await this.thumbnailService.generateThumbnail(file.buffer, file.mimetype);
-            // Upload thumbnail to IPFS always for speed? Or same provider?
-            // Let's stick effectively to same provider logic or just IPFS for thumbnails usually.
-            // For simplicity, we upload thumbnail to IPFS.
-            const thumbUpload = await this.ipfsService.upload(thumbBuffer);
-            thumbnailUrl = this.ipfsService.getGatewayUrl(thumbUpload.path);
-        } catch (e) {
-            console.error('Thumbnail generation failed', e);
-        }
+      try {
+        const thumbBuffer = await this.thumbnailService.generateThumbnail(
+          file.buffer,
+          file.mimetype,
+        );
+        // Upload thumbnail to IPFS always for speed? Or same provider?
+        // Let's stick effectively to same provider logic or just IPFS for thumbnails usually.
+        // For simplicity, we upload thumbnail to IPFS.
+        const thumbUpload = await this.ipfsService.upload(thumbBuffer);
+        thumbnailUrl = this.ipfsService.getGatewayUrl(thumbUpload.path);
+      } catch (e) {
+        console.error('Thumbnail generation failed', e);
+      }
     }
 
     // 3. Upload File
@@ -521,13 +550,16 @@ export class MessageService {
     let url: string;
 
     if (storage === 'ARWEAVE') {
-        const result = await this.arweaveService.upload(file.buffer, file.mimetype);
-        storageHash = result.id;
-        url = this.arweaveService.getGatewayUrl(result.id);
+      const result = await this.arweaveService.upload(
+        file.buffer,
+        file.mimetype,
+      );
+      storageHash = result.id;
+      url = this.arweaveService.getGatewayUrl(result.id);
     } else {
-        const result = await this.ipfsService.upload(file.buffer);
-        storageHash = result.path;
-        url = this.ipfsService.getGatewayUrl(result.path);
+      const result = await this.ipfsService.upload(file.buffer);
+      storageHash = result.path;
+      url = this.ipfsService.getGatewayUrl(result.path);
     }
 
     // 4. Create Attachment
@@ -547,7 +579,9 @@ export class MessageService {
   }
 
   async getAttachmentUrl(attachmentId: string): Promise<string> {
-    const attachment = await this.attachmentRepository.findOne({ where: { id: attachmentId } });
+    const attachment = await this.attachmentRepository.findOne({
+      where: { id: attachmentId },
+    });
     if (!attachment) {
       throw new NotFoundException('Attachment not found');
     }

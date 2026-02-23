@@ -49,8 +49,11 @@ export class TransferController {
     @Body() createTransferDto: CreateTransferDto,
   ) {
     const userId = req.user.id || req.user.sub;
-    const transfer = await this.transferService.createTransfer(userId, createTransferDto);
-    
+    const transfer = await this.transferService.createTransfer(
+      userId,
+      createTransferDto,
+    );
+
     return {
       success: true,
       message: 'Transfer initiated successfully',
@@ -69,7 +72,7 @@ export class TransferController {
       userId,
       createBulkTransferDto,
     );
-    
+
     return {
       success: true,
       message: 'Bulk transfer initiated successfully',
@@ -78,13 +81,10 @@ export class TransferController {
   }
 
   @Get('history')
-  async getTransferHistory(
-    @Request() req,
-    @Query() query: TransferQueryDto,
-  ) {
+  async getTransferHistory(@Request() req, @Query() query: TransferQueryDto) {
     const userId = req.user.id || req.user.sub;
     const result = await this.transferService.getTransferHistory(userId, query);
-    
+
     return {
       success: true,
       data: result.transfers,
@@ -103,7 +103,7 @@ export class TransferController {
       userId,
       days ? parseInt(days.toString()) : 30,
     );
-    
+
     return {
       success: true,
       data: analytics,
@@ -120,7 +120,7 @@ export class TransferController {
       bulkTransferId,
       userId,
     );
-    
+
     return {
       success: true,
       data: bulkTransfer,
@@ -137,7 +137,7 @@ export class TransferController {
       bulkTransferId,
       userId,
     );
-    
+
     return {
       success: true,
       data: items,
@@ -145,13 +145,13 @@ export class TransferController {
   }
 
   @Get(':transferId')
-  async getTransfer(
-    @Request() req,
-    @Param('transferId') transferId: string,
-  ) {
+  async getTransfer(@Request() req, @Param('transferId') transferId: string) {
     const userId = req.user.id || req.user.sub;
-    const transfer = await this.transferService.getTransferById(transferId, userId);
-    
+    const transfer = await this.transferService.getTransferById(
+      transferId,
+      userId,
+    );
+
     return {
       success: true,
       data: transfer,
@@ -159,13 +159,13 @@ export class TransferController {
   }
 
   @Get(':transferId/receipt')
-  async getReceipt(
-    @Request() req,
-    @Param('transferId') transferId: string,
-  ) {
+  async getReceipt(@Request() req, @Param('transferId') transferId: string) {
     const userId = req.user.id || req.user.sub;
-    const receipt = await this.receiptService.generateReceipt(transferId, userId);
-    
+    const receipt = await this.receiptService.generateReceipt(
+      transferId,
+      userId,
+    );
+
     return {
       success: true,
       data: receipt,
@@ -180,8 +180,11 @@ export class TransferController {
     @Body() createTemplateDto: CreateTransferTemplateDto,
   ) {
     const userId = req.user.id || req.user.sub;
-    const template = await this.templateService.createTemplate(userId, createTemplateDto);
-    
+    const template = await this.templateService.createTemplate(
+      userId,
+      createTemplateDto,
+    );
+
     return {
       success: true,
       message: 'Template created successfully',
@@ -193,7 +196,7 @@ export class TransferController {
   async getTemplates(@Request() req) {
     const userId = req.user.id || req.user.sub;
     const templates = await this.templateService.getTemplates(userId);
-    
+
     return {
       success: true,
       data: templates,
@@ -204,7 +207,7 @@ export class TransferController {
   async getFavoriteTemplates(@Request() req) {
     const userId = req.user.id || req.user.sub;
     const templates = await this.templateService.getFavorites(userId);
-    
+
     return {
       success: true,
       data: templates,
@@ -212,13 +215,13 @@ export class TransferController {
   }
 
   @Get('templates/:templateId')
-  async getTemplate(
-    @Request() req,
-    @Param('templateId') templateId: string,
-  ) {
+  async getTemplate(@Request() req, @Param('templateId') templateId: string) {
     const userId = req.user.id || req.user.sub;
-    const template = await this.templateService.getTemplateById(templateId, userId);
-    
+    const template = await this.templateService.getTemplateById(
+      templateId,
+      userId,
+    );
+
     return {
       success: true,
       data: template,
@@ -232,8 +235,12 @@ export class TransferController {
     @Body() updateDto: Partial<CreateTransferTemplateDto>,
   ) {
     const userId = req.user.id || req.user.sub;
-    const template = await this.templateService.updateTemplate(templateId, userId, updateDto);
-    
+    const template = await this.templateService.updateTemplate(
+      templateId,
+      userId,
+      updateDto,
+    );
+
     return {
       success: true,
       message: 'Template updated successfully',
@@ -248,7 +255,7 @@ export class TransferController {
   ) {
     const userId = req.user.id || req.user.sub;
     await this.templateService.deleteTemplate(templateId, userId);
-    
+
     return {
       success: true,
       message: 'Template deleted successfully',
@@ -261,23 +268,28 @@ export class TransferController {
     @Param('templateId') templateId: string,
   ) {
     const userId = req.user.id || req.user.sub;
-    const template = await this.templateService.toggleFavorite(templateId, userId);
-    
+    const template = await this.templateService.toggleFavorite(
+      templateId,
+      userId,
+    );
+
     return {
       success: true,
-      message: template.isFavorite ? 'Added to favorites' : 'Removed from favorites',
+      message: template.isFavorite
+        ? 'Added to favorites'
+        : 'Removed from favorites',
       data: template,
     };
   }
 
   @Post('templates/:templateId/use')
-  async useTemplate(
-    @Request() req,
-    @Param('templateId') templateId: string,
-  ) {
+  async useTemplate(@Request() req, @Param('templateId') templateId: string) {
     const userId = req.user.id || req.user.sub;
-    const template = await this.templateService.getTemplateById(templateId, userId);
-    
+    const template = await this.templateService.getTemplateById(
+      templateId,
+      userId,
+    );
+
     const transfer = await this.transferService.createTransfer(userId, {
       recipientId: template.recipientId,
       amount: parseFloat(template.amount),
@@ -287,7 +299,7 @@ export class TransferController {
     });
 
     await this.templateService.incrementUseCount(templateId);
-    
+
     return {
       success: true,
       message: 'Transfer initiated from template',
@@ -300,7 +312,7 @@ export class TransferController {
   async getLimits(@Request() req) {
     const userId = req.user.id || req.user.sub;
     const limits = await this.limitService.getLimits(userId);
-    
+
     return {
       success: true,
       data: limits,
@@ -310,7 +322,12 @@ export class TransferController {
   @Post('limits')
   async setLimit(
     @Request() req,
-    @Body() body: { period: LimitPeriod; limitAmount: number; maxTransactionCount?: number },
+    @Body()
+    body: {
+      period: LimitPeriod;
+      limitAmount: number;
+      maxTransactionCount?: number;
+    },
   ) {
     const userId = req.user.id || req.user.sub;
     const limit = await this.limitService.setLimit(
@@ -319,7 +336,7 @@ export class TransferController {
       body.limitAmount,
       body.maxTransactionCount,
     );
-    
+
     return {
       success: true,
       message: 'Transfer limit set successfully',
@@ -328,13 +345,10 @@ export class TransferController {
   }
 
   @Delete('limits/:period')
-  async removeLimit(
-    @Request() req,
-    @Param('period') period: LimitPeriod,
-  ) {
+  async removeLimit(@Request() req, @Param('period') period: LimitPeriod) {
     const userId = req.user.id || req.user.sub;
     await this.limitService.removeLimit(userId, period);
-    
+
     return {
       success: true,
       message: 'Transfer limit removed successfully',
@@ -349,11 +363,12 @@ export class TransferController {
     @Body() createScheduledDto: CreateScheduledTransferDto,
   ) {
     const userId = req.user.id || req.user.sub;
-    const scheduledTransfer = await this.scheduledTransferService.createScheduledTransfer(
-      userId,
-      createScheduledDto,
-    );
-    
+    const scheduledTransfer =
+      await this.scheduledTransferService.createScheduledTransfer(
+        userId,
+        createScheduledDto,
+      );
+
     return {
       success: true,
       message: 'Transfer scheduled successfully',
@@ -364,8 +379,9 @@ export class TransferController {
   @Get('scheduled')
   async getScheduledTransfers(@Request() req) {
     const userId = req.user.id || req.user.sub;
-    const scheduledTransfers = await this.scheduledTransferService.getScheduledTransfers(userId);
-    
+    const scheduledTransfers =
+      await this.scheduledTransferService.getScheduledTransfers(userId);
+
     return {
       success: true,
       data: scheduledTransfers,
@@ -378,11 +394,12 @@ export class TransferController {
     @Param('scheduledTransferId') scheduledTransferId: string,
   ) {
     const userId = req.user.id || req.user.sub;
-    const scheduledTransfer = await this.scheduledTransferService.getScheduledTransferById(
-      scheduledTransferId,
-      userId,
-    );
-    
+    const scheduledTransfer =
+      await this.scheduledTransferService.getScheduledTransferById(
+        scheduledTransferId,
+        userId,
+      );
+
     return {
       success: true,
       data: scheduledTransfer,
@@ -396,12 +413,13 @@ export class TransferController {
     @Body() body: { reason?: string },
   ) {
     const userId = req.user.id || req.user.sub;
-    const scheduledTransfer = await this.scheduledTransferService.cancelScheduledTransfer(
-      scheduledTransferId,
-      userId,
-      body.reason,
-    );
-    
+    const scheduledTransfer =
+      await this.scheduledTransferService.cancelScheduledTransfer(
+        scheduledTransferId,
+        userId,
+        body.reason,
+      );
+
     return {
       success: true,
       message: 'Scheduled transfer cancelled successfully',
@@ -418,8 +436,12 @@ export class TransferController {
     @Body() createDisputeDto: CreateDisputeDto,
   ) {
     const userId = req.user.id || req.user.sub;
-    const dispute = await this.disputeService.createDispute(transferId, userId, createDisputeDto);
-    
+    const dispute = await this.disputeService.createDispute(
+      transferId,
+      userId,
+      createDisputeDto,
+    );
+
     return {
       success: true,
       message: 'Dispute created successfully',
@@ -431,7 +453,7 @@ export class TransferController {
   async getDisputes(@Request() req) {
     const userId = req.user.id || req.user.sub;
     const disputes = await this.disputeService.getDisputes(userId);
-    
+
     return {
       success: true,
       data: disputes,
@@ -439,13 +461,10 @@ export class TransferController {
   }
 
   @Get('disputes/:disputeId')
-  async getDispute(
-    @Request() req,
-    @Param('disputeId') disputeId: string,
-  ) {
+  async getDispute(@Request() req, @Param('disputeId') disputeId: string) {
     const userId = req.user.id || req.user.sub;
     const dispute = await this.disputeService.getDisputeById(disputeId, userId);
-    
+
     return {
       success: true,
       data: dispute,
@@ -459,8 +478,12 @@ export class TransferController {
     @Body() body: { evidence: string[] },
   ) {
     const userId = req.user.id || req.user.sub;
-    const dispute = await this.disputeService.addEvidence(disputeId, userId, body.evidence);
-    
+    const dispute = await this.disputeService.addEvidence(
+      disputeId,
+      userId,
+      body.evidence,
+    );
+
     return {
       success: true,
       message: 'Evidence added successfully',
@@ -472,7 +495,7 @@ export class TransferController {
   async getDisputeStatistics(@Request() req) {
     const userId = req.user.id || req.user.sub;
     const statistics = await this.disputeService.getDisputeStatistics(userId);
-    
+
     return {
       success: true,
       data: statistics,

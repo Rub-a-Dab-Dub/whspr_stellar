@@ -1,5 +1,10 @@
 // src/auth/auth.service.ts
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../user/user.service';
@@ -11,6 +16,7 @@ import { SessionService } from 'src/sessions/services/sessions.service';
 import { StreakService } from '../users/services/streak.service';
 import { UsersService as ProfileUsersService } from '../users/users.service';
 import { AuditLogService } from '../admin/services/audit-log.service';
+import { AdminService } from '../admin/services/admin.service';
 import {
   AuditAction,
   AuditEventType,
@@ -35,10 +41,23 @@ export class AuthService {
     private readonly streakService: StreakService,
     private readonly profileUsersService: ProfileUsersService,
     private readonly auditLogService: AuditLogService,
+    private readonly adminService: AdminService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async register(email: string, password: string) {
+    const isRegistrationEnabled =
+      await this.adminService.getConfigValue<boolean>(
+        'registration_enabled',
+        true,
+      );
+
+    if (!isRegistrationEnabled) {
+      throw new ServiceUnavailableException(
+        'New user registrations are currently disabled.',
+      );
+    }
+
     const user = await this.usersService.create(email, password);
 
     // Generate email verification token
@@ -135,14 +154,18 @@ export class AuthService {
     // Track daily login for streak system
     try {
       // Try to find user in profile system by email
-      const profileUser = await this.profileUsersService.findByEmail(user.email);
+      const profileUser = await this.profileUsersService.findByEmail(
+        user.email,
+      );
       if (profileUser) {
         await this.streakService.trackDailyLogin(profileUser.id);
         this.logger.log(`Streak tracked for user ${profileUser.id}`);
       }
     } catch (error) {
       // Log but don't fail login if streak tracking fails
-      this.logger.warn(`Failed to track streak for user ${user.email}: ${error.message}`);
+      this.logger.warn(
+        `Failed to track streak for user ${user.email}: ${error.message}`,
+      );
     }
 
     await this.safeAuditLog({
@@ -363,7 +386,9 @@ export class AuthService {
     });
   }
 
-  private async safeAuditLog(input: Parameters<AuditLogService['createAuditLog']>[0]) {
+  private async safeAuditLog(
+    input: Parameters<AuditLogService['createAuditLog']>[0],
+  ) {
     try {
       await this.auditLogService.createAuditLog(input);
     } catch (error) {

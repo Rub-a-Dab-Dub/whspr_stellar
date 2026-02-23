@@ -9,7 +9,9 @@ export default registerAs('evm', () => ({
   chains: {
     ethereum: {
       rpcUrl: process.env.CHAIN_ETHEREUM_RPC_URL || process.env.EVM_RPC_URL,
-      contractAddress: process.env.CHAIN_ETHEREUM_CONTRACT_ADDRESS || process.env.GGPAY_CONTRACT_ADDRESS,
+      contractAddress:
+        process.env.CHAIN_ETHEREUM_CONTRACT_ADDRESS ||
+        process.env.GGPAY_CONTRACT_ADDRESS,
     },
     bnb: {
       rpcUrl: process.env.CHAIN_BNB_RPC_URL,

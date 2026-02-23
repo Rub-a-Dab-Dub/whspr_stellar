@@ -10,13 +10,8 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Permission } from './permission.entity';
-
-export enum RoleType {
-  ADMIN = 'admin',
-  MODERATOR = 'moderator',
-  USER = 'user',
-  CREATOR = 'creator',
-}
+import { UserRole } from './user-role.enum';
+export { UserRole } from './user-role.enum';
 
 @Entity('roles')
 export class Role {
@@ -25,10 +20,10 @@ export class Role {
 
   @Column({
     type: 'enum',
-    enum: RoleType,
+    enum: UserRole,
     unique: true,
   })
-  name: RoleType;
+  name: UserRole;
 
   @Column({ nullable: true })
   description: string;

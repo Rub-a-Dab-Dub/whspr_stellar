@@ -52,10 +52,10 @@ import { AuthModule } from '../auth/auth.module';
     EmailNotificationService,
     MentionDetectionService,
     NotificationIntegrationService,
-    
+
     // Gateways
     NotificationGateway,
-    
+
     // Jobs
     NotificationCleanupJob,
     NotificationBatchingJob,

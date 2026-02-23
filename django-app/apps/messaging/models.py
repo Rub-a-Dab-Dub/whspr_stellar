@@ -72,3 +72,49 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message {self.id} from {self.sender}"
+
+class Flag(models.Model):
+    TYPE_CHOICES = (
+        ('room', 'Room'),
+        ('message', 'Message'),
+    )
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('resolved', 'Resolved'),
+        ('dismissed', 'Dismissed'),
+    )
+    
+    flag_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    room = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='flags', null=True, blank=True)
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='flags', null=True, blank=True)
+    
+    reported_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='flags_created')
+    reason = models.TextField(blank=True)
+    note = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = "flags"
+        ordering = ["-created_at"]
+        
+    def __str__(self):
+        return f"Flag {self.id} on {self.flag_type}"
+
+
+class ModerationLog(models.Model):
+    flag = models.ForeignKey(Flag, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
+    action = models.CharField(max_length=50)
+    note = models.TextField(blank=True)
+    moderator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='moderation_actions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = "moderation_logs"
+        ordering = ["-created_at"]
+        
+    def __str__(self):
+        return f"Log for flag {self.flag_id} by {self.moderator}"

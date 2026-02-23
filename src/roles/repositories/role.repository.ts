@@ -1,7 +1,7 @@
 // src/roles/repositories/role.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
-import { Role, RoleType } from '../entities/role.entity';
+import { Role, UserRole } from '../entities/role.entity';
 
 @Injectable()
 export class RoleRepository extends Repository<Role> {
@@ -9,7 +9,7 @@ export class RoleRepository extends Repository<Role> {
     super(Role, dataSource.createEntityManager());
   }
 
-  async findByName(name: RoleType): Promise<Role | null> {
+  async findByName(name: UserRole): Promise<Role | null> {
     return this.findOne({
       where: { name },
       relations: ['permissions'],

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> 66270babe87cc62e819fbe1afca932360ca7a87c
 import {
   Entity,
   Column,
@@ -6,8 +9,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+<<<<<<< HEAD
   ManyToOne,
   JoinColumn,
+=======
+>>>>>>> 66270babe87cc62e819fbe1afca932360ca7a87c
 } from 'typeorm';
 import { UserQuestProgress } from './user-quest-progress.entity';
 import { User } from '../../user/entities/user.entity';
@@ -16,6 +22,7 @@ export enum QuestType {
   ONE_TIME = 'one_time',
   DAILY = 'daily',
   WEEKLY = 'weekly',
+<<<<<<< HEAD
   REPEATABLE = 'repeatable',
 }
 
@@ -23,6 +30,9 @@ export enum QuestStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
   ARCHIVED = 'archived',
+=======
+  SPECIAL = 'special',
+>>>>>>> 66270babe87cc62e819fbe1afca932360ca7a87c
 }
 
 export enum RewardType {
@@ -73,9 +83,12 @@ export class Quest {
   @Column({ type: 'json', nullable: true })
   metadata?: Record<string, any>;
 
+<<<<<<< HEAD
   @Column({ default: false })
   deletedAt?: boolean;
 
+=======
+>>>>>>> 66270babe87cc62e819fbe1afca932360ca7a87c
   @OneToMany(() => UserQuestProgress, (progress) => progress.quest)
   userProgress: UserQuestProgress[];
 

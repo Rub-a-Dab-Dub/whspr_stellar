@@ -5,6 +5,8 @@ import { CacheService } from '../../cache/cache.service';
 import { UserStats } from '../entities/user-stats.entity';
 import { UserStatsDaily } from '../entities/user-stats-daily.entity';
 import { UserStatsWeekly } from '../entities/user-stats-weekly.entity';
+import { LeaderboardService } from '../../leaderboard/leaderboard.service';
+import { LeaderboardCategory } from '../../leaderboard/leaderboard.interface';
 
 type StatsIncrements = Partial<{
   messagesSent: number;
@@ -27,6 +29,7 @@ export class UserStatsService {
     @InjectRepository(UserStatsWeekly)
     private readonly weeklyRepository: Repository<UserStatsWeekly>,
     private readonly cacheService: CacheService,
+    private readonly leaderboardService: LeaderboardService,
   ) {}
 
   async recordMessageSent(
@@ -43,12 +46,20 @@ export class UserStatsService {
 
     await this.applyIncrements(userId, increments, true);
 
-    if (options?.isTip && options.tipRecipientId && options.tipRecipientId !== userId) {
+    if (
+      options?.isTip &&
+      options.tipRecipientId &&
+      options.tipRecipientId !== userId
+    ) {
       const recipientIncrements: StatsIncrements = { tipsReceived: 1 };
       if (options.tipAmount) {
         recipientIncrements.tokensTransferred = options.tipAmount;
       }
-      await this.applyIncrements(options.tipRecipientId, recipientIncrements, false);
+      await this.applyIncrements(
+        options.tipRecipientId,
+        recipientIncrements,
+        false,
+      );
     }
   }
 
@@ -60,8 +71,16 @@ export class UserStatsService {
     await this.applyIncrements(userId, { roomsJoined: 1 }, true);
   }
 
-  async recordTokensTransferred(userId: string, amount: number, markActive: boolean): Promise<void> {
-    await this.applyIncrements(userId, { tokensTransferred: amount }, markActive);
+  async recordTokensTransferred(
+    userId: string,
+    amount: number,
+    markActive: boolean,
+  ): Promise<void> {
+    await this.applyIncrements(
+      userId,
+      { tokensTransferred: amount },
+      markActive,
+    );
   }
 
   async getStatsForUser(userId: string, includeComparison: boolean = true) {
@@ -258,6 +277,31 @@ export class UserStatsService {
     await this.statsRepository.save(stats);
     await this.dailyRepository.save(daily);
     await this.invalidateCache(userId);
+
+    // Update Leaderboards
+    if (increments.messagesSent) {
+      await this.leaderboardService.updateLeaderboard({
+        userId,
+        category: LeaderboardCategory.MESSAGES,
+        scoreIncrement: increments.messagesSent,
+      });
+    }
+
+    if (increments.tipsSent) {
+      await this.leaderboardService.updateLeaderboard({
+        userId,
+        category: LeaderboardCategory.TIPS_SENT,
+        scoreIncrement: increments.tipsSent,
+      });
+    }
+
+    if (increments.tipsReceived) {
+      await this.leaderboardService.updateLeaderboard({
+        userId,
+        category: LeaderboardCategory.TIPS_RECEIVED,
+        scoreIncrement: increments.tipsReceived,
+      });
+    }
   }
 
   private async getOrCreateStats(userId: string): Promise<UserStats> {
@@ -272,8 +316,13 @@ export class UserStatsService {
     return this.statsRepository.save(created);
   }
 
-  private async getOrCreateDailyStats(userId: string, date: Date): Promise<UserStatsDaily> {
-    const existing = await this.dailyRepository.findOne({ where: { userId, date } });
+  private async getOrCreateDailyStats(
+    userId: string,
+    date: Date,
+  ): Promise<UserStatsDaily> {
+    const existing = await this.dailyRepository.findOne({
+      where: { userId, date },
+    });
     if (existing) return existing;
 
     const created = this.dailyRepository.create({

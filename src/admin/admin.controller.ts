@@ -59,7 +59,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.getUserDetail(userId, currentUser.userId, req);
+    return await this.adminService.getUserDetail(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Post('users/:id/ban')
@@ -70,7 +74,12 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.banUser(userId, currentUser.userId, banDto, req);
+    return await this.adminService.banUser(
+      userId,
+      currentUser.userId,
+      banDto,
+      req,
+    );
   }
 
   @Post('users/:id/unban')
@@ -91,7 +100,12 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.suspendUser(userId, currentUser.userId, suspendDto, req);
+    return await this.adminService.suspendUser(
+      userId,
+      currentUser.userId,
+      suspendDto,
+      req,
+    );
   }
 
   @Post('users/:id/unsuspend')
@@ -101,7 +115,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.unsuspendUser(userId, currentUser.userId, req);
+    return await this.adminService.unsuspendUser(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Post('users/:id/verify')
@@ -121,7 +139,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.unverifyUser(userId, currentUser.userId, req);
+    return await this.adminService.unverifyUser(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Post('users/bulk-action')
@@ -140,7 +162,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.getUserActivity(userId, currentUser.userId, req);
+    return await this.adminService.getUserActivity(
+      userId,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Get('statistics')
@@ -276,7 +302,11 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminQuestService.getQuests(query, currentUser.userId, req);
+    return await this.adminQuestService.getQuests(
+      query,
+      currentUser.userId,
+      req,
+    );
   }
 
   @Get('quests/:questId')
@@ -284,7 +314,10 @@ export class AdminController {
     @Param('questId') questId: string,
     @CurrentUser() currentUser: any,
   ) {
-    return await this.adminQuestService.getQuestById(questId, currentUser.userId);
+    return await this.adminQuestService.getQuestById(
+      questId,
+      currentUser.userId,
+    );
   }
 
   @Post('quests')

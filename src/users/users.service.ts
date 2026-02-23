@@ -18,11 +18,14 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly pinataService: PinataService,
-  ) { }
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findOne({
-      where: [{ username: createUserDto.username }, { email: createUserDto.email }],
+      where: [
+        { username: createUserDto.username },
+        { email: createUserDto.email },
+      ],
     });
 
     if (existingUser) {
@@ -38,7 +41,9 @@ export class UsersService {
     return await this.userRepository.save(user);
   }
 
-  async findAll(searchDto: SearchUsersDto): Promise<{ users: User[]; total: number; page: number; limit: number }> {
+  async findAll(
+    searchDto: SearchUsersDto,
+  ): Promise<{ users: User[]; total: number; page: number; limit: number }> {
     const { search, page = 1, limit = 10 } = searchDto;
     const skip = (page - 1) * limit;
 
@@ -49,7 +54,7 @@ export class UsersService {
     if (search) {
       queryBuilder.andWhere(
         '(user.username ILIKE :search OR user.displayName ILIKE :search)',
-        { search: `%${search}%` }
+        { search: `%${search}%` },
       );
     }
 
@@ -120,10 +125,7 @@ export class UsersService {
     return await this.userRepository.save(user);
   }
 
-  async uploadAvatar(
-    id: string,
-    file: Express.Multer.File,
-  ): Promise<User> {
+  async uploadAvatar(id: string, file: Express.Multer.File): Promise<User> {
     const user = await this.findOne(id);
 
     const { cid, url } = await this.pinataService.uploadAvatar(file);

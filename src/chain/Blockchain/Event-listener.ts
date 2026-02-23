@@ -1,5 +1,3 @@
-
-
 // ============================================================================
 // ENTITIES
 // ============================================================================
@@ -312,12 +310,19 @@ export class DashboardStatsDto {
 // BLOCKCHAIN CONNECTION SERVICE
 // ============================================================================
 
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ethers } from 'ethers';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class BlockchainConnectionService implements OnModuleInit, OnModuleDestroy {
+export class BlockchainConnectionService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(BlockchainConnectionService.name);
   private provider: ethers.WebSocketProvider;
   private reconnectAttempts = 0;
@@ -340,7 +345,7 @@ export class BlockchainConnectionService implements OnModuleInit, OnModuleDestro
   private async connect(): Promise<void> {
     try {
       const wsUrl = this.configService.get<string>('BLOCKCHAIN_WS_URL');
-      
+
       this.provider = new ethers.WebSocketProvider(wsUrl);
 
       // Set up event listeners for connection
@@ -360,8 +365,9 @@ export class BlockchainConnectionService implements OnModuleInit, OnModuleDestro
 
       // Verify connection
       const network = await this.provider.getNetwork();
-      this.logger.log(`Connected to network: ${network.name} (chainId: ${network.chainId})`);
-
+      this.logger.log(
+        `Connected to network: ${network.name} (chainId: ${network.chainId})`,
+      );
     } catch (error) {
       this.logger.error('Failed to connect to blockchain:', error);
       await this.handleReconnect();
@@ -373,16 +379,20 @@ export class BlockchainConnectionService implements OnModuleInit, OnModuleDestro
    */
   private async handleReconnect(): Promise<void> {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      this.logger.error('Max reconnection attempts reached. Manual intervention required.');
+      this.logger.error(
+        'Max reconnection attempts reached. Manual intervention required.',
+      );
       return;
     }
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-    this.logger.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    this.logger.log(
+      `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
+    );
 
-    await new Promise(resolve => setTimeout(resolve, delay));
+    await new Promise((resolve) => setTimeout(resolve, delay));
     await this.connect();
   }
 
@@ -471,10 +481,12 @@ export class EventListenerService implements OnModuleInit {
     for (const config of contractConfigs) {
       const contract = this.blockchainService.getContract(
         config.address,
-        config.abi
+        config.abi,
       );
       this.contracts.set(config.address, contract);
-      this.logger.log(`Initialized contract: ${config.name} at ${config.address}`);
+      this.logger.log(
+        `Initialized contract: ${config.name} at ${config.address}`,
+      );
     }
   }
 
@@ -513,7 +525,7 @@ export class EventListenerService implements OnModuleInit {
    */
   private async handleTransferEvent(
     contractAddress: string,
-    args: any[]
+    args: any[],
   ): Promise<void> {
     try {
       const event = args[args.length - 1]; // Last arg is the event object
@@ -529,11 +541,11 @@ export class EventListenerService implements OnModuleInit {
         contractAddress,
         EventType.TRANSFER,
         event,
-        eventData
+        eventData,
       );
 
       this.logger.log(
-        `Transfer event detected: ${from} -> ${to}, Amount: ${ethers.formatEther(amount)}`
+        `Transfer event detected: ${from} -> ${to}, Amount: ${ethers.formatEther(amount)}`,
       );
     } catch (error) {
       this.logger.error('Error handling Transfer event:', error);
@@ -545,7 +557,7 @@ export class EventListenerService implements OnModuleInit {
    */
   private async handleTipEvent(
     contractAddress: string,
-    args: any[]
+    args: any[],
   ): Promise<void> {
     try {
       const event = args[args.length - 1];
@@ -558,15 +570,10 @@ export class EventListenerService implements OnModuleInit {
         roomId: roomId,
       };
 
-      await this.processEvent(
-        contractAddress,
-        EventType.TIP,
-        event,
-        eventData
-      );
+      await this.processEvent(contractAddress, EventType.TIP, event, eventData);
 
       this.logger.log(
-        `Tip event detected: ${from} -> ${to}, Amount: ${ethers.formatEther(amount)}, Room: ${roomId}`
+        `Tip event detected: ${from} -> ${to}, Amount: ${ethers.formatEther(amount)}, Room: ${roomId}`,
       );
     } catch (error) {
       this.logger.error('Error handling Tip event:', error);
@@ -578,7 +585,7 @@ export class EventListenerService implements OnModuleInit {
    */
   private async handleRoomEntryEvent(
     contractAddress: string,
-    args: any[]
+    args: any[],
   ): Promise<void> {
     try {
       const event = args[args.length - 1];
@@ -594,11 +601,11 @@ export class EventListenerService implements OnModuleInit {
         contractAddress,
         EventType.ROOM_ENTRY,
         event,
-        eventData
+        eventData,
       );
 
       this.logger.log(
-        `RoomEntry event detected: User ${userId} entered room ${roomId}`
+        `RoomEntry event detected: User ${userId} entered room ${roomId}`,
       );
     } catch (error) {
       this.logger.error('Error handling RoomEntry event:', error);
@@ -612,7 +619,7 @@ export class EventListenerService implements OnModuleInit {
     contractAddress: string,
     eventType: EventType,
     event: any,
-    eventData: any
+    eventData: any,
   ): Promise<void> {
     try {
       // Check if event already exists
@@ -649,15 +656,19 @@ export class EventListenerService implements OnModuleInit {
       await this.eventRepo.save(blockchainEvent);
 
       // Add to processing queue
-      await this.eventQueue.add('process-event', {
-        eventId: blockchainEvent.id,
-      }, {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
+      await this.eventQueue.add(
+        'process-event',
+        {
+          eventId: blockchainEvent.id,
         },
-      });
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      );
 
       this.logger.log(`Event saved and queued: ${blockchainEvent.id}`);
     } catch (error) {
@@ -683,7 +694,7 @@ export class EventListenerService implements OnModuleInit {
         if (confirmations >= event.requiredConfirmations) {
           event.status = EventStatus.CONFIRMED;
           this.logger.log(
-            `Event confirmed: ${event.id} (${confirmations} confirmations)`
+            `Event confirmed: ${event.id} (${confirmations} confirmations)`,
           );
         }
 
@@ -715,7 +726,10 @@ export class EventListenerService implements OnModuleInit {
 
           if (!syncState) {
             // Initialize sync state
-            const startBlock = this.configService.get<number>('START_BLOCK', currentBlock - 1000);
+            const startBlock = this.configService.get<number>(
+              'START_BLOCK',
+              currentBlock - 1000,
+            );
             syncState = this.syncStateRepo.create({
               contractAddress: address,
               eventType: eventType as EventType,
@@ -734,7 +748,7 @@ export class EventListenerService implements OnModuleInit {
               contract,
               eventType as EventType,
               fromBlock,
-              toBlock
+              toBlock,
             );
 
             // Update sync state
@@ -759,11 +773,11 @@ export class EventListenerService implements OnModuleInit {
     contract: ethers.Contract,
     eventType: EventType,
     fromBlock: number,
-    toBlock: number
+    toBlock: number,
   ): Promise<void> {
     try {
       this.logger.log(
-        `Syncing ${eventType} events from block ${fromBlock} to ${toBlock}`
+        `Syncing ${eventType} events from block ${fromBlock} to ${toBlock}`,
       );
 
       // Fetch events in chunks to avoid rate limits
@@ -774,24 +788,28 @@ export class EventListenerService implements OnModuleInit {
         const currentTo = Math.min(currentFrom + chunkSize - 1, toBlock);
 
         const filter = contract.filters[eventType]();
-        const events = await contract.queryFilter(filter, currentFrom, currentTo);
+        const events = await contract.queryFilter(
+          filter,
+          currentFrom,
+          currentTo,
+        );
 
         this.logger.log(
-          `Found ${events.length} ${eventType} events in blocks ${currentFrom}-${currentTo}`
+          `Found ${events.length} ${eventType} events in blocks ${currentFrom}-${currentTo}`,
         );
 
         for (const event of events) {
           await this.processHistoricalEvent(
             contractAddress,
             eventType,
-            event as ethers.EventLog
+            event as ethers.EventLog,
           );
         }
 
         currentFrom = currentTo + 1;
 
         // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } catch (error) {
       this.logger.error(`Error syncing historical ${eventType} events:`, error);
@@ -805,7 +823,7 @@ export class EventListenerService implements OnModuleInit {
   private async processHistoricalEvent(
     contractAddress: string,
     eventType: EventType,
-    event: ethers.EventLog
+    event: ethers.EventLog,
   ): Promise<void> {
     try {
       // Parse event data based on type
@@ -940,9 +958,8 @@ export class EventProcessingService {
 export class DatabaseSyncService {
   private readonly logger = new Logger(DatabaseSyncService.name);
 
-  constructor(
-    // Inject your repositories here (User, Transaction, Room, etc.)
-  ) {}
+  constructor() // Inject your repositories here (User, Transaction, Room, etc.)
+  {}
 
   /**
    * Sync event with database
@@ -970,7 +987,7 @@ export class DatabaseSyncService {
     const { from, to, amount } = event.eventData;
 
     this.logger.log(
-      `Syncing Transfer: ${from} -> ${to}, ${ethers.formatEther(amount)} tokens`
+      `Syncing Transfer: ${from} -> ${to}, ${ethers.formatEther(amount)} tokens`,
     );
 
     // Update user balances, create transaction records, etc.
@@ -987,7 +1004,7 @@ export class DatabaseSyncService {
     const { from, to, amount, roomId } = event.eventData;
 
     this.logger.log(
-      `Syncing Tip: ${from} -> ${to}, ${ethers.formatEther(amount)} tokens in room ${roomId}`
+      `Syncing Tip: ${from} -> ${to}, ${ethers.formatEther(amount)} tokens in room ${roomId}`,
     );
 
     // Update tip records, user balances, room statistics, etc.
@@ -1003,7 +1020,7 @@ export class DatabaseSyncService {
     const { userId, roomId, entryFee } = event.eventData;
 
     this.logger.log(
-      `Syncing RoomEntry: User ${userId} entered room ${roomId} with fee ${ethers.formatEther(entryFee)}`
+      `Syncing RoomEntry: User ${userId} entered room ${roomId} with fee ${ethers.formatEther(entryFee)}`,
     );
 
     // Update room participants, user room history, etc.
@@ -1056,17 +1073,21 @@ export class WebhookService {
       await this.deliveryRepo.save(delivery);
 
       // Queue for delivery
-      await this.webhookQueue.add('send-webhook', {
-        deliveryId: delivery.id,
-        webhookId: webhook.id,
-      }, {
-        attempts: webhook.maxRetries,
-        backoff: {
-          type: 'exponential',
-          delay: 1000,
+      await this.webhookQueue.add(
+        'send-webhook',
+        {
+          deliveryId: delivery.id,
+          webhookId: webhook.id,
         },
-        timeout: webhook.timeoutMs,
-      });
+        {
+          attempts: webhook.maxRetries,
+          backoff: {
+            type: 'exponential',
+            delay: 1000,
+          },
+          timeout: webhook.timeoutMs,
+        },
+      );
     }
   }
 
@@ -1075,7 +1096,7 @@ export class WebhookService {
    */
   private matchesFilters(
     event: BlockchainEvent,
-    webhook: EventWebhook
+    webhook: EventWebhook,
   ): boolean {
     // Check event type
     if (!webhook.eventTypes.includes(event.eventType)) {
@@ -1161,7 +1182,7 @@ export class WebhookDeliveryService {
       if (webhook.secret) {
         const signature = this.generateSignature(
           delivery.payload,
-          webhook.secret
+          webhook.secret,
         );
         headers['X-Webhook-Signature'] = signature;
       }
@@ -1262,31 +1283,35 @@ export class EventAnalyticsService {
       const [contractAddress, eventType] = key.split(':');
 
       const confirmedEvents = eventList.filter(
-        e => e.status === EventStatus.CONFIRMED
+        (e) => e.status === EventStatus.CONFIRMED,
       );
       const failedEvents = eventList.filter(
-        e => e.status === EventStatus.FAILED
+        (e) => e.status === EventStatus.FAILED,
       );
 
       // Calculate average confirmation time
       const confirmationTimes = confirmedEvents
-        .filter(e => e.syncedAt)
-        .map(e => 
-          Math.floor((e.syncedAt.getTime() - e.createdAt.getTime()) / 1000)
+        .filter((e) => e.syncedAt)
+        .map((e) =>
+          Math.floor((e.syncedAt.getTime() - e.createdAt.getTime()) / 1000),
         );
 
-      const avgConfirmationTime = confirmationTimes.length > 0
-        ? Math.floor(
-            confirmationTimes.reduce((a, b) => a + b, 0) / confirmationTimes.length
-          )
-        : 0;
+      const avgConfirmationTime =
+        confirmationTimes.length > 0
+          ? Math.floor(
+              confirmationTimes.reduce((a, b) => a + b, 0) /
+                confirmationTimes.length,
+            )
+          : 0;
 
       // Calculate total volume (for transfer/tip events)
       let totalVolume = '0';
-      if ([EventType.TRANSFER, EventType.TIP].includes(eventType as EventType)) {
+      if (
+        [EventType.TRANSFER, EventType.TIP].includes(eventType as EventType)
+      ) {
         totalVolume = eventList
           .reduce((sum, e) => {
-            return sum + (BigInt(e.eventData.amount || '0'));
+            return sum + BigInt(e.eventData.amount || '0');
           }, BigInt(0))
           .toString();
       }
@@ -1306,7 +1331,7 @@ export class EventAnalyticsService {
       await this.analyticsRepo.save(analytics);
 
       this.logger.log(
-        `Analytics generated for ${eventType} on ${contractAddress}`
+        `Analytics generated for ${eventType} on ${contractAddress}`,
       );
     }
   }
@@ -1435,14 +1460,15 @@ export class EventsController {
       take: 100,
     });
 
-    const avgConfirmationTime = recentConfirmed.length > 0
-      ? Math.floor(
-          recentConfirmed
-            .filter(e => e.syncedAt)
-            .map(e => (e.syncedAt.getTime() - e.createdAt.getTime()) / 1000)
-            .reduce((a, b) => a + b, 0) / recentConfirmed.length
-        )
-      : 0;
+    const avgConfirmationTime =
+      recentConfirmed.length > 0
+        ? Math.floor(
+            recentConfirmed
+              .filter((e) => e.syncedAt)
+              .map((e) => (e.syncedAt.getTime() - e.createdAt.getTime()) / 1000)
+              .reduce((a, b) => a + b, 0) / recentConfirmed.length,
+          )
+        : 0;
 
     const syncStatus = {};
     for (const state of syncStates) {
@@ -1493,7 +1519,7 @@ export class WebhooksController {
   async getDeliveries(
     @Param('id') webhookId: string,
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 50
+    @Query('limit') limit: number = 50,
   ) {
     const skip = (page - 1) * limit;
 
@@ -1519,7 +1545,7 @@ export class WebhooksController {
   @ApiOperation({ summary: 'Update webhook' })
   async updateWebhook(
     @Param('id') id: string,
-    @Body() updates: Partial<CreateWebhookDto>
+    @Body() updates: Partial<CreateWebhookDto>,
   ) {
     await this.webhookRepo.update(id, updates);
     return await this.webhookRepo.findOne({ where: { id } });
@@ -1567,7 +1593,7 @@ import { ScheduleModule } from '@nestjs/schedule';
           removeOnComplete: true,
           removeOnFail: false,
         },
-      }
+      },
     ),
     ScheduleModule.forRoot(),
   ],
@@ -1591,14 +1617,14 @@ export class BlockchainEventsModule {}
 
 /**
  * Required environment variables:
- * 
+ *
  * BLOCKCHAIN_WS_URL=wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID
  * MAIN_CONTRACT_ADDRESS=0x...
  * START_BLOCK=12345678
- * 
+ *
  * REDIS_HOST=localhost
  * REDIS_PORT=6379
- * 
+ *
  * DATABASE_HOST=localhost
  * DATABASE_PORT=5432
  * DATABASE_NAME=your_db
@@ -1638,9 +1664,9 @@ export class BlockchainEventsModule {}
 
 /**
  * EXAMPLE 4: Webhook signature verification (in your webhook receiver)
- * 
+ *
  * import * as crypto from 'crypto';
- * 
+ *
  * function verifyWebhookSignature(payload, signature, secret) {
  *   const hmac = crypto.createHmac('sha256', secret);
  *   hmac.update(JSON.stringify(payload));
@@ -1648,4 +1674,3 @@ export class BlockchainEventsModule {}
  *   return signature === expectedSignature;
  * }
  */
-

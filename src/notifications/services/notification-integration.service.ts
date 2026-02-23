@@ -22,9 +22,14 @@ export class NotificationIntegrationService {
   async initializeUserNotifications(userId: string): Promise<void> {
     try {
       await this.preferenceService.initializeDefaultPreferences(userId);
-      this.logger.log(`Initialized notification preferences for user ${userId}`);
+      this.logger.log(
+        `Initialized notification preferences for user ${userId}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to initialize preferences for user ${userId}:`, error);
+      this.logger.error(
+        `Failed to initialize preferences for user ${userId}:`,
+        error,
+      );
     }
   }
 
@@ -168,7 +173,7 @@ export class NotificationIntegrationService {
     data?: Record<string, any>,
     actionUrl?: string,
   ): Promise<void> {
-    const promises = userIds.map(userId =>
+    const promises = userIds.map((userId) =>
       this.notificationService.createNotification({
         recipientId: userId,
         type,
@@ -176,7 +181,7 @@ export class NotificationIntegrationService {
         message,
         data,
         actionUrl,
-      })
+      }),
     );
 
     try {
