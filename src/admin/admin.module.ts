@@ -52,6 +52,11 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { AdminBroadcastService } from './services/admin-broadcast.service';
 import { NotificationDelivery } from '../notifications/entities/notification-delivery.entity';
 import { BroadcastDeliveryStatsService } from './services/broadcast-delivery-stats.service';
+import { WebhookSubscription } from './entities/webhook-subscription.entity';
+import { WebhookDelivery } from './entities/webhook-delivery.entity';
+import { WebhookService } from './services/webhook.service';
+import { WebhookDeliveryProcessor } from './jobs/webhook-delivery.processor';
+import { WebhookController } from './controllers/webhook.controller';
 
 @Module({
   imports: [
@@ -88,9 +93,11 @@ import { BroadcastDeliveryStatsService } from './services/broadcast-delivery-sta
       BroadcastNotification,
       Notification,
       NotificationDelivery,
+      WebhookSubscription,
+      WebhookDelivery,
     ]),
   ],
-  controllers: [AdminController, IpWhitelistController],
+  controllers: [AdminController, IpWhitelistController, WebhookController],
   providers: [
     AdminConfigService,
     AdminService,
@@ -105,6 +112,8 @@ import { BroadcastDeliveryStatsService } from './services/broadcast-delivery-sta
     QueueService,
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
+    WebhookService,
+    WebhookDeliveryProcessor,
   ],
   exports: [
     AdminConfigService,
@@ -113,6 +122,7 @@ import { BroadcastDeliveryStatsService } from './services/broadcast-delivery-sta
     AdminQuestService,
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
+    WebhookService,
   ],
 })
 export class AdminModule {
