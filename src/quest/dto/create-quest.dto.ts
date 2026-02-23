@@ -10,6 +10,9 @@ import { QuestType, RewardType } from '../entities/quest.entity';
 
 export class CreateQuestDto {
   @IsString()
+  title: string;
+
+  @IsString()
   description: string;
 
   @IsString()
@@ -20,10 +23,20 @@ export class CreateQuestDto {
   requirementCount: number;
 
   @IsEnum(QuestType)
-  questType: QuestType;
+  type: QuestType;
 
   @IsEnum(RewardType)
   rewardType: RewardType;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  xpReward?: number;
+
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  difficulty?: number;
 
   @IsNumber()
   @Min(0)
