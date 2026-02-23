@@ -64,6 +64,11 @@ export enum AuditAction {
   WEBHOOK_UPDATED = 'webhook.updated',
   WEBHOOK_DELETED = 'webhook.deleted',
   WEBHOOK_TESTED = 'webhook.tested',
+  XP_BOOST_CREATED = 'xp_boost.created',
+  XP_BOOST_UPDATED = 'xp_boost.updated',
+  XP_BOOST_DELETED = 'xp_boost.deleted',
+  XP_BOOST_ACTIVATED = 'xp_boost.activated',
+  XP_BOOST_DEACTIVATED = 'xp_boost.deactivated',
 }
 
 export enum AuditEventType {

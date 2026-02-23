@@ -42,6 +42,7 @@ import { SessionModule } from '../sessions/sessions.module';
 import { MessageModule } from '../message/message.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { QueueModule } from '../queue/queue.module';
+import { UsersModule } from '../users/users.module';
 import { AdminAuthModule } from './auth/admin-auth.module';
 import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
@@ -57,6 +58,10 @@ import { WebhookDelivery } from './entities/webhook-delivery.entity';
 import { WebhookService } from './services/webhook.service';
 import { WebhookDeliveryProcessor } from './jobs/webhook-delivery.processor';
 import { WebhookController } from './controllers/webhook.controller';
+import { XpBoostEvent } from './entities/xp-boost-event.entity';
+import { XpBoostService } from './services/xp-boost.service';
+import { XpBoostCronJob } from './jobs/xp-boost-cron.job';
+import { XpBoostController } from './controllers/xp-boost.controller';
 
 @Module({
   imports: [
@@ -95,9 +100,10 @@ import { WebhookController } from './controllers/webhook.controller';
       NotificationDelivery,
       WebhookSubscription,
       WebhookDelivery,
+      XpBoostEvent,
     ]),
   ],
-  controllers: [AdminController, IpWhitelistController, WebhookController],
+  controllers: [AdminController, IpWhitelistController, WebhookController, XpBoostController],
   providers: [
     AdminConfigService,
     AdminService,
@@ -114,6 +120,8 @@ import { WebhookController } from './controllers/webhook.controller';
     BroadcastDeliveryStatsService,
     WebhookService,
     WebhookDeliveryProcessor,
+    XpBoostService,
+    XpBoostCronJob,
   ],
   exports: [
     AdminConfigService,
@@ -123,6 +131,7 @@ import { WebhookController } from './controllers/webhook.controller';
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
     WebhookService,
+    XpBoostService,
   ],
 })
 export class AdminModule {
