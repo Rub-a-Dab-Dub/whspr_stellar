@@ -41,4 +41,12 @@ export const validationSchema = Joi.object({
   ADMIN_LOCKOUT_DURATION_MS: Joi.number().default(1800000),
   ADMIN_RATE_LIMIT_PER_MINUTE: Joi.number().default(60),
   ADMIN_LARGE_TRANSACTION_THRESHOLD: Joi.number().default(10000),
+
+  // Stellar/Soroban config
+  SOROBAN_RPC_URL: Joi.string().uri().optional(),
+  STELLAR_NETWORK_PASSPHRASE: Joi.string().optional(),
+  WHSPR_CONTRACT_ID: Joi.string().optional(),
+  STELLAR_START_LEDGER: Joi.number().optional(),
+  STELLAR_POLL_INTERVAL_MS: Joi.number().default(5000),
+  STELLAR_REQUIRED_CONFIRMATIONS: Joi.number().default(12),
 });

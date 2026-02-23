@@ -40,6 +40,7 @@ import { WalletsModule } from '../wallets/wallets.module';
       { name: QUEUE_NAMES.NOTIFICATIONS },
       { name: QUEUE_NAMES.BLOCKCHAIN_TASKS },
       { name: QUEUE_NAMES.WEBHOOK_DELIVERIES },
+      { name: QUEUE_NAMES.STELLAR_EVENT_PROCESSING },
     ),
     forwardRef(() => WalletsModule),
   ],
@@ -51,4 +52,4 @@ import { WalletsModule } from '../wallets/wallets.module';
   ],
   exports: [QueueService, BullModule],
 })
-export class QueueModule {}
+export class QueueModule { }
