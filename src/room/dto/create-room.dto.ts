@@ -5,14 +5,17 @@ import {
   IsNumber,
   IsEnum,
   IsInt,
+  IsArray,
   Min,
   Max,
   MinLength,
   MaxLength,
   IsDateString,
+  ArrayMaxSize,
 } from 'class-validator';
 import { RoomType } from '../entities/room.entity';
 import { ROOM_MEMBER_CONSTANTS } from '../constants/room-member.constants';
+import { RoomCategory } from '../enums/room-category.enum';
 
 export class CreateRoomDto {
   @IsString()
@@ -76,12 +79,23 @@ export class CreateRoomDto {
   isActive?: boolean;
 
   @IsInt()
-  @Min(1)
-  @Max(10080)
+  @Min(60) // Min 1 hour
+  @Max(43200) // Max 30 days
   @IsOptional()
   durationMinutes?: number;
 
   @IsDateString()
   @IsOptional()
   expiresAt?: string;
+
+  @IsEnum(RoomCategory)
+  @IsOptional()
+  category?: RoomCategory;
+
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(30, { each: true })
+  @ArrayMaxSize(10)
+  @IsOptional()
+  tags?: string[];
 }

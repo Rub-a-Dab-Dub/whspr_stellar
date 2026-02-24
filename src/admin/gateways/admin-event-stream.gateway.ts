@@ -22,6 +22,7 @@ export const ADMIN_STREAM_EVENTS = {
   TRANSACTION_LARGE: 'admin.stream.transaction.large',
   ROOM_FLAGGED: 'admin.stream.room.flagged',
   PLATFORM_ERROR: 'admin.stream.platform.error',
+  SECURITY_ALERT: 'admin.stream.security.alert',
 } as const;
 
 @WebSocketGateway({
@@ -140,6 +141,11 @@ export class AdminEventStreamGateway
 
   @OnEvent(ADMIN_STREAM_EVENTS.PLATFORM_ERROR)
   onPlatformError(payload: AdminStreamEventPayload): void {
+    this.broadcast(payload);
+  }
+
+  @OnEvent(ADMIN_STREAM_EVENTS.SECURITY_ALERT)
+  onSecurityAlert(payload: AdminStreamEventPayload): void {
     this.broadcast(payload);
   }
 }

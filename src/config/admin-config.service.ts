@@ -41,4 +41,22 @@ export class AdminConfigService {
       10000
     );
   }
+
+  // ─── SLA thresholds (hours) ──────────────────────────────────────────────
+
+  get slaUrgentHours(): number {
+    return Number(this.configService.get('SLA_URGENT_HOURS') ?? 2);
+  }
+
+  get slaHighHours(): number {
+    return Number(this.configService.get('SLA_HIGH_HOURS') ?? 8);
+  }
+
+  get slaMediumHours(): number {
+    return Number(this.configService.get('SLA_MEDIUM_HOURS') ?? 24);
+  }
+
+  get slaLowHours(): number {
+    return Number(this.configService.get('SLA_LOW_HOURS') ?? 72);
+  }
 }

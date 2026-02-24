@@ -60,6 +60,9 @@ import { DeleteRoomDto } from '../dto/delete-room.dto';
 import { RestoreRoomDto } from '../dto/restore-room.dto';
 import { AdjustUserXpDto } from '../dto/adjust-user-xp.dto';
 import { RefundTransactionDto } from '../dto/refund-transaction.dto';
+import { BroadcastNotificationDto } from '../dto/broadcast-notification.dto';
+import { AdminBroadcastService } from '../services/admin-broadcast.service';
+import { BroadcastDeliveryStatsService } from '../services/broadcast-delivery-stats.service';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -70,6 +73,9 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly platformWalletService: PlatformWalletService,
   ) {}
+    private readonly adminBroadcastService: AdminBroadcastService,
+    private readonly broadcastDeliveryStatsService: BroadcastDeliveryStatsService,
+  ) { }
 
   @Get('health')
   @HttpCode(HttpStatus.OK)
@@ -790,4 +796,69 @@ export class AdminController {
       req,
     );
   }
+
+  @Post('notifications/broadcast')
+  @HttpCode(HttpStatus.CREATED)
+  async broadcastNotification(
+    @Body() dto: BroadcastNotificationDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminBroadcastService.broadcast(
+      dto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Get('notifications/broadcasts')
+  async getBroadcasts(@Query('page') page = 1, @Query('limit') limit = 10) {
+    return await this.adminBroadcastService.getBroadcasts(page, limit);
+  }
+
+  @Delete('notifications/broadcasts/:jobId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async cancelBroadcast(
+    @Param('jobId') jobId: string,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    await this.adminBroadcastService.cancelBroadcast(jobId, currentUser.userId, req);
+  }
+
+  @Get('notifications/broadcasts/:broadcastId/stats')
+  @ApiOperation({ title: 'Get broadcast delivery statistics' })
+  @ApiResponse({ status: 200, description: 'Broadcast statistics' })
+  @ApiResponse({ status: 404, description: 'Broadcast not found' })
+  async getBroadcastStats(
+    @Param('broadcastId') broadcastId: string,
+    @CurrentUser() currentUser: any,
+  ) {
+    return await this.broadcastDeliveryStatsService.getStats(broadcastId);
+  }
+
+  @Get('notifications/broadcasts/:broadcastId/failed-recipients')
+  @ApiOperation({ title: 'Export failed recipients as CSV' })
+  @ApiResponse({ status: 200, description: 'CSV file download' })
+  @ApiResponse({ status: 404, description: 'Broadcast not found' })
+  async getFailedRecipientsCsv(
+    @Param('broadcastId') broadcastId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const failedUserIds = await this.broadcastDeliveryStatsService.getFailedRecipients(broadcastId);
+    
+    // Generate CSV
+    const csvHeader = 'userId\n';
+    const csvData = failedUserIds.map((id) => `${id}\n`).join('');
+    const csvContent = csvHeader + csvData;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="failed-recipients-${broadcastId}.csv"`,
+    );
+
+    return csvContent;
+  }
+
 }

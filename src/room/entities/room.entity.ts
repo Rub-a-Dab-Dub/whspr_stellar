@@ -122,6 +122,12 @@ export class Room {
   @Column({ type: 'text', nullable: true })
   closeReason?: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  category?: string;
+
+  @Column('simple-array', { nullable: true })
+  tags?: string[];
+
   @OneToMany(() => RoomPayment, (payment) => payment.room)
   payments!: RoomPayment[];
 

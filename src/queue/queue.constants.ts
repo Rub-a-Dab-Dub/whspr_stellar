@@ -1,5 +1,2 @@
-export const QUEUE_NAMES = {
-  WALLET_CREATION: 'wallet-creation',
-  NOTIFICATIONS: 'notifications',
-  BLOCKCHAIN_TASKS: 'blockchain-tasks',
-};
+  STELLAR_EVENT_PROCESSING: 'stellar-event-processing',
+  ROOM_EXPIRATION: 'room-expiration',

@@ -52,7 +52,7 @@ export class TransferService {
     private readonly auditLogService: AuditLogService,
     private readonly adminConfigService: AdminConfigService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   async createTransfer(
     senderId: string,
@@ -392,6 +392,35 @@ export class TransferService {
       successful,
       failed,
     );
+  }
+
+  async confirmTransfer(
+    transferId: string,
+    userId: string,
+  ): Promise<Transfer> {
+    const transfer = await this.transferRepository.findOne({
+      where: { id: transferId },
+      relations: ['sender', 'recipient'],
+    });
+
+    if (!transfer) {
+      throw new NotFoundException('Transfer not found');
+    }
+
+    if (transfer.senderId !== userId) {
+      throw new NotFoundException('Transfer not found');
+    }
+
+    if (transfer.status !== TransferStatus.PENDING) {
+      throw new BadRequestException(
+        `Transfer cannot be confirmed in ${transfer.status} state`,
+      );
+    }
+
+    // Fire async blockchain execution
+    this.executeTransferAsync(transfer.id);
+
+    return transfer;
   }
 
   async getTransferHistory(

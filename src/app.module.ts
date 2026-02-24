@@ -147,3 +147,5 @@ export class AppModule implements OnModuleInit {
     console.log('Roles and permissions seeded successfully!');
   }
 }
+    StellarModule,
+    WalletsModule,

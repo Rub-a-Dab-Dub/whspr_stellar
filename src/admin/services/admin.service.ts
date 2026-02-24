@@ -54,6 +54,8 @@ import {
 } from '../../leaderboard/leaderboard.interface';
 import { ResetLeaderboardDto } from '../dto/reset-leaderboard.dto';
 import { SetPinnedDto } from '../dto/set-pinned.dto';
+import { GetOverviewAnalyticsDto, AnalyticsPeriod } from '../dto/get-overview-analytics.dto';
+import { GetRetentionAnalyticsDto } from '../dto/get-retention-analytics.dto';
 import {
   GetOverviewAnalyticsDto,
   AnalyticsPeriod,
@@ -1820,6 +1822,18 @@ export class AdminService {
       adminId,
       AuditAction.USER_VIEWED,
       null,
+      'Viewed retention analytics',
+      { query },
+      req,
+      AuditSeverity.LOW,
+    );
+
+    return response;
+  }
+
+  async getRooms(
+    query: GetRoomsDto,
+  ): Promise<{
       `Viewed room details for ${roomId}`,
       { roomId, page, limit },
       req,

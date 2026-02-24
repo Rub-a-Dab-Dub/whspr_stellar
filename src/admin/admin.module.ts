@@ -26,6 +26,13 @@ import { Transfer } from '../transfer/entities/transfer.entity';
 import { Session } from '../sessions/entities/session.entity';
 import { Message } from '../message/entities/message.entity';
 import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
+import { Quest } from '../quest/entities/quest.entity';
+import { UserQuestProgress } from '../quest/entities/user-quest-progress.entity';
+import { AdminQuestService } from './services/admin-quest.service';
+import { AdminBadgesService } from './services/admin-badges.service';
+import { AdminBadgesController } from './controllers/admin-badges.controller';
+import { Badge } from '../users/entities/badge.entity';
+import { UserBadge } from '../users/entities/user-badge.entity';
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { RoomPayment } from '../room/entities/room-payment.entity';
@@ -39,6 +46,7 @@ import { SessionModule } from '../sessions/sessions.module';
 import { MessageModule } from '../message/message.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { QueueModule } from '../queue/queue.module';
+import { UsersModule } from '../users/users.module';
 import { AdminAuthModule } from './auth/admin-auth.module';
 import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
@@ -48,6 +56,28 @@ import { UsersModule } from '../user/user.module';
 import { ChainModule } from '../chain/chain.module';
 import { SystemController } from './system/system.controller';
 import { SystemService } from './system/system.service';
+import { BroadcastNotification } from '../notifications/entities/broadcast-notification.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { AdminBroadcastService } from './services/admin-broadcast.service';
+import { NotificationDelivery } from '../notifications/entities/notification-delivery.entity';
+import { BroadcastDeliveryStatsService } from './services/broadcast-delivery-stats.service';
+import { WebhookSubscription } from './entities/webhook-subscription.entity';
+import { WebhookDelivery } from './entities/webhook-delivery.entity';
+import { WebhookService } from './services/webhook.service';
+import { WebhookDeliveryProcessor } from './jobs/webhook-delivery.processor';
+import { WebhookController } from './controllers/webhook.controller';
+import { SupportTicket } from './entities/support-ticket.entity';
+import { TicketMessage } from './entities/ticket-message.entity';
+import { SupportTicketService } from './services/support-ticket.service';
+import { SupportTicketController } from './controllers/support-ticket.controller';
+import { SupportTicketAnalyticsService } from './services/support-ticket-analytics.service';
+import { SupportAnalyticsController } from './controllers/support-analytics.controller';
+import { UsersModule } from '../users/users.module';
+import { ChainModule } from '../chain/chain.module';
+import { AdminWalletsController } from './controllers/admin-wallets.controller';
+import { AdminWalletsService } from './services/admin-wallets.service';
+import { RateLimitsController } from './controllers/rate-limits.controller';
+import { RateLimitsService } from './services/rate-limits.service';
 
 @Module({
   imports: [
@@ -62,6 +92,7 @@ import { SystemService } from './system/system.service';
     ChainModule,
     NotificationsModule,
     QueueModule,
+    ChainModule,
     TypeOrmModule.forFeature([
       User,
       AuditLog,
@@ -72,6 +103,10 @@ import { SystemService } from './system/system.service';
       Transfer,
       Session,
       Message,
+      Quest,
+      UserQuestProgress,
+      Badge,
+      UserBadge,
       Room,
       RoomMember,
       RoomPayment,
@@ -80,11 +115,26 @@ import { SystemService } from './system/system.service';
       FlaggedMessage,
       PlatformWalletWithdrawal,
       WithdrawalWhitelist,
+      BroadcastNotification,
+      Notification,
+      NotificationDelivery,
+      WebhookSubscription,
+      WebhookDelivery,
+      SupportTicket,
+      TicketMessage,
     ]),
-    NotificationsModule,
-    QueueModule,
   ],
   controllers: [AdminController, IpWhitelistController, SystemController],
+  controllers: [
+    AdminController,
+    IpWhitelistController,
+    AdminBadgesController,
+    WebhookController,
+    SupportAnalyticsController,
+    SupportTicketController,
+    AdminWalletsController,
+    RateLimitsController,
+  ],
   providers: [
     AdminConfigService,
     AdminService,
@@ -94,11 +144,31 @@ import { SystemService } from './system/system.service';
     TemporaryBanCleanupJob,
     AutoUnbanProcessor,
     AdminEventStreamGateway,
+    AdminQuestService,
+    AdminBadgesService,
     NotificationService,
     QueueService,
     SystemService,
+    AdminBroadcastService,
+    BroadcastDeliveryStatsService,
+    WebhookService,
+    WebhookDeliveryProcessor,
+    SupportTicketService,
+    SupportTicketAnalyticsService,
+    AdminWalletsService,
+    RateLimitsService,
   ],
-  exports: [AdminConfigService, AdminService, AuditLogService],
+  exports: [
+    AdminConfigService,
+    AdminService,
+    AuditLogService,
+    AdminQuestService,
+    AdminBadgesService,
+    AdminBroadcastService,
+    BroadcastDeliveryStatsService,
+    WebhookService,
+    SupportTicketService,
+  ],
 })
 export class AdminModule {
   configure(consumer: MiddlewareConsumer) {

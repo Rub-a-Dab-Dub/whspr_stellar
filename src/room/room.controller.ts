@@ -23,12 +23,17 @@ import { Roles } from '../roles/decorators/roles.decorator';
 import { UserRole } from '../roles/entities/role.entity';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import { ExtendRoomDto } from './dto/extend-room.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RoomExpirationService } from './services/room-expiration.service';
 
 @Controller('rooms')
 @UseGuards(JwtAuthGuard)
 export class RoomController {
-  constructor(private roomService: RoomService) {}
+  constructor(
+    private roomService: RoomService,
+    private expirationService: RoomExpirationService,
+  ) {}
 
   @Post()
   async createRoom(@Body() dto: CreateRoomDto, @CurrentUser() user: any) {
@@ -53,6 +58,27 @@ export class RoomController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteRoom(@Param('id') roomId: string, @CurrentUser() user: any) {
     await this.roomService.softDeleteRoom(roomId, user.id);
+  }
+
+  @Post(':id/extend')
+  async extendRoom(
+    @Param('id') roomId: string,
+    @Body() dto: ExtendRoomDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.expirationService.extendRoom(roomId, user.id, dto);
+  }
+
+  @Get(':id/countdown')
+  async getCountdown(@Param('id') roomId: string) {
+    const room = await this.roomService.getRoom(roomId);
+    const timeLeft = room.expiryTimestamp ? room.expiryTimestamp - Date.now() : null;
+    return { expiryTimestamp: room.expiryTimestamp, timeLeftMs: timeLeft };
+  }
+
+  @Get('analytics/expiration')
+  async getExpirationAnalytics() {
+    return this.expirationService.getExpirationAnalytics();
   }
 }
 

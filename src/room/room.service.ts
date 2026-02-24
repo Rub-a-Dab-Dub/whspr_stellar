@@ -177,6 +177,8 @@ export class RoomService {
       extensionCount: 0,
       isDeleted: false,
       deletedAt: undefined,
+      category: dto.category,
+      tags: dto.tags,
     });
 
     const saved = await this.roomRepository.save(room);
@@ -260,6 +262,12 @@ export class RoomService {
     }
     if (dto.accessDurationDays !== undefined) {
       room.accessDurationDays = dto.accessDurationDays;
+    }
+    if (dto.category !== undefined) {
+      room.category = dto.category;
+    }
+    if (dto.tags !== undefined) {
+      room.tags = dto.tags;
     }
 
     const timing = this.resolveTiming(

@@ -14,7 +14,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async create(email: string, password: string): Promise<User> {
     const existingUser = await this.usersRepository.findOne({
@@ -134,5 +134,25 @@ export class UsersService {
     user.passwordResetExpires = undefined;
 
     return await this.usersRepository.save(user);
+  }
+
+  async addXp(userId: string, xp: number): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) return;
+
+    user.currentXp = (user.currentXp || 0) + xp;
+
+    // Basic level up logic: 1000 XP per level
+    const newLevel = Math.floor(user.currentXp / 1000) + 1;
+    if (newLevel > (user.level || 1)) {
+      user.level = newLevel;
+    }
+
+    await this.usersRepository.save(user);
+  }
+
+  getSystemUserId(): string {
+    // This should ideally come from config, but using a placeholder for now
+    return '00000000-0000-0000-0000-000000000000';
   }
 }
