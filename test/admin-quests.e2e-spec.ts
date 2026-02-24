@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, HttpStatus } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
-import { AdminController } from '../admin.controller';
-import { AdminQuestService } from '../services/admin-quest.service';
-import { AuditLogService } from '../services/audit-log.service';
-import { RoleGuard } from '../../roles/guards/role.guard';
-import { PermissionGuard } from '../../roles/guards/permission.guard';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { Quest, QuestStatus, QuestType } from '../../quest/entities/quest.entity';
-import { UserQuestProgress } from '../../quest/entities/user-quest-progress.entity';
+import { AdminController } from '../src/admin/controllers/admin.controller';
+import { AdminQuestService } from '../src/admin/services/admin-quest.service';
+import { AuditLogService } from '../src/admin/services/audit-log.service';
+import { RoleGuard } from '../src/roles/guards/role.guard';
+import { PermissionGuard } from '../src/roles/guards/permission.guard';
+import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
+import { Quest, QuestStatus, QuestType } from '../src/quest/entities/quest.entity';
+import { UserQuestProgress } from '../src/quest/entities/user-quest-progress.entity';
 
 describe('Admin Quests (e2e)', () => {
   let app: INestApplication;
@@ -33,6 +33,8 @@ describe('Admin Quests (e2e)', () => {
     xpReward: 100,
     badgeRewardId: null,
     condition: { action: 'send_message', count: 10 },
+    requirementCount: 1,
+    difficulty: 1,
     startDate: new Date(),
     endDate: new Date(Date.now() + 86400000),
     createdById: mockAdmin.id,
