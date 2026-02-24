@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 // src/sessions/controllers/session.controller.ts
 import {
   Controller,
@@ -17,7 +16,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SessionService } from './services/sessions.service';
 
 @ApiTags('sessions')

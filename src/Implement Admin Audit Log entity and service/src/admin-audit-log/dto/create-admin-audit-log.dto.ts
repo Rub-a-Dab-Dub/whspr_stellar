@@ -1,4 +1,4 @@
-import { AdminAuditLogAction, AuditLogTargetType } from "../enums";
+import { AdminAuditLogAction, AuditLogTargetType } from '../enums';
 
 export class CreateAdminAuditLogDto {
   adminId: string;

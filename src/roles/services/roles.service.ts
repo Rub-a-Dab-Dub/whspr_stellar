@@ -72,7 +72,8 @@ export class RolesService {
         req,
       });
     } catch (error) {
-      this.logger.warn(`Failed to audit role assignment: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to audit role assignment: ${message}`);
     }
 
     return savedUser;
@@ -115,7 +116,8 @@ export class RolesService {
         req,
       });
     } catch (error) {
-      this.logger.warn(`Failed to audit role revoke: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to audit role revoke: ${message}`);
     }
 
     return savedUser;

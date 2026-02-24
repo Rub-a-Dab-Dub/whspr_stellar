@@ -43,7 +43,14 @@ import { MaintenanceGuard } from './common/guards/maintenance.guard';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig, adminConfig],
+      load: [
+        databaseConfig,
+        jwtConfig,
+        evmConfig,
+        redisConfig,
+        pinataConfig,
+        adminConfig,
+      ],
       validationSchema,
     }),
     EventEmitterModule.forRoot(),

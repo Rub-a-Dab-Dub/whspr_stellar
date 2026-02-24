@@ -9,9 +9,17 @@ dotenv.config();
 import { User } from '../../user/entities/user.entity';
 import { UserProfile } from '../../user/entities/user-profile.entity';
 import { Room } from '../../room/entities/room.entity';
-import { RoomMember, MemberStatus, MemberRole } from '../../room/entities/room-member.entity';
+import {
+  RoomMember,
+  MemberStatus,
+  MemberRole,
+} from '../../room/entities/room-member.entity';
 import { Message } from '../../message/entities/message.entity';
-import { Transfer, TransferStatus, TransferType } from '../../transfer/entities/transfer.entity';
+import {
+  Transfer,
+  TransferStatus,
+  TransferType,
+} from '../../transfer/entities/transfer.entity';
 import { RoomType } from '../../room/entities/room.entity';
 import { MessageType } from '../../message/enums/message-type.enum';
 import { UserRole } from '../../roles/entities/role.entity';
@@ -121,7 +129,9 @@ export async function seedTestDatabase(dataSource: DataSource) {
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=user${userIndex}`,
           bio: Math.random() > 0.5 ? `I'm user ${userIndex}` : null,
         },
-        createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000), // Last 90 days
+        createdAt: new Date(
+          Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000,
+        ), // Last 90 days
       });
       users.push(user);
       userIndex++;
@@ -159,13 +169,20 @@ export async function seedTestDatabase(dataSource: DataSource) {
         owner: owner,
         creatorId: owner.id,
         creator: owner,
-        isPrivate: [RoomType.PRIVATE, RoomType.TOKEN_GATED].includes(roomType.type),
+        isPrivate: [RoomType.PRIVATE, RoomType.TOKEN_GATED].includes(
+          roomType.type,
+        ),
         isActive: Math.random() > 0.1, // 90% active, 10% inactive
         maxMembers: 50 + Math.floor(Math.random() * 150),
         memberCount: 0,
         isTokenGated: roomType.type === RoomType.TOKEN_GATED,
-        entryFee: roomType.type === RoomType.TOKEN_GATED ? Math.random().toString() : '0',
-        createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
+        entryFee:
+          roomType.type === RoomType.TOKEN_GATED
+            ? Math.random().toString()
+            : '0',
+        createdAt: new Date(
+          Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000,
+        ),
       });
       rooms.push(room);
       roomIndex++;
@@ -186,7 +203,11 @@ export async function seedTestDatabase(dataSource: DataSource) {
     const memberCountPerRoom = 5 + Math.floor(Math.random() * 25);
     const shuffledUsers = allUsers.sort(() => Math.random() - 0.5);
 
-    for (let i = 0; i < Math.min(memberCountPerRoom, shuffledUsers.length); i++) {
+    for (
+      let i = 0;
+      i < Math.min(memberCountPerRoom, shuffledUsers.length);
+      i++
+    ) {
       const user = shuffledUsers[i];
       const memberStatus =
         Math.random() > 0.8 ? MemberStatus.SUSPENDED : MemberStatus.ACTIVE;
@@ -194,7 +215,9 @@ export async function seedTestDatabase(dataSource: DataSource) {
         i === 0
           ? MemberRole.OWNER
           : i < 3
-            ? Math.random() > 0.5 ? MemberRole.ADMIN : MemberRole.MODERATOR
+            ? Math.random() > 0.5
+              ? MemberRole.ADMIN
+              : MemberRole.MODERATOR
             : MemberRole.MEMBER;
 
       const member = roomMemberRepository.create({
@@ -205,7 +228,9 @@ export async function seedTestDatabase(dataSource: DataSource) {
         user: user,
         role: memberRole,
         status: memberStatus,
-        joinedAt: new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000),
+        joinedAt: new Date(
+          Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000,
+        ),
       });
 
       await roomMemberRepository.save(member);
@@ -256,12 +281,16 @@ export async function seedTestDatabase(dataSource: DataSource) {
       originalContent: null,
       type: messageType,
       mediaUrl:
-        messageType === MessageType.IMAGE ? `https://via.placeholder.com/300?text=Image${i}` : null,
+        messageType === MessageType.IMAGE
+          ? `https://via.placeholder.com/300?text=Image${i}`
+          : null,
       isEdited: Math.random() > 0.9,
       editedAt: Math.random() > 0.9 ? new Date() : null,
       isDeleted: Math.random() > 0.95,
       deletedAt: Math.random() > 0.95 ? new Date() : null,
-      createdAt: new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(
+        Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000,
+      ),
     });
 
     messages.push(message);
@@ -326,9 +355,12 @@ export async function seedTestDatabase(dataSource: DataSource) {
         recipientBalanceBefore: (Math.random() * 10000).toFixed(8),
         recipientBalanceAfter: (Math.random() * 10000).toFixed(8),
         completedAt: status === TransferStatus.COMPLETED ? new Date() : null,
-        failureReason: status === TransferStatus.FAILED ? 'Insufficient balance' : null,
+        failureReason:
+          status === TransferStatus.FAILED ? 'Insufficient balance' : null,
         retryCount: 0,
-        createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(
+          Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000,
+        ),
       });
 
       await transferRepository.save(transfer);

@@ -75,9 +75,7 @@ export class RoomPaymentService {
     }
 
     // Verify blockchain transaction on the specified chain
-    const chain =
-      (payEntryDto.blockchainNetwork as SupportedChain) ||
-      SupportedChain.ETHEREUM;
+    const chain = payEntryDto.blockchainNetwork || SupportedChain.ETHEREUM;
     const verification =
       await this.paymentVerificationService.verifyTransaction(
         payEntryDto.transactionHash,
@@ -330,9 +328,7 @@ export class RoomPaymentService {
     this.logger.log(`Expired ${expiredAccess.length} room access entries`);
   }
 
-  async getRoomRevenue(
-    roomId: string,
-  ): Promise<{
+  async getRoomRevenue(roomId: string): Promise<{
     totalRevenue: string;
     platformFees: string;
     creatorEarnings: string;

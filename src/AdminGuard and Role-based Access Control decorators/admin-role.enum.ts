@@ -18,6 +18,9 @@ export function getRoleLevel(role: AdminRole): number {
   return ROLE_HIERARCHY.indexOf(role);
 }
 
-export function hasRequiredRole(userRole: AdminRole, requiredRole: AdminRole): boolean {
+export function hasRequiredRole(
+  userRole: AdminRole,
+  requiredRole: AdminRole,
+): boolean {
   return getRoleLevel(userRole) >= getRoleLevel(requiredRole);
 }

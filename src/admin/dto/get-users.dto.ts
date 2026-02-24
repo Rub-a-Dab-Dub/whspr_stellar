@@ -20,7 +20,9 @@ export enum UserFilterStatus {
 }
 
 export class GetUsersDto {
-  @ApiPropertyOptional({ description: 'Search by username, email, or walletAddress' })
+  @ApiPropertyOptional({
+    description: 'Search by username, email, or walletAddress',
+  })
   @IsOptional()
   @IsString()
   search?: string;

@@ -34,13 +34,22 @@ describe('AdminController', () => {
     setLeaderboardPinned: jest.fn(),
     adminResetPassword: jest.fn(),
     getRoomDetails: jest.fn(),
+    refundTransaction: jest.fn(),
+  };
+  const platformWalletService = {
+    getPlatformWalletInfo: jest.fn(),
+    initiateWithdrawal: jest.fn(),
+    getWithdrawals: jest.fn(),
   };
 
   let controller: AdminController;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new AdminController(adminService as any);
+    controller = new AdminController(
+      adminService as any,
+      platformWalletService as any,
+    );
   });
 
   it('returns health status with timestamp', async () => {
@@ -153,7 +162,12 @@ describe('AdminController', () => {
     await controller.getUsers({ page: 1 } as any, currentUser, req);
     await controller.getUserDetail('u1', currentUser, req);
     await controller.banUser('u1', { reason: 'spam' } as any, currentUser, req);
-    await controller.unbanUser('u1', currentUser, req);
+    await controller.unbanUser(
+      'u1',
+      { reason: 'appeal accepted' } as any,
+      currentUser,
+      req,
+    );
     await controller.suspendUser(
       'u1',
       { suspendedUntil: new Date(Date.now() + 60000).toISOString() } as any,

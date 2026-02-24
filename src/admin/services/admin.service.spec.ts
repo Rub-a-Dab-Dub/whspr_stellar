@@ -17,6 +17,7 @@ import { RoomFilterStatus } from '../dto/get-rooms.dto';
 import { RoomType } from '../../room/entities/room.entity';
 import { PaymentStatus } from '../../room/entities/room-payment.entity';
 import { ADMIN_STREAM_EVENTS } from '../gateways/admin-event-stream.gateway';
+import { BanType } from '../dto/ban-user.dto';
 import { RevenuePeriod } from '../dto/get-revenue-analytics.dto';
 import { AnalyticsPeriod } from '../dto/get-overview-analytics.dto';
 import { CohortPeriod } from '../dto/get-retention-analytics.dto';
@@ -250,7 +251,10 @@ describe('AdminService', () => {
       });
     userRepository.save.mockImplementation(async (u) => u);
 
-    const result = await service.banUser('u1', 'admin-1', { reason: 'abuse' });
+    const result = await service.banUser('u1', 'admin-1', {
+      reason: 'abuse',
+      type: BanType.PERMANENT,
+    });
 
     expect(result.isBanned).toBe(true);
     expect(eventEmitter.emit).toHaveBeenCalledWith(
@@ -273,7 +277,10 @@ describe('AdminService', () => {
       .mockResolvedValueOnce({ id: 'u1', roles: [{ name: 'admin' }] });
 
     await expect(
-      service.banUser('u1', 'admin-1', { reason: 'test' }),
+      service.banUser('u1', 'admin-1', {
+        reason: 'test',
+        type: BanType.PERMANENT,
+      }),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -777,7 +784,7 @@ describe('AdminService', () => {
 
   it('builds weekly retention analytics and caches for one hour', async () => {
     (redisService.get as jest.Mock).mockResolvedValue(null);
-    (userRepository.query as jest.Mock).mockResolvedValue([
+    userRepository.query.mockResolvedValue([
       {
         cohort_period: '2026-01-05T00:00:00.000Z',
         total_users: 10,

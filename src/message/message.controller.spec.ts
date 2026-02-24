@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MessageController } from './message.controller';
 import { MessageService } from './message.service';
 import { MessageOwnershipGuard } from './guards/message-ownership.guard';
+import { MessagesGateway } from './gateways/messages.gateway';
 
 describe('MessageController', () => {
   let controller: MessageController;
@@ -26,6 +27,13 @@ describe('MessageController', () => {
           provide: MessageService,
           useValue: mockMessageService,
         },
+        {
+          provide: MessagesGateway,
+          useValue: {
+            isUserInRoom: jest.fn().mockReturnValue(true),
+            broadcastToRoom: jest.fn(),
+          },
+        },
         MessageOwnershipGuard,
       ],
     })
@@ -45,6 +53,7 @@ describe('MessageController', () => {
     it('should create a message', async () => {
       const createDto = {
         conversationId: 'conv-id',
+        roomId: 'room-id',
         content: 'Test message',
       };
       const request = { user: { id: 'user-id' } };

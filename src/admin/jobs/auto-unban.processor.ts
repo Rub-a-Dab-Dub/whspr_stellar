@@ -17,9 +17,7 @@ export class AutoUnbanProcessor {
 
   @Process('auto-unban-user')
   async handleAutoUnban(job: Job<{ userId: string; expiresAt: Date }>) {
-    this.logger.log(
-      `Processing auto-unban job for user ${job.data.userId}`,
-    );
+    this.logger.log(`Processing auto-unban job for user ${job.data.userId}`);
 
     try {
       const { userId, expiresAt } = job.data;
@@ -56,7 +54,9 @@ export class AutoUnbanProcessor {
 
       await this.userRepository.save(user);
 
-      this.logger.log(`Auto-unbanned user ${userId} after temporary ban expired`);
+      this.logger.log(
+        `Auto-unbanned user ${userId} after temporary ban expired`,
+      );
 
       await job.progress(100);
     } catch (error) {

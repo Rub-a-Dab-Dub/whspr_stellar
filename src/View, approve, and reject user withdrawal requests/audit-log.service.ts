@@ -35,7 +35,9 @@ export class AuditLogService {
     return saved;
   }
 
-  async findByWithdrawalId(withdrawalRequestId: string): Promise<WithdrawalAuditLog[]> {
+  async findByWithdrawalId(
+    withdrawalRequestId: string,
+  ): Promise<WithdrawalAuditLog[]> {
     return this.auditRepo.find({
       where: { withdrawalRequestId },
       order: { createdAt: 'DESC' },

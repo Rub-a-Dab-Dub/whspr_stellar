@@ -10,12 +10,12 @@ import {
   Req,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from './decorators/roles.decorator';
 import { UserRole } from './entities/role.entity';
 import { RoleGuard } from './guards/role.guard';
 import { RolesService } from './services/roles.service';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 class AssignRoleDto {
   userId!: string;

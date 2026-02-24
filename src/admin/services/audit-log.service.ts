@@ -115,6 +115,32 @@ export class AuditLogService {
     return saved;
   }
 
+  // Legacy API maintained for backwards compatibility with older services/tests.
+  async log(input: {
+    adminId?: string;
+    action: AuditAction;
+    resourceType?: string;
+    resourceId?: string;
+    details?: string;
+    changes?: Record<string, any>;
+    severity?: AuditSeverity;
+    outcome?: AuditOutcome;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<AuditLog> {
+    return this.createAuditLog({
+      actorUserId: input.adminId || null,
+      action: input.action,
+      eventType: AuditEventType.ADMIN,
+      outcome: input.outcome || AuditOutcome.SUCCESS,
+      severity: input.severity || AuditSeverity.MEDIUM,
+      resourceType: input.resourceType || null,
+      resourceId: input.resourceId || null,
+      details: input.details || null,
+      metadata: input.changes || null,
+    });
+  }
+
   async logDataAccess(input: DataAccessLogInput): Promise<DataAccessLog> {
     const ipAddress = this.getIpAddress(input.req);
     const userAgent = this.getUserAgent(input.req);

@@ -44,6 +44,10 @@ import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
 import { NotificationService } from '../notifications/services/notification.service';
 import { QueueService } from '../queue/queue.service';
+import { UsersModule } from '../user/user.module';
+import { ChainModule } from '../chain/chain.module';
+import { SystemController } from './system/system.controller';
+import { SystemService } from './system/system.service';
 
 @Module({
   imports: [
@@ -55,6 +59,7 @@ import { QueueService } from '../queue/queue.service';
     SessionModule,
     MessageModule,
     UsersModule,
+    ChainModule,
     NotificationsModule,
     QueueModule,
     TypeOrmModule.forFeature([
@@ -79,7 +84,7 @@ import { QueueService } from '../queue/queue.service';
     NotificationsModule,
     QueueModule,
   ],
-  controllers: [AdminController, IpWhitelistController],
+  controllers: [AdminController, IpWhitelistController, SystemController],
   providers: [
     AdminConfigService,
     AdminService,
@@ -91,6 +96,7 @@ import { QueueService } from '../queue/queue.service';
     AdminEventStreamGateway,
     NotificationService,
     QueueService,
+    SystemService,
   ],
   exports: [AdminConfigService, AdminService, AuditLogService],
 })

@@ -41,7 +41,9 @@ export async function setupTestDatabase(): Promise<DataSource> {
  * - Clears test data
  * - Closes database connection
  */
-export async function teardownTestDatabase(dataSource: DataSource): Promise<void> {
+export async function teardownTestDatabase(
+  dataSource: DataSource,
+): Promise<void> {
   try {
     console.log('🧹 Cleaning up test database...');
 

@@ -9,7 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { Room } from './room.entity';
-import { User } from 'src/user/entities/user.entity';
+import { User } from '../../user/entities/user.entity';
 
 export enum MessageType {
   TEXT = 'text',

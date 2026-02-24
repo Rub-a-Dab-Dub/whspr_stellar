@@ -56,8 +56,8 @@ export class MentionDetectionService {
         mentions.push({
           userId: user.id,
           username: username,
-          startIndex: match.index!,
-          endIndex: match.index! + match[0].length,
+          startIndex: match.index,
+          endIndex: match.index + match[0].length,
         });
       }
     }

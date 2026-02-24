@@ -46,7 +46,9 @@ export class RejectWithdrawalDto {
 }
 
 export class WithdrawalRequestFilterDto {
-  @ApiPropertyOptional({ enum: ['pending', 'approved', 'rejected', 'queued', 'completed'] })
+  @ApiPropertyOptional({
+    enum: ['pending', 'approved', 'rejected', 'queued', 'completed'],
+  })
   @IsOptional()
   @IsString()
   status?: string;

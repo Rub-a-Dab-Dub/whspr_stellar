@@ -49,7 +49,9 @@ export class WithdrawalsService {
    * Creates a new withdrawal request. Called from the user-facing side.
    * Automatically approves if below the threshold and low risk.
    */
-  async createRequest(dto: CreateWithdrawalRequestDto): Promise<WithdrawalRequest> {
+  async createRequest(
+    dto: CreateWithdrawalRequestDto,
+  ): Promise<WithdrawalRequest> {
     const risk = await this.riskScoringService.assessRisk(
       dto.userId,
       dto.walletAddress,
@@ -82,7 +84,9 @@ export class WithdrawalsService {
     return saved;
   }
 
-  private async autoApprove(request: WithdrawalRequest): Promise<WithdrawalRequest> {
+  private async autoApprove(
+    request: WithdrawalRequest,
+  ): Promise<WithdrawalRequest> {
     const { jobId } = await this.blockchainQueueService.enqueue(request);
 
     await this.withdrawalRepo.update(request.id, {
@@ -111,7 +115,9 @@ export class WithdrawalsService {
       walletAddress: request.walletAddress,
     });
 
-    this.logger.log(`Auto-approved withdrawal: id=${request.id} amount=${request.amount}`);
+    this.logger.log(
+      `Auto-approved withdrawal: id=${request.id} amount=${request.amount}`,
+    );
 
     return this.withdrawalRepo.findOne({ where: { id: request.id } });
   }
@@ -244,7 +250,9 @@ export class WithdrawalsService {
   }
 
   async getRequestById(requestId: string): Promise<WithdrawalRequest> {
-    const request = await this.withdrawalRepo.findOne({ where: { id: requestId } });
+    const request = await this.withdrawalRepo.findOne({
+      where: { id: requestId },
+    });
     if (!request) {
       throw new NotFoundException(`Withdrawal request ${requestId} not found`);
     }
@@ -256,8 +264,12 @@ export class WithdrawalsService {
     return this.auditLogService.findByWithdrawalId(requestId);
   }
 
-  private async findPendingOrThrow(requestId: string): Promise<WithdrawalRequest> {
-    const request = await this.withdrawalRepo.findOne({ where: { id: requestId } });
+  private async findPendingOrThrow(
+    requestId: string,
+  ): Promise<WithdrawalRequest> {
+    const request = await this.withdrawalRepo.findOne({
+      where: { id: requestId },
+    });
 
     if (!request) {
       throw new NotFoundException(`Withdrawal request ${requestId} not found`);

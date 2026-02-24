@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RoomInvitationService } from './room-invitation.service';
 import { RoomInvitationRepository } from '../repositories/room-invitation.repository';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { QueueService } from '../../queue/queue.service';
 import { RedisService } from '../../redis/redis.service';
 import { DataSource } from 'typeorm';
@@ -13,7 +14,9 @@ import {
   InvitationStatus,
   RoomInvitation,
 } from '../entities/room-invitation.entity';
-import { MemberRole } from '../entities/room-member.entity';
+import { MemberRole, RoomMember } from '../entities/room-member.entity';
+import { Room } from '../entities/room.entity';
+import { User } from '../../user/entities/user.entity';
 
 describe('RoomInvitationService', () => {
   let service: RoomInvitationService;
@@ -21,6 +24,9 @@ describe('RoomInvitationService', () => {
   let queueService: jest.Mocked<QueueService>;
   let redisService: jest.Mocked<RedisService>;
   let dataSource: jest.Mocked<DataSource>;
+  let memberRepository: { findMemberWithRole: jest.Mock };
+  let roomRepository: { findOne: jest.Mock };
+  let userRepository: { findOne: jest.Mock };
 
   const mockInvitation = {
     id: 'inv-1',
@@ -43,12 +49,16 @@ describe('RoomInvitationService', () => {
     status: 'ACTIVE',
   };
 
+  const mockUser = {
+    id: 'user-2',
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RoomInvitationService,
         {
-          provide: RoomInvitationRepository,
+          provide: getRepositoryToken(RoomInvitation),
           useValue: {
             findPendingInvitations: jest.fn(),
             findByToken: jest.fn(),
@@ -61,19 +71,23 @@ describe('RoomInvitationService', () => {
           },
         },
         {
-          provide: 'MemberRepository',
+          provide: RoomInvitationRepository,
+          useExisting: getRepositoryToken(RoomInvitation),
+        },
+        {
+          provide: getRepositoryToken(RoomMember),
           useValue: {
             findMemberWithRole: jest.fn(),
           },
         },
         {
-          provide: 'RoomRepository',
+          provide: getRepositoryToken(Room),
           useValue: {
             findOne: jest.fn(),
           },
         },
         {
-          provide: 'UserRepository',
+          provide: getRepositoryToken(User),
           useValue: {
             findOne: jest.fn(),
           },
@@ -102,12 +116,17 @@ describe('RoomInvitationService', () => {
     }).compile();
 
     service = module.get<RoomInvitationService>(RoomInvitationService);
-    invitationRepository = module.get(
-      RoomInvitationRepository,
-    ) as jest.Mocked<RoomInvitationRepository>;
-    queueService = module.get(QueueService) as jest.Mocked<QueueService>;
-    redisService = module.get(RedisService) as jest.Mocked<RedisService>;
-    dataSource = module.get(DataSource) as jest.Mocked<DataSource>;
+    invitationRepository = module.get(RoomInvitationRepository);
+    queueService = module.get(QueueService);
+    redisService = module.get(RedisService);
+    dataSource = module.get(DataSource);
+    memberRepository = module.get(getRepositoryToken(RoomMember));
+    roomRepository = module.get(getRepositoryToken(Room));
+    userRepository = module.get(getRepositoryToken(User));
+
+    roomRepository.findOne.mockResolvedValue({ id: 'room-1' } as any);
+    memberRepository.findMemberWithRole.mockResolvedValue(mockMember as any);
+    userRepository.findOne.mockResolvedValue(mockUser as any);
   });
 
   describe('inviteMembers', () => {
@@ -142,12 +161,14 @@ describe('RoomInvitationService', () => {
       const queryRunner = {
         connect: jest.fn(),
         startTransaction: jest.fn(),
+        commitTransaction: jest.fn(),
         rollbackTransaction: jest.fn(),
         release: jest.fn(),
       };
 
       dataSource.createQueryRunner.mockReturnValue(queryRunner as any);
       invitationRepository.countSentByUser.mockResolvedValue(0);
+      memberRepository.findMemberWithRole.mockResolvedValueOnce(null);
 
       await expect(
         service.inviteMembers('room-1', ['user-2'], 'user-1'),
@@ -165,7 +186,7 @@ describe('RoomInvitationService', () => {
 
   describe('getPendingInvitations', () => {
     it('should get pending invitations for user', async () => {
-      const invitations = [mockInvitation as any];
+      const invitations = [{ ...mockInvitation } as any];
       invitationRepository.findPendingInvitations.mockResolvedValue([
         invitations,
         1,
@@ -203,7 +224,9 @@ describe('RoomInvitationService', () => {
       };
 
       dataSource.createQueryRunner.mockReturnValue(queryRunner as any);
-      invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
+      invitationRepository.findOne.mockResolvedValue({
+        ...mockInvitation,
+      } as any);
       queueService.addJob.mockResolvedValue(undefined);
 
       const result = await service.acceptInvitation('inv-1', 'user-2');
@@ -238,7 +261,9 @@ describe('RoomInvitationService', () => {
     });
 
     it('should throw error if not the invited user', async () => {
-      invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
+      invitationRepository.findOne.mockResolvedValue({
+        ...mockInvitation,
+      } as any);
 
       await expect(service.acceptInvitation('inv-1', 'user-3')).rejects.toThrow(
         ForbiddenException,
@@ -248,8 +273,10 @@ describe('RoomInvitationService', () => {
 
   describe('rejectInvitation', () => {
     it('should reject a pending invitation', async () => {
-      invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
-      invitationRepository.save.mockResolvedValue(mockInvitation as any);
+      invitationRepository.findOne.mockResolvedValue({
+        ...mockInvitation,
+      } as any);
+      invitationRepository.save.mockResolvedValue({ ...mockInvitation } as any);
       queueService.addJob.mockResolvedValue(undefined);
 
       await service.rejectInvitation('inv-1', 'user-2', 'Not interested');
@@ -259,7 +286,9 @@ describe('RoomInvitationService', () => {
     });
 
     it('should throw error if not invited user', async () => {
-      invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
+      invitationRepository.findOne.mockResolvedValue({
+        ...mockInvitation,
+      } as any);
 
       await expect(service.rejectInvitation('inv-1', 'user-3')).rejects.toThrow(
         ForbiddenException,
@@ -269,9 +298,9 @@ describe('RoomInvitationService', () => {
 
   describe('expireOldInvitations', () => {
     it('should expire old invitations', async () => {
-      const expired = [mockInvitation as any];
+      const expired = [{ ...mockInvitation } as any];
       invitationRepository.findExpired.mockResolvedValue(expired);
-      invitationRepository.save.mockResolvedValue(mockInvitation as any);
+      invitationRepository.save.mockResolvedValue({ ...mockInvitation } as any);
 
       const result = await service.expireOldInvitations();
 
@@ -290,7 +319,9 @@ describe('RoomInvitationService', () => {
 
   describe('getInvitationByToken', () => {
     it('should get invitation by valid token', async () => {
-      invitationRepository.findByToken.mockResolvedValue(mockInvitation as any);
+      invitationRepository.findByToken.mockResolvedValue({
+        ...mockInvitation,
+      } as any);
 
       const result = await service.getInvitationByToken('token123');
 
@@ -309,8 +340,11 @@ describe('RoomInvitationService', () => {
 
   describe('resendInvitation', () => {
     it('should resend a pending invitation', async () => {
-      invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
-      invitationRepository.save.mockResolvedValue(mockInvitation as any);
+      invitationRepository.findOne.mockResolvedValue({
+        ...mockInvitation,
+        updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+      } as any);
+      invitationRepository.save.mockResolvedValue({ ...mockInvitation } as any);
       queueService.addJob.mockResolvedValue(undefined);
 
       const result = await service.resendInvitation('inv-1', 'user-1');
@@ -320,7 +354,9 @@ describe('RoomInvitationService', () => {
     });
 
     it('should throw error if not invitation sender', async () => {
-      invitationRepository.findOne.mockResolvedValue(mockInvitation as any);
+      invitationRepository.findOne.mockResolvedValue({
+        ...mockInvitation,
+      } as any);
 
       await expect(service.resendInvitation('inv-1', 'user-3')).rejects.toThrow(
         ForbiddenException,

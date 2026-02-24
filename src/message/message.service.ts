@@ -259,7 +259,7 @@ export class MessageService {
 
     if (messages.length > limit) {
       const nextItem = messages.pop();
-      nextCursor = this.encodeCursor(nextItem!);
+      nextCursor = this.encodeCursor(nextItem);
     }
 
     const result = {

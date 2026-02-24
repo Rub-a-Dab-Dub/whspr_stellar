@@ -29,7 +29,9 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('Admin API')
-      .setDescription('Admin dashboard API for user management, audit logs, and platform configuration')
+      .setDescription(
+        'Admin dashboard API for user management, audit logs, and platform configuration',
+      )
       .setVersion('1.0')
       .addBearerAuth()
       .build();

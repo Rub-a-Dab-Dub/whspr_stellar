@@ -29,7 +29,8 @@ export const ADMIN_STREAM_EVENTS = {
   namespace: '/admin/ws',
 })
 export class AdminEventStreamGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 
@@ -41,7 +42,7 @@ export class AdminEventStreamGateway
     private readonly configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) { }
+  ) {}
 
   async handleConnection(client: Socket): Promise<void> {
     try {

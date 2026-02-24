@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { MessageReaction } from '../entities/message-reaction.entity';
 import { ReactionCountDto } from '../dto/reaction.dto';
 
@@ -141,7 +141,7 @@ export class ReactionRepository extends Repository<MessageReaction> {
   ): Promise<Map<string, ReactionCountDto[]>> {
     const reactions = await this.find({
       where: {
-        messageId: messageIds.length > 0 ? messageIds : undefined,
+        messageId: messageIds.length > 0 ? In(messageIds) : undefined,
       },
     });
 

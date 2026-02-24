@@ -27,15 +27,22 @@ export class RoleGuard implements CanActivate {
 
     // Get user object (could be user.user from JWT strategy or direct user)
     const userObj = user.user || user;
-    const roles = userObj?.roles || [];
+    const roleEntries = Array.isArray(userObj?.roles) ? userObj.roles : [];
+    const roleNamesFromArray = roleEntries
+      .map((userRole) =>
+        typeof userRole === 'string' ? userRole : userRole?.name,
+      )
+      .filter(Boolean);
+    const roleNames = new Set<string>([
+      ...roleNamesFromArray,
+      ...(userObj?.role ? [userObj.role] : []),
+    ]);
 
-    if (!roles || roles.length === 0) {
+    if (roleNames.size === 0) {
       return false;
     }
 
     // Check if user has any of the required roles
-    return requiredRoles.some((role) =>
-      roles.some((userRole) => userRole.name === role),
-    );
+    return requiredRoles.some((role) => roleNames.has(role));
   }
 }

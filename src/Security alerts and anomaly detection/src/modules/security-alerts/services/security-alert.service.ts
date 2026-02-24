@@ -1,11 +1,12 @@
-import { Injectable, Inject } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Injectable, Inject } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   SecurityAlert,
+  AlertRule,
   AlertSeverity,
   AlertStatus,
-} from "../entities/security-alert.entity";
+} from '../entities/security-alert.entity';
 
 export interface AlertFilterOptions {
   severity?: AlertSeverity;
@@ -22,33 +23,35 @@ export class SecurityAlertService {
   ) {}
 
   async createAlert(alertData: {
-    rule: string;
+    rule: AlertRule;
     severity: AlertSeverity;
     userId?: string;
     adminId?: string;
     details?: Record<string, any>;
   }): Promise<SecurityAlert> {
-    const alert = this.alertRepository.create(alertData);
-    return this.alertRepository.save(alert);
+    const alert = this.alertRepository.create(
+      alertData as Partial<SecurityAlert>,
+    );
+    return await this.alertRepository.save(alert);
   }
 
   async getAlerts(options: AlertFilterOptions = {}) {
     const { severity, status, page = 1, limit = 20 } = options;
 
-    let query = this.alertRepository.createQueryBuilder("alert");
+    let query = this.alertRepository.createQueryBuilder('alert');
 
     if (severity) {
-      query = query.where("alert.severity = :severity", { severity });
+      query = query.where('alert.severity = :severity', { severity });
     }
 
     if (status) {
-      query = query.andWhere("alert.status = :status", { status });
+      query = query.andWhere('alert.status = :status', { status });
     }
 
     const total = await query.getCount();
 
     const alerts = await query
-      .orderBy("alert.createdAt", "DESC")
+      .orderBy('alert.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
@@ -77,15 +80,15 @@ export class SecurityAlertService {
   ): Promise<SecurityAlert> {
     const alert = await this.getAlertById(id);
     if (!alert) {
-      throw new Error("Alert not found");
+      throw new Error('Alert not found');
     }
 
     if (updateData.status) {
       alert.status = updateData.status;
-      if (updateData.status === "acknowledged" && !alert.acknowledgedAt) {
+      if (updateData.status === 'acknowledged' && !alert.acknowledgedAt) {
         alert.acknowledgedAt = new Date();
       }
-      if (updateData.status === "resolved" && !alert.resolvedAt) {
+      if (updateData.status === 'resolved' && !alert.resolvedAt) {
         alert.resolvedAt = new Date();
       }
     }

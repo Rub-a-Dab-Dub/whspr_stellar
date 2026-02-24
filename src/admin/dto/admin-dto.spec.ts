@@ -15,7 +15,7 @@ import {
 } from './admin-auth-response.dto';
 import { AdminLeaderboardQueryDto } from './admin-leaderboard-query.dto';
 import { AdminResetPasswordDto } from './admin-reset-password.dto';
-import { BanUserDto } from './ban-user.dto';
+import { BanType, BanUserDto } from './ban-user.dto';
 import { BulkActionDto, BulkActionType } from './bulk-action.dto';
 import { ChangeAdminRoleDto } from './change-admin-role.dto';
 import { DateRangeFilterDto } from './date-range-filter.dto';
@@ -80,7 +80,10 @@ describe('Admin DTOs', () => {
   });
 
   it('validates user-management DTOs', async () => {
-    const ban = plainToInstance(BanUserDto, { reason: 'Spam' });
+    const ban = plainToInstance(BanUserDto, {
+      reason: 'Spam',
+      type: BanType.PERMANENT,
+    });
     const suspend = plainToInstance(SuspendUserDto, {
       suspendedUntil: '2030-01-01T00:00:00Z',
       reason: 'Repeated abuse',

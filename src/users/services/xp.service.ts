@@ -48,7 +48,7 @@ export class XpService {
       1.0,
     );
 
-    let baseXp = XP_VALUES[action];
+    const baseXp = XP_VALUES[action];
     const userMultiplier = user.isPremium
       ? user.xpMultiplier || PREMIUM_XP_MULTIPLIER
       : 1.0;

@@ -1,4 +1,3 @@
-
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -56,9 +55,9 @@ export enum ModerationAction {
 
 export enum PriorityLevel {
   CRITICAL = 'critical', // 1-2 hours
-  HIGH = 'high',         // 4-8 hours
-  MEDIUM = 'medium',     // 24 hours
-  LOW = 'low',           // 48+ hours
+  HIGH = 'high', // 4-8 hours
+  MEDIUM = 'medium', // 24 hours
+  LOW = 'low', // 48+ hours
 }
 
 export enum AppealStatus {
@@ -95,7 +94,11 @@ export class ModerationQueue {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'enum', enum: ModerationStatus, default: ModerationStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: ModerationStatus,
+    default: ModerationStatus.PENDING,
+  })
   status: ModerationStatus;
 
   @Column({ type: 'enum', enum: PriorityLevel, default: PriorityLevel.MEDIUM })
@@ -140,10 +143,10 @@ export class ModerationQueue {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => ModerationDecision, decision => decision.queueItem)
+  @OneToMany(() => ModerationDecision, (decision) => decision.queueItem)
   decisions: ModerationDecision[];
 
-  @OneToMany(() => ModerationAppeal, appeal => appeal.queueItem)
+  @OneToMany(() => ModerationAppeal, (appeal) => appeal.queueItem)
   appeals: ModerationAppeal[];
 }
 
@@ -157,7 +160,7 @@ export class ModerationDecision {
   @Column({ type: 'uuid' })
   queueItemId: string;
 
-  @ManyToOne(() => ModerationQueue, queue => queue.decisions)
+  @ManyToOne(() => ModerationQueue, (queue) => queue.decisions)
   @JoinColumn({ name: 'queueItemId' })
   queueItem: ModerationQueue;
 
@@ -204,7 +207,7 @@ export class ModerationAppeal {
   @Column({ type: 'uuid' })
   queueItemId: string;
 
-  @ManyToOne(() => ModerationQueue, queue => queue.appeals)
+  @ManyToOne(() => ModerationQueue, (queue) => queue.appeals)
   @JoinColumn({ name: 'queueItemId' })
   queueItem: ModerationQueue;
 
@@ -458,12 +461,23 @@ export class AutoFlaggingService {
 
   // Keyword lists for auto-flagging
   private readonly SPAM_KEYWORDS = [
-    'buy now', 'click here', 'limited time', 'act now', 'free money',
-    'make money fast', 'work from home', 'casino', 'viagra'
+    'buy now',
+    'click here',
+    'limited time',
+    'act now',
+    'free money',
+    'make money fast',
+    'work from home',
+    'casino',
+    'viagra',
   ];
 
   private readonly HARASSMENT_KEYWORDS = [
-    'kill yourself', 'kys', 'die', 'worthless', 'pathetic'
+    'kill yourself',
+    'kys',
+    'die',
+    'worthless',
+    'pathetic',
   ];
 
   private readonly HATE_SPEECH_KEYWORDS = [
@@ -483,17 +497,12 @@ export class AutoFlaggingService {
     contentId: string,
     content: string,
     userId: string,
-    metadata?: any
+    metadata?: any,
   ): Promise<void> {
     const analysis = await this.runContentAnalysis(content, metadata);
 
     if (analysis.shouldFlag) {
-      await this.createAutoFlag(
-        contentType,
-        contentId,
-        userId,
-        analysis
-      );
+      await this.createAutoFlag(contentType, contentId, userId, analysis);
     }
   }
 
@@ -502,7 +511,7 @@ export class AutoFlaggingService {
    */
   private async runContentAnalysis(
     content: string,
-    metadata?: any
+    metadata?: any,
   ): Promise<{
     shouldFlag: boolean;
     reason: ReportReason;
@@ -519,8 +528,8 @@ export class AutoFlaggingService {
     let confidence = 0;
 
     // Check for spam
-    const spamMatches = this.SPAM_KEYWORDS.filter(keyword => 
-      contentLower.includes(keyword.toLowerCase())
+    const spamMatches = this.SPAM_KEYWORDS.filter((keyword) =>
+      contentLower.includes(keyword.toLowerCase()),
     );
     if (spamMatches.length > 0) {
       flaggedKeywords.push(...spamMatches);
@@ -530,8 +539,8 @@ export class AutoFlaggingService {
     }
 
     // Check for harassment
-    const harassmentMatches = this.HARASSMENT_KEYWORDS.filter(keyword => 
-      contentLower.includes(keyword.toLowerCase())
+    const harassmentMatches = this.HARASSMENT_KEYWORDS.filter((keyword) =>
+      contentLower.includes(keyword.toLowerCase()),
     );
     if (harassmentMatches.length > 0) {
       flaggedKeywords.push(...harassmentMatches);
@@ -590,7 +599,7 @@ export class AutoFlaggingService {
     contentType: ContentType,
     contentId: string,
     userId: string,
-    analysis: any
+    analysis: any,
   ): Promise<void> {
     const queueItem = this.queueRepo.create({
       contentType,
@@ -612,7 +621,7 @@ export class AutoFlaggingService {
     await this.queueRepo.save(queueItem);
 
     this.logger.warn(
-      `Auto-flagged content: ${contentType}:${contentId} - ${analysis.reason} (confidence: ${analysis.confidence})`
+      `Auto-flagged content: ${contentType}:${contentId} - ${analysis.reason} (confidence: ${analysis.confidence})`,
     );
   }
 
@@ -671,10 +680,10 @@ export class ModerationQueueService {
   async createReport(
     dto: CreateReportDto,
     reporterId: string,
-    contentSnapshot?: any
+    contentSnapshot?: any,
   ): Promise<ModerationQueue> {
     // Check if already reported
-    let existing = await this.queueRepo.findOne({
+    const existing = await this.queueRepo.findOne({
       where: {
         contentType: dto.contentType,
         contentId: dto.contentId,
@@ -685,12 +694,15 @@ export class ModerationQueueService {
     if (existing) {
       // Increment report count
       existing.reportCount += 1;
-      
+
       // Upgrade priority if multiple reports
-      if (existing.reportCount >= 5 && existing.priority !== PriorityLevel.CRITICAL) {
+      if (
+        existing.reportCount >= 5 &&
+        existing.priority !== PriorityLevel.CRITICAL
+      ) {
         existing.priority = PriorityLevel.HIGH;
       }
-      
+
       return await this.queueRepo.save(existing);
     }
 
@@ -709,37 +721,46 @@ export class ModerationQueueService {
   /**
    * Get moderation queue with filters
    */
-  async getQueue(
-    filters: ModerationQueueFilterDto
-  ): Promise<{
+  async getQueue(filters: ModerationQueueFilterDto): Promise<{
     items: ModerationQueueItemDto[];
     total: number;
     page: number;
     totalPages: number;
   }> {
-    const { page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'DESC' } = filters;
+    const {
+      page = 1,
+      limit = 50,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = filters;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.queueRepo.createQueryBuilder('queue');
 
     // Apply filters
     if (filters.status) {
-      queryBuilder.andWhere('queue.status = :status', { status: filters.status });
+      queryBuilder.andWhere('queue.status = :status', {
+        status: filters.status,
+      });
     }
     if (filters.priority) {
-      queryBuilder.andWhere('queue.priority = :priority', { priority: filters.priority });
+      queryBuilder.andWhere('queue.priority = :priority', {
+        priority: filters.priority,
+      });
     }
     if (filters.contentType) {
-      queryBuilder.andWhere('queue.contentType = :contentType', { contentType: filters.contentType });
+      queryBuilder.andWhere('queue.contentType = :contentType', {
+        contentType: filters.contentType,
+      });
     }
     if (filters.assignedModeratorId) {
-      queryBuilder.andWhere('queue.assignedModeratorId = :moderatorId', { 
-        moderatorId: filters.assignedModeratorId 
+      queryBuilder.andWhere('queue.assignedModeratorId = :moderatorId', {
+        moderatorId: filters.assignedModeratorId,
       });
     }
     if (filters.isAutoFlagged !== undefined) {
-      queryBuilder.andWhere('queue.isAutoFlagged = :isAutoFlagged', { 
-        isAutoFlagged: filters.isAutoFlagged 
+      queryBuilder.andWhere('queue.isAutoFlagged = :isAutoFlagged', {
+        isAutoFlagged: filters.isAutoFlagged,
       });
     }
 
@@ -761,7 +782,7 @@ export class ModerationQueueService {
     const items = await queryBuilder.getMany();
 
     return {
-      items: items.map(item => this.mapToDto(item)),
+      items: items.map((item) => this.mapToDto(item)),
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -773,10 +794,10 @@ export class ModerationQueueService {
    */
   async assignModerator(
     queueItemId: string,
-    moderatorId: string
+    moderatorId: string,
   ): Promise<ModerationQueue> {
-    const queueItem = await this.queueRepo.findOne({ 
-      where: { id: queueItemId } 
+    const queueItem = await this.queueRepo.findOne({
+      where: { id: queueItemId },
     });
 
     if (!queueItem) {
@@ -795,7 +816,7 @@ export class ModerationQueueService {
    */
   async autoAssignModerator(
     queueItemId: string,
-    availableModeratorIds: string[]
+    availableModeratorIds: string[],
   ): Promise<ModerationQueue> {
     // Get workload for each moderator
     const workloads = await Promise.all(
@@ -807,12 +828,12 @@ export class ModerationQueueService {
             status: ModerationStatus.IN_REVIEW,
           },
         }),
-      }))
+      })),
     );
 
     // Find moderator with least workload
-    const leastBusy = workloads.reduce((prev, curr) => 
-      curr.count < prev.count ? curr : prev
+    const leastBusy = workloads.reduce((prev, curr) =>
+      curr.count < prev.count ? curr : prev,
     );
 
     return await this.assignModerator(queueItemId, leastBusy.moderatorId);
@@ -824,10 +845,10 @@ export class ModerationQueueService {
   async takeModerationAction(
     queueItemId: string,
     moderatorId: string,
-    dto: ModerationActionDto
+    dto: ModerationActionDto,
   ): Promise<ModerationDecision> {
-    const queueItem = await this.queueRepo.findOne({ 
-      where: { id: queueItemId } 
+    const queueItem = await this.queueRepo.findOne({
+      where: { id: queueItemId },
     });
 
     if (!queueItem) {
@@ -836,7 +857,7 @@ export class ModerationQueueService {
 
     const startTime = queueItem.assignedAt || queueItem.createdAt;
     const processingTime = Math.floor(
-      (new Date().getTime() - new Date(startTime).getTime()) / 1000
+      (new Date().getTime() - new Date(startTime).getTime()) / 1000,
     );
 
     // Create decision record
@@ -857,7 +878,7 @@ export class ModerationQueueService {
     // Update queue item status
     queueItem.status = this.mapActionToStatus(dto.action);
     queueItem.reviewedAt = new Date();
-    
+
     if (dto.action !== ModerationAction.ESCALATE) {
       queueItem.resolvedAt = new Date();
     }
@@ -873,7 +894,7 @@ export class ModerationQueueService {
     await this.updateModeratorMetrics(moderatorId, dto.action, processingTime);
 
     this.logger.log(
-      `Moderator ${moderatorId} took action ${dto.action} on ${queueItemId}`
+      `Moderator ${moderatorId} took action ${dto.action} on ${queueItemId}`,
     );
 
     return decision;
@@ -884,7 +905,7 @@ export class ModerationQueueService {
    */
   async batchModerationAction(
     moderatorId: string,
-    dto: BatchModerationDto
+    dto: BatchModerationDto,
   ): Promise<{ processed: number; failed: number }> {
     let processed = 0;
     let failed = 0;
@@ -894,7 +915,9 @@ export class ModerationQueueService {
         await this.takeModerationAction(queueItemId, moderatorId, {
           action: dto.action,
           reason: dto.reason,
-          actionMetadata: dto.templateId ? { templateId: dto.templateId } : undefined,
+          actionMetadata: dto.templateId
+            ? { templateId: dto.templateId }
+            : undefined,
         });
         processed++;
       } catch (error) {
@@ -910,8 +933,8 @@ export class ModerationQueueService {
    * Create appeal
    */
   async createAppeal(dto: CreateAppealDto): Promise<ModerationAppeal> {
-    const queueItem = await this.queueRepo.findOne({ 
-      where: { id: dto.queueItemId } 
+    const queueItem = await this.queueRepo.findOne({
+      where: { id: dto.queueItemId },
     });
 
     if (!queueItem) {
@@ -954,7 +977,7 @@ export class ModerationQueueService {
     appealId: string,
     moderatorId: string,
     approved: boolean,
-    reviewNotes: string
+    reviewNotes: string,
   ): Promise<ModerationAppeal> {
     const appeal = await this.appealRepo.findOne({
       where: { id: appealId },
@@ -987,10 +1010,10 @@ export class ModerationQueueService {
   async getModeratorPerformance(
     moderatorId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<ModeratorPerformanceDto> {
     const queryBuilder = this.metricsRepo.createQueryBuilder('metrics');
-    
+
     queryBuilder.where('metrics.moderatorId = :moderatorId', { moderatorId });
 
     if (startDate) {
@@ -1022,7 +1045,8 @@ export class ModerationQueueService {
         removed: acc.removed + m.removed,
         warned: acc.warned + m.warned,
         escalated: acc.escalated + m.escalated,
-        avgProcessingTime: acc.avgProcessingTime + m.averageProcessingTimeSeconds,
+        avgProcessingTime:
+          acc.avgProcessingTime + m.averageProcessingTimeSeconds,
         accuracyRate: acc.accuracyRate + m.accuracyRate,
         appealsReceived: acc.appealsReceived + m.appealsReceived,
         appealsOverturned: acc.appealsOverturned + m.appealsOverturned,
@@ -1037,7 +1061,7 @@ export class ModerationQueueService {
         accuracyRate: 0,
         appealsReceived: 0,
         appealsOverturned: 0,
-      }
+      },
     );
 
     return {
@@ -1049,13 +1073,16 @@ export class ModerationQueueService {
         warned: totals.warned,
         escalated: totals.escalated,
       },
-      averageProcessingTime: Math.round(totals.avgProcessingTime / metrics.length),
+      averageProcessingTime: Math.round(
+        totals.avgProcessingTime / metrics.length,
+      ),
       accuracyRate: totals.accuracyRate / metrics.length,
       appealsReceived: totals.appealsReceived,
       appealsOverturned: totals.appealsOverturned,
-      appealOverturnRate: totals.appealsReceived > 0 
-        ? totals.appealsOverturned / totals.appealsReceived 
-        : 0,
+      appealOverturnRate:
+        totals.appealsReceived > 0
+          ? totals.appealsOverturned / totals.appealsReceived
+          : 0,
     };
   }
 
@@ -1102,7 +1129,7 @@ export class ModerationQueueService {
   private async updateModeratorMetrics(
     moderatorId: string,
     action: ModerationAction,
-    processingTime: number
+    processingTime: number,
   ): Promise<void> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1127,9 +1154,10 @@ export class ModerationQueueService {
     if (action === ModerationAction.ESCALATE) metrics.escalated += 1;
 
     // Update average processing time
-    const totalTime = metrics.averageProcessingTimeSeconds * (metrics.totalReviewed - 1);
+    const totalTime =
+      metrics.averageProcessingTimeSeconds * (metrics.totalReviewed - 1);
     metrics.averageProcessingTimeSeconds = Math.round(
-      (totalTime + processingTime) / metrics.totalReviewed
+      (totalTime + processingTime) / metrics.totalReviewed,
     );
 
     await this.metricsRepo.save(metrics);
@@ -1141,7 +1169,9 @@ export class ModerationQueueService {
   private mapToDto(item: ModerationQueue): ModerationQueueItemDto {
     const now = new Date();
     const createdAt = new Date(item.createdAt);
-    const timeInQueue = Math.floor((now.getTime() - createdAt.getTime()) / 1000);
+    const timeInQueue = Math.floor(
+      (now.getTime() - createdAt.getTime()) / 1000,
+    );
 
     return {
       id: item.id,
@@ -1184,7 +1214,9 @@ export class ModerationTemplateService {
     return await this.templateRepo.find({ where });
   }
 
-  async createTemplate(data: Partial<ModerationTemplate>): Promise<ModerationTemplate> {
+  async createTemplate(
+    data: Partial<ModerationTemplate>,
+  ): Promise<ModerationTemplate> {
     const template = this.templateRepo.create(data);
     return await this.templateRepo.save(template);
   }
@@ -1227,27 +1259,31 @@ export class ModerationAnalyticsService {
     let autoFlagged = 0;
 
     for (const report of reports) {
-      reportsByReason[report.reason] = (reportsByReason[report.reason] || 0) + 1;
-      reportsByContentType[report.contentType] = 
+      reportsByReason[report.reason] =
+        (reportsByReason[report.reason] || 0) + 1;
+      reportsByContentType[report.contentType] =
         (reportsByContentType[report.contentType] || 0) + 1;
-      
+
       if (report.isAutoFlagged) autoFlagged++;
     }
 
-    const resolved = reports.filter(r => r.resolvedAt).length;
-    const pending = reports.filter(r => r.status === ModerationStatus.PENDING).length;
+    const resolved = reports.filter((r) => r.resolvedAt).length;
+    const pending = reports.filter(
+      (r) => r.status === ModerationStatus.PENDING,
+    ).length;
 
     const queueTimes = reports
-      .filter(r => r.resolvedAt)
-      .map(r => {
+      .filter((r) => r.resolvedAt)
+      .map((r) => {
         const start = new Date(r.createdAt).getTime();
-        const end = new Date(r.resolvedAt!).getTime();
+        const end = new Date(r.resolvedAt).getTime();
         return (end - start) / 1000;
       });
 
-    const averageQueueTime = queueTimes.length > 0
-      ? Math.round(queueTimes.reduce((a, b) => a + b, 0) / queueTimes.length)
-      : 0;
+    const averageQueueTime =
+      queueTimes.length > 0
+        ? Math.round(queueTimes.reduce((a, b) => a + b, 0) / queueTimes.length)
+        : 0;
 
     const analytics = this.analyticsRepo.create({
       date: yesterday,
@@ -1266,7 +1302,10 @@ export class ModerationAnalyticsService {
     this.logger.log(`Analytics captured for ${yesterday.toDateString()}`);
   }
 
-  async getAnalytics(startDate: Date, endDate: Date): Promise<ModerationAnalytics[]> {
+  async getAnalytics(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<ModerationAnalytics[]> {
     return await this.analyticsRepo.find({
       where: {
         date: Between(startDate, endDate) as any,
@@ -1319,7 +1358,7 @@ export class ModerationController {
   @ApiOperation({ summary: 'Assign moderator to queue item' })
   async assignModerator(
     @Param('id') id: string,
-    @Body('moderatorId') moderatorId: string
+    @Body('moderatorId') moderatorId: string,
   ) {
     return await this.queueService.assignModerator(id, moderatorId);
   }
@@ -1329,7 +1368,7 @@ export class ModerationController {
   async takeModerationAction(
     @Param('id') id: string,
     @Body() dto: ModerationActionDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const moderatorId = req.user.id;
     return await this.queueService.takeModerationAction(id, moderatorId, dto);
@@ -1339,7 +1378,7 @@ export class ModerationController {
   @ApiOperation({ summary: 'Batch moderation actions' })
   async batchModerationAction(
     @Body() dto: BatchModerationDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const moderatorId = req.user.id;
     return await this.queueService.batchModerationAction(moderatorId, dto);
@@ -1357,10 +1396,15 @@ export class ModerationController {
     @Param('id') id: string,
     @Body('approved') approved: boolean,
     @Body('reviewNotes') reviewNotes: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const moderatorId = req.user.id;
-    return await this.queueService.processAppeal(id, moderatorId, approved, reviewNotes);
+    return await this.queueService.processAppeal(
+      id,
+      moderatorId,
+      approved,
+      reviewNotes,
+    );
   }
 
   @Get('metrics/:moderatorId')
@@ -1368,12 +1412,12 @@ export class ModerationController {
   async getModeratorPerformance(
     @Param('moderatorId') moderatorId: string,
     @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string
+    @Query('endDate') endDate?: string,
   ) {
     return await this.queueService.getModeratorPerformance(
       moderatorId,
       startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined
+      endDate ? new Date(endDate) : undefined,
     );
   }
 
@@ -1387,11 +1431,11 @@ export class ModerationController {
   @ApiOperation({ summary: 'Get moderation analytics' })
   async getAnalytics(
     @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string
+    @Query('endDate') endDate: string,
   ) {
     return await this.analyticsService.getAnalytics(
       new Date(startDate),
-      new Date(endDate)
+      new Date(endDate),
     );
   }
 }
@@ -1433,16 +1477,16 @@ export class ModerationModule {}
 
 /**
  * EXAMPLE 1: Auto-flag content when user posts
- * 
+ *
  * @Injectable()
  * export class MessageService {
  *   constructor(
  *     private autoFlaggingService: AutoFlaggingService
  *   ) {}
- * 
+ *
  *   async createMessage(userId: string, content: string) {
  *     const message = await this.messageRepo.save({ userId, content });
- *     
+ *
  *     // Auto-flag if needed
  *     await this.autoFlaggingService.analyzeContent(
  *       ContentType.MESSAGE,
@@ -1451,7 +1495,7 @@ export class ModerationModule {}
  *       userId,
  *       { roomId: message.roomId }
  *     );
- *     
+ *
  *     return message;
  *   }
  * }
@@ -1459,14 +1503,14 @@ export class ModerationModule {}
 
 /**
  * EXAMPLE 2: User reports content
- * 
+ *
  * @Post('report')
  * async reportContent(
  *   @Body() dto: CreateReportDto,
  *   @Request() req: any
  * ) {
  *   const reporterId = req.user.id;
- *   
+ *
  *   return await this.queueService.createReport(
  *     dto,
  *     reporterId,
@@ -1477,14 +1521,14 @@ export class ModerationModule {}
 
 /**
  * EXAMPLE 3: Moderator reviews content
- * 
+ *
  * // Get queue
  * GET /admin/moderation/queue?status=pending&priority=high&page=1&limit=50
- * 
+ *
  * // Assign to self
  * POST /admin/moderation/queue/{id}/assign
  * { "moderatorId": "mod-123" }
- * 
+ *
  * // Take action
  * POST /admin/moderation/queue/{id}/action
  * {
@@ -1499,7 +1543,7 @@ export class ModerationModule {}
 
 /**
  * EXAMPLE 4: Batch moderation
- * 
+ *
  * POST /admin/moderation/queue/batch
  * {
  *   "queueItemIds": ["id1", "id2", "id3"],
@@ -1511,7 +1555,7 @@ export class ModerationModule {}
 
 /**
  * EXAMPLE 5: User appeals decision
- * 
+ *
  * POST /admin/moderation/appeals
  * {
  *   "queueItemId": "queue-123",
@@ -1521,7 +1565,7 @@ export class ModerationModule {}
  *     "urls": ["https://example.com/context"]
  *   }
  * }
- * 
+ *
  * // Senior mod reviews appeal
  * PUT /admin/moderation/appeals/{id}
  * {
@@ -1532,7 +1576,7 @@ export class ModerationModule {}
 
 /**
  * EXAMPLE 6: Escalate to senior moderator
- * 
+ *
  * POST /admin/moderation/queue/{id}/action
  * {
  *   "action": "escalate",
@@ -1544,11 +1588,11 @@ export class ModerationModule {}
 
 /**
  * DATABASE SETUP:
- * 
+ *
  * Run migrations:
  * npm run migration:generate -- -n CreateModerationTables
  * npm run migration:run
- * 
+ *
  * Seed templates:
  * npm run seed:moderation-templates
  */
@@ -1556,10 +1600,10 @@ export class ModerationModule {}
  * ============================================================================
  * COMPREHENSIVE NESTJS MODERATION QUEUE SYSTEM IMPLEMENTATION
  * ============================================================================
- * 
+ *
  * This file contains a complete implementation of a content moderation system
  * with queue management, auto-flagging, appeals, and performance tracking.
- * 
+ *
  * Features:
  * - Auto-flagging for reported content
  * - Moderation queue with priority levels
@@ -1634,9 +1678,9 @@ export enum ModerationAction {
 
 export enum PriorityLevel {
   CRITICAL = 'critical', // 1-2 hours
-  HIGH = 'high',         // 4-8 hours
-  MEDIUM = 'medium',     // 24 hours
-  LOW = 'low',           // 48+ hours
+  HIGH = 'high', // 4-8 hours
+  MEDIUM = 'medium', // 24 hours
+  LOW = 'low', // 48+ hours
 }
 
 export enum AppealStatus {
@@ -1673,7 +1717,11 @@ export class ModerationQueue {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'enum', enum: ModerationStatus, default: ModerationStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: ModerationStatus,
+    default: ModerationStatus.PENDING,
+  })
   status: ModerationStatus;
 
   @Column({ type: 'enum', enum: PriorityLevel, default: PriorityLevel.MEDIUM })
@@ -1718,10 +1766,10 @@ export class ModerationQueue {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => ModerationDecision, decision => decision.queueItem)
+  @OneToMany(() => ModerationDecision, (decision) => decision.queueItem)
   decisions: ModerationDecision[];
 
-  @OneToMany(() => ModerationAppeal, appeal => appeal.queueItem)
+  @OneToMany(() => ModerationAppeal, (appeal) => appeal.queueItem)
   appeals: ModerationAppeal[];
 }
 
@@ -1735,7 +1783,7 @@ export class ModerationDecision {
   @Column({ type: 'uuid' })
   queueItemId: string;
 
-  @ManyToOne(() => ModerationQueue, queue => queue.decisions)
+  @ManyToOne(() => ModerationQueue, (queue) => queue.decisions)
   @JoinColumn({ name: 'queueItemId' })
   queueItem: ModerationQueue;
 
@@ -1782,7 +1830,7 @@ export class ModerationAppeal {
   @Column({ type: 'uuid' })
   queueItemId: string;
 
-  @ManyToOne(() => ModerationQueue, queue => queue.appeals)
+  @ManyToOne(() => ModerationQueue, (queue) => queue.appeals)
   @JoinColumn({ name: 'queueItemId' })
   queueItem: ModerationQueue;
 
@@ -2036,12 +2084,23 @@ export class AutoFlaggingService {
 
   // Keyword lists for auto-flagging
   private readonly SPAM_KEYWORDS = [
-    'buy now', 'click here', 'limited time', 'act now', 'free money',
-    'make money fast', 'work from home', 'casino', 'viagra'
+    'buy now',
+    'click here',
+    'limited time',
+    'act now',
+    'free money',
+    'make money fast',
+    'work from home',
+    'casino',
+    'viagra',
   ];
 
   private readonly HARASSMENT_KEYWORDS = [
-    'kill yourself', 'kys', 'die', 'worthless', 'pathetic'
+    'kill yourself',
+    'kys',
+    'die',
+    'worthless',
+    'pathetic',
   ];
 
   private readonly HATE_SPEECH_KEYWORDS = [
@@ -2061,17 +2120,12 @@ export class AutoFlaggingService {
     contentId: string,
     content: string,
     userId: string,
-    metadata?: any
+    metadata?: any,
   ): Promise<void> {
     const analysis = await this.runContentAnalysis(content, metadata);
 
     if (analysis.shouldFlag) {
-      await this.createAutoFlag(
-        contentType,
-        contentId,
-        userId,
-        analysis
-      );
+      await this.createAutoFlag(contentType, contentId, userId, analysis);
     }
   }
 
@@ -2080,7 +2134,7 @@ export class AutoFlaggingService {
    */
   private async runContentAnalysis(
     content: string,
-    metadata?: any
+    metadata?: any,
   ): Promise<{
     shouldFlag: boolean;
     reason: ReportReason;
@@ -2097,8 +2151,8 @@ export class AutoFlaggingService {
     let confidence = 0;
 
     // Check for spam
-    const spamMatches = this.SPAM_KEYWORDS.filter(keyword => 
-      contentLower.includes(keyword.toLowerCase())
+    const spamMatches = this.SPAM_KEYWORDS.filter((keyword) =>
+      contentLower.includes(keyword.toLowerCase()),
     );
     if (spamMatches.length > 0) {
       flaggedKeywords.push(...spamMatches);
@@ -2108,8 +2162,8 @@ export class AutoFlaggingService {
     }
 
     // Check for harassment
-    const harassmentMatches = this.HARASSMENT_KEYWORDS.filter(keyword => 
-      contentLower.includes(keyword.toLowerCase())
+    const harassmentMatches = this.HARASSMENT_KEYWORDS.filter((keyword) =>
+      contentLower.includes(keyword.toLowerCase()),
     );
     if (harassmentMatches.length > 0) {
       flaggedKeywords.push(...harassmentMatches);
@@ -2168,7 +2222,7 @@ export class AutoFlaggingService {
     contentType: ContentType,
     contentId: string,
     userId: string,
-    analysis: any
+    analysis: any,
   ): Promise<void> {
     const queueItem = this.queueRepo.create({
       contentType,
@@ -2190,7 +2244,7 @@ export class AutoFlaggingService {
     await this.queueRepo.save(queueItem);
 
     this.logger.warn(
-      `Auto-flagged content: ${contentType}:${contentId} - ${analysis.reason} (confidence: ${analysis.confidence})`
+      `Auto-flagged content: ${contentType}:${contentId} - ${analysis.reason} (confidence: ${analysis.confidence})`,
     );
   }
 
@@ -2249,10 +2303,10 @@ export class ModerationQueueService {
   async createReport(
     dto: CreateReportDto,
     reporterId: string,
-    contentSnapshot?: any
+    contentSnapshot?: any,
   ): Promise<ModerationQueue> {
     // Check if already reported
-    let existing = await this.queueRepo.findOne({
+    const existing = await this.queueRepo.findOne({
       where: {
         contentType: dto.contentType,
         contentId: dto.contentId,
@@ -2263,12 +2317,15 @@ export class ModerationQueueService {
     if (existing) {
       // Increment report count
       existing.reportCount += 1;
-      
+
       // Upgrade priority if multiple reports
-      if (existing.reportCount >= 5 && existing.priority !== PriorityLevel.CRITICAL) {
+      if (
+        existing.reportCount >= 5 &&
+        existing.priority !== PriorityLevel.CRITICAL
+      ) {
         existing.priority = PriorityLevel.HIGH;
       }
-      
+
       return await this.queueRepo.save(existing);
     }
 
@@ -2287,37 +2344,46 @@ export class ModerationQueueService {
   /**
    * Get moderation queue with filters
    */
-  async getQueue(
-    filters: ModerationQueueFilterDto
-  ): Promise<{
+  async getQueue(filters: ModerationQueueFilterDto): Promise<{
     items: ModerationQueueItemDto[];
     total: number;
     page: number;
     totalPages: number;
   }> {
-    const { page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'DESC' } = filters;
+    const {
+      page = 1,
+      limit = 50,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = filters;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.queueRepo.createQueryBuilder('queue');
 
     // Apply filters
     if (filters.status) {
-      queryBuilder.andWhere('queue.status = :status', { status: filters.status });
+      queryBuilder.andWhere('queue.status = :status', {
+        status: filters.status,
+      });
     }
     if (filters.priority) {
-      queryBuilder.andWhere('queue.priority = :priority', { priority: filters.priority });
+      queryBuilder.andWhere('queue.priority = :priority', {
+        priority: filters.priority,
+      });
     }
     if (filters.contentType) {
-      queryBuilder.andWhere('queue.contentType = :contentType', { contentType: filters.contentType });
+      queryBuilder.andWhere('queue.contentType = :contentType', {
+        contentType: filters.contentType,
+      });
     }
     if (filters.assignedModeratorId) {
-      queryBuilder.andWhere('queue.assignedModeratorId = :moderatorId', { 
-        moderatorId: filters.assignedModeratorId 
+      queryBuilder.andWhere('queue.assignedModeratorId = :moderatorId', {
+        moderatorId: filters.assignedModeratorId,
       });
     }
     if (filters.isAutoFlagged !== undefined) {
-      queryBuilder.andWhere('queue.isAutoFlagged = :isAutoFlagged', { 
-        isAutoFlagged: filters.isAutoFlagged 
+      queryBuilder.andWhere('queue.isAutoFlagged = :isAutoFlagged', {
+        isAutoFlagged: filters.isAutoFlagged,
       });
     }
 
@@ -2339,7 +2405,7 @@ export class ModerationQueueService {
     const items = await queryBuilder.getMany();
 
     return {
-      items: items.map(item => this.mapToDto(item)),
+      items: items.map((item) => this.mapToDto(item)),
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -2351,10 +2417,10 @@ export class ModerationQueueService {
    */
   async assignModerator(
     queueItemId: string,
-    moderatorId: string
+    moderatorId: string,
   ): Promise<ModerationQueue> {
-    const queueItem = await this.queueRepo.findOne({ 
-      where: { id: queueItemId } 
+    const queueItem = await this.queueRepo.findOne({
+      where: { id: queueItemId },
     });
 
     if (!queueItem) {
@@ -2373,7 +2439,7 @@ export class ModerationQueueService {
    */
   async autoAssignModerator(
     queueItemId: string,
-    availableModeratorIds: string[]
+    availableModeratorIds: string[],
   ): Promise<ModerationQueue> {
     // Get workload for each moderator
     const workloads = await Promise.all(
@@ -2385,12 +2451,12 @@ export class ModerationQueueService {
             status: ModerationStatus.IN_REVIEW,
           },
         }),
-      }))
+      })),
     );
 
     // Find moderator with least workload
-    const leastBusy = workloads.reduce((prev, curr) => 
-      curr.count < prev.count ? curr : prev
+    const leastBusy = workloads.reduce((prev, curr) =>
+      curr.count < prev.count ? curr : prev,
     );
 
     return await this.assignModerator(queueItemId, leastBusy.moderatorId);
@@ -2402,10 +2468,10 @@ export class ModerationQueueService {
   async takeModerationAction(
     queueItemId: string,
     moderatorId: string,
-    dto: ModerationActionDto
+    dto: ModerationActionDto,
   ): Promise<ModerationDecision> {
-    const queueItem = await this.queueRepo.findOne({ 
-      where: { id: queueItemId } 
+    const queueItem = await this.queueRepo.findOne({
+      where: { id: queueItemId },
     });
 
     if (!queueItem) {
@@ -2414,7 +2480,7 @@ export class ModerationQueueService {
 
     const startTime = queueItem.assignedAt || queueItem.createdAt;
     const processingTime = Math.floor(
-      (new Date().getTime() - new Date(startTime).getTime()) / 1000
+      (new Date().getTime() - new Date(startTime).getTime()) / 1000,
     );
 
     // Create decision record
@@ -2435,7 +2501,7 @@ export class ModerationQueueService {
     // Update queue item status
     queueItem.status = this.mapActionToStatus(dto.action);
     queueItem.reviewedAt = new Date();
-    
+
     if (dto.action !== ModerationAction.ESCALATE) {
       queueItem.resolvedAt = new Date();
     }
@@ -2451,7 +2517,7 @@ export class ModerationQueueService {
     await this.updateModeratorMetrics(moderatorId, dto.action, processingTime);
 
     this.logger.log(
-      `Moderator ${moderatorId} took action ${dto.action} on ${queueItemId}`
+      `Moderator ${moderatorId} took action ${dto.action} on ${queueItemId}`,
     );
 
     return decision;
@@ -2462,7 +2528,7 @@ export class ModerationQueueService {
    */
   async batchModerationAction(
     moderatorId: string,
-    dto: BatchModerationDto
+    dto: BatchModerationDto,
   ): Promise<{ processed: number; failed: number }> {
     let processed = 0;
     let failed = 0;
@@ -2472,7 +2538,9 @@ export class ModerationQueueService {
         await this.takeModerationAction(queueItemId, moderatorId, {
           action: dto.action,
           reason: dto.reason,
-          actionMetadata: dto.templateId ? { templateId: dto.templateId } : undefined,
+          actionMetadata: dto.templateId
+            ? { templateId: dto.templateId }
+            : undefined,
         });
         processed++;
       } catch (error) {
@@ -2488,8 +2556,8 @@ export class ModerationQueueService {
    * Create appeal
    */
   async createAppeal(dto: CreateAppealDto): Promise<ModerationAppeal> {
-    const queueItem = await this.queueRepo.findOne({ 
-      where: { id: dto.queueItemId } 
+    const queueItem = await this.queueRepo.findOne({
+      where: { id: dto.queueItemId },
     });
 
     if (!queueItem) {
@@ -2532,7 +2600,7 @@ export class ModerationQueueService {
     appealId: string,
     moderatorId: string,
     approved: boolean,
-    reviewNotes: string
+    reviewNotes: string,
   ): Promise<ModerationAppeal> {
     const appeal = await this.appealRepo.findOne({
       where: { id: appealId },
@@ -2565,10 +2633,10 @@ export class ModerationQueueService {
   async getModeratorPerformance(
     moderatorId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<ModeratorPerformanceDto> {
     const queryBuilder = this.metricsRepo.createQueryBuilder('metrics');
-    
+
     queryBuilder.where('metrics.moderatorId = :moderatorId', { moderatorId });
 
     if (startDate) {
@@ -2600,7 +2668,8 @@ export class ModerationQueueService {
         removed: acc.removed + m.removed,
         warned: acc.warned + m.warned,
         escalated: acc.escalated + m.escalated,
-        avgProcessingTime: acc.avgProcessingTime + m.averageProcessingTimeSeconds,
+        avgProcessingTime:
+          acc.avgProcessingTime + m.averageProcessingTimeSeconds,
         accuracyRate: acc.accuracyRate + m.accuracyRate,
         appealsReceived: acc.appealsReceived + m.appealsReceived,
         appealsOverturned: acc.appealsOverturned + m.appealsOverturned,
@@ -2615,7 +2684,7 @@ export class ModerationQueueService {
         accuracyRate: 0,
         appealsReceived: 0,
         appealsOverturned: 0,
-      }
+      },
     );
 
     return {
@@ -2627,13 +2696,16 @@ export class ModerationQueueService {
         warned: totals.warned,
         escalated: totals.escalated,
       },
-      averageProcessingTime: Math.round(totals.avgProcessingTime / metrics.length),
+      averageProcessingTime: Math.round(
+        totals.avgProcessingTime / metrics.length,
+      ),
       accuracyRate: totals.accuracyRate / metrics.length,
       appealsReceived: totals.appealsReceived,
       appealsOverturned: totals.appealsOverturned,
-      appealOverturnRate: totals.appealsReceived > 0 
-        ? totals.appealsOverturned / totals.appealsReceived 
-        : 0,
+      appealOverturnRate:
+        totals.appealsReceived > 0
+          ? totals.appealsOverturned / totals.appealsReceived
+          : 0,
     };
   }
 
@@ -2680,7 +2752,7 @@ export class ModerationQueueService {
   private async updateModeratorMetrics(
     moderatorId: string,
     action: ModerationAction,
-    processingTime: number
+    processingTime: number,
   ): Promise<void> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -2705,9 +2777,10 @@ export class ModerationQueueService {
     if (action === ModerationAction.ESCALATE) metrics.escalated += 1;
 
     // Update average processing time
-    const totalTime = metrics.averageProcessingTimeSeconds * (metrics.totalReviewed - 1);
+    const totalTime =
+      metrics.averageProcessingTimeSeconds * (metrics.totalReviewed - 1);
     metrics.averageProcessingTimeSeconds = Math.round(
-      (totalTime + processingTime) / metrics.totalReviewed
+      (totalTime + processingTime) / metrics.totalReviewed,
     );
 
     await this.metricsRepo.save(metrics);
@@ -2719,7 +2792,9 @@ export class ModerationQueueService {
   private mapToDto(item: ModerationQueue): ModerationQueueItemDto {
     const now = new Date();
     const createdAt = new Date(item.createdAt);
-    const timeInQueue = Math.floor((now.getTime() - createdAt.getTime()) / 1000);
+    const timeInQueue = Math.floor(
+      (now.getTime() - createdAt.getTime()) / 1000,
+    );
 
     return {
       id: item.id,
@@ -2762,7 +2837,9 @@ export class ModerationTemplateService {
     return await this.templateRepo.find({ where });
   }
 
-  async createTemplate(data: Partial<ModerationTemplate>): Promise<ModerationTemplate> {
+  async createTemplate(
+    data: Partial<ModerationTemplate>,
+  ): Promise<ModerationTemplate> {
     const template = this.templateRepo.create(data);
     return await this.templateRepo.save(template);
   }
@@ -2805,27 +2882,31 @@ export class ModerationAnalyticsService {
     let autoFlagged = 0;
 
     for (const report of reports) {
-      reportsByReason[report.reason] = (reportsByReason[report.reason] || 0) + 1;
-      reportsByContentType[report.contentType] = 
+      reportsByReason[report.reason] =
+        (reportsByReason[report.reason] || 0) + 1;
+      reportsByContentType[report.contentType] =
         (reportsByContentType[report.contentType] || 0) + 1;
-      
+
       if (report.isAutoFlagged) autoFlagged++;
     }
 
-    const resolved = reports.filter(r => r.resolvedAt).length;
-    const pending = reports.filter(r => r.status === ModerationStatus.PENDING).length;
+    const resolved = reports.filter((r) => r.resolvedAt).length;
+    const pending = reports.filter(
+      (r) => r.status === ModerationStatus.PENDING,
+    ).length;
 
     const queueTimes = reports
-      .filter(r => r.resolvedAt)
-      .map(r => {
+      .filter((r) => r.resolvedAt)
+      .map((r) => {
         const start = new Date(r.createdAt).getTime();
-        const end = new Date(r.resolvedAt!).getTime();
+        const end = new Date(r.resolvedAt).getTime();
         return (end - start) / 1000;
       });
 
-    const averageQueueTime = queueTimes.length > 0
-      ? Math.round(queueTimes.reduce((a, b) => a + b, 0) / queueTimes.length)
-      : 0;
+    const averageQueueTime =
+      queueTimes.length > 0
+        ? Math.round(queueTimes.reduce((a, b) => a + b, 0) / queueTimes.length)
+        : 0;
 
     const analytics = this.analyticsRepo.create({
       date: yesterday,
@@ -2844,7 +2925,10 @@ export class ModerationAnalyticsService {
     this.logger.log(`Analytics captured for ${yesterday.toDateString()}`);
   }
 
-  async getAnalytics(startDate: Date, endDate: Date): Promise<ModerationAnalytics[]> {
+  async getAnalytics(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<ModerationAnalytics[]> {
     return await this.analyticsRepo.find({
       where: {
         date: Between(startDate, endDate) as any,
@@ -2897,7 +2981,7 @@ export class ModerationController {
   @ApiOperation({ summary: 'Assign moderator to queue item' })
   async assignModerator(
     @Param('id') id: string,
-    @Body('moderatorId') moderatorId: string
+    @Body('moderatorId') moderatorId: string,
   ) {
     return await this.queueService.assignModerator(id, moderatorId);
   }
@@ -2907,7 +2991,7 @@ export class ModerationController {
   async takeModerationAction(
     @Param('id') id: string,
     @Body() dto: ModerationActionDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const moderatorId = req.user.id;
     return await this.queueService.takeModerationAction(id, moderatorId, dto);
@@ -2917,7 +3001,7 @@ export class ModerationController {
   @ApiOperation({ summary: 'Batch moderation actions' })
   async batchModerationAction(
     @Body() dto: BatchModerationDto,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const moderatorId = req.user.id;
     return await this.queueService.batchModerationAction(moderatorId, dto);
@@ -2935,10 +3019,15 @@ export class ModerationController {
     @Param('id') id: string,
     @Body('approved') approved: boolean,
     @Body('reviewNotes') reviewNotes: string,
-    @Request() req: any
+    @Request() req: any,
   ) {
     const moderatorId = req.user.id;
-    return await this.queueService.processAppeal(id, moderatorId, approved, reviewNotes);
+    return await this.queueService.processAppeal(
+      id,
+      moderatorId,
+      approved,
+      reviewNotes,
+    );
   }
 
   @Get('metrics/:moderatorId')
@@ -2946,12 +3035,12 @@ export class ModerationController {
   async getModeratorPerformance(
     @Param('moderatorId') moderatorId: string,
     @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string
+    @Query('endDate') endDate?: string,
   ) {
     return await this.queueService.getModeratorPerformance(
       moderatorId,
       startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined
+      endDate ? new Date(endDate) : undefined,
     );
   }
 
@@ -2965,11 +3054,11 @@ export class ModerationController {
   @ApiOperation({ summary: 'Get moderation analytics' })
   async getAnalytics(
     @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string
+    @Query('endDate') endDate: string,
   ) {
     return await this.analyticsService.getAnalytics(
       new Date(startDate),
-      new Date(endDate)
+      new Date(endDate),
     );
   }
 }
@@ -3004,4 +3093,3 @@ import { ScheduleModule } from '@nestjs/schedule';
   exports: [ModerationQueueService, AutoFlaggingService],
 })
 export class ModerationModule {}
-

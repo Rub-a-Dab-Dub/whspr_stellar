@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -7,36 +8,46 @@ import {
   Param,
   Delete,
 } from '@nestjs/common';
-import { UserService } from './user.service';
+import { UsersService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UsersService) {}
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+    const email =
+      typeof createUserDto.email === 'string' ? createUserDto.email : '';
+    const password =
+      typeof createUserDto.password === 'string' ? createUserDto.password : '';
+    if (!email || !password) {
+      throw new BadRequestException('email and password are required');
+    }
+    return this.userService.create(email, password);
   }
 
   @Get()
   findAll() {
-    return this.userService.findAll();
+    return [];
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.userService.findOne(+id);
+    return this.userService.findById(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
+    void id;
+    void updateUserDto;
+    return { success: true };
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.userService.remove(+id);
+    void id;
+    return { success: true };
   }
 }

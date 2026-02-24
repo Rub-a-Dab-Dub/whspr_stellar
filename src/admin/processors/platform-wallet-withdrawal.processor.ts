@@ -4,13 +4,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { Job } from 'bull';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
-import { PlatformWalletWithdrawal, WithdrawalStatus } from '../entities/platform-wallet-withdrawal.entity';
+import {
+  PlatformWalletWithdrawal,
+  WithdrawalStatus,
+} from '../entities/platform-wallet-withdrawal.entity';
 import { ChainService } from '../../chain/chain.service';
 import { SupportedChain } from '../../chain/enums/supported-chain.enum';
 import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
 import { AuditLogService } from '../services/audit-log.service';
-import { AuditAction, AuditSeverity, AuditEventType } from '../entities/audit-log.entity';
+import {
+  AuditAction,
+  AuditSeverity,
+  AuditEventType,
+} from '../entities/audit-log.entity';
 
 @Processor(QUEUE_NAMES.BLOCKCHAIN_TASKS)
 @Injectable()
@@ -59,14 +66,16 @@ export class PlatformWalletWithdrawalProcessor {
       await job.progress(20);
 
       // Get chain configuration
-      const supportedChain = this.chainService.validateChain(chain) as SupportedChain;
+      const supportedChain = this.chainService.validateChain(chain);
       const provider = this.chainService.getProvider(supportedChain);
 
       // Get platform wallet private key
       const chainKey = supportedChain.toUpperCase();
       const privateKey =
         this.configService.get<string>(`CHAIN_${chainKey}_PRIVATE_KEY`) ||
-        this.configService.get<string>(`CHAIN_${chainKey}_PLATFORM_WALLET_PRIVATE_KEY`);
+        this.configService.get<string>(
+          `CHAIN_${chainKey}_PLATFORM_WALLET_PRIVATE_KEY`,
+        );
 
       if (!privateKey) {
         throw new Error(`No private key configured for chain ${chain}`);
@@ -131,14 +140,9 @@ export class PlatformWalletWithdrawalProcessor {
         resourceId: withdrawalId,
       });
 
-      this.logger.log(
-        `Successfully processed withdrawal ${withdrawalId}`,
-      );
+      this.logger.log(`Successfully processed withdrawal ${withdrawalId}`);
     } catch (error) {
-      this.logger.error(
-        `Error processing withdrawal ${withdrawalId}:`,
-        error,
-      );
+      this.logger.error(`Error processing withdrawal ${withdrawalId}:`, error);
 
       // Update withdrawal record with failure
       const withdrawal = await this.withdrawalRepository.findOne({

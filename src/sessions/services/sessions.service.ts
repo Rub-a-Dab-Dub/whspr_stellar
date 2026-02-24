@@ -159,9 +159,8 @@ export class SessionService {
 
   async refreshSession(refreshToken: string): Promise<SessionTokens> {
     // Find session by refresh token
-    const session = await this.sessionRepository.repository.findOne({
-      where: { refreshToken, isActive: true },
-    });
+    const session =
+      await this.sessionRepository.findActiveByRefreshToken(refreshToken);
 
     if (!session) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -177,7 +176,7 @@ export class SessionService {
     const newRefreshToken = this.generateRefreshToken();
 
     // Update session
-    await this.sessionRepository.repository.update(session.id, {
+    await this.sessionRepository.updateSession(session.id, {
       refreshToken: newRefreshToken,
       lastActivity: new Date(),
     });

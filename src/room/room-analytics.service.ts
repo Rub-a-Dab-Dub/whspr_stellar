@@ -48,7 +48,7 @@ export class RoomAnalyticsService {
       (analytics.hourlyActivity[hourKey] || 0) + 1;
 
     // Update top contributors
-    let contributor = analytics.topContributors.find(
+    const contributor = analytics.topContributors.find(
       (c) => c.userId === userId,
     );
     if (contributor) {

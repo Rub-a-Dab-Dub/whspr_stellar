@@ -31,9 +31,35 @@ export class RedisService implements OnModuleDestroy {
     await this.client.del(key);
   }
 
+  // Backward-compatible alias.
+  async delete(key: string): Promise<boolean> {
+    await this.del(key);
+    return true;
+  }
+
   async exists(key: string): Promise<boolean> {
     const result = await this.client.exists(key);
     return result === 1;
+  }
+
+  async ping(): Promise<string> {
+    return await this.client.ping();
+  }
+
+  async info(section?: string): Promise<string> {
+    if (section) {
+      return await this.client.info(section);
+    }
+    return await this.client.info();
+  }
+
+  async isHealthy(): Promise<boolean> {
+    try {
+      const pong = await this.ping();
+      return pong === 'PONG';
+    } catch {
+      return false;
+    }
   }
 
   async ttl(key: string): Promise<number> {

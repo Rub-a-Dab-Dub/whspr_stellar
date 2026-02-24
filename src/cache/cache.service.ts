@@ -55,6 +55,11 @@ export class CacheService {
     }
   }
 
+  // Backward-compatible alias.
+  async del(key: string): Promise<void> {
+    await this.delete(key);
+  }
+
   /**
    * Delete multiple keys matching a pattern
    * Note: This requires direct Redis access for pattern matching

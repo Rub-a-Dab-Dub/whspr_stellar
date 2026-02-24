@@ -958,8 +958,9 @@ export class EventProcessingService {
 export class DatabaseSyncService {
   private readonly logger = new Logger(DatabaseSyncService.name);
 
-  constructor() // Inject your repositories here (User, Transaction, Room, etc.)
-  {}
+  constructor() {
+    // Inject your repositories here (User, Transaction, Room, etc.)
+  }
 
   /**
    * Sync event with database

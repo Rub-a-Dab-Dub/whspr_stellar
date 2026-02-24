@@ -1,4 +1,4 @@
-import { MemberRole } from '../entities/room-member.entity';
+import type { MemberRole } from '../entities/room-member.entity';
 
 export const ROOM_MEMBER_CONSTANTS = {
   DEFAULT_MAX_MEMBERS: 500,
@@ -24,7 +24,7 @@ export enum MemberPermission {
 }
 
 export const ROLE_PERMISSIONS: Record<MemberRole, MemberPermission[]> = {
-  [MemberRole.OWNER]: [
+  OWNER: [
     MemberPermission.SEND_MESSAGE,
     MemberPermission.EDIT_MESSAGE,
     MemberPermission.DELETE_MESSAGE,
@@ -36,7 +36,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, MemberPermission[]> = {
     MemberPermission.PIN_MESSAGE,
     MemberPermission.MANAGE_INVITATIONS,
   ],
-  [MemberRole.ADMIN]: [
+  ADMIN: [
     MemberPermission.SEND_MESSAGE,
     MemberPermission.EDIT_MESSAGE,
     MemberPermission.DELETE_MESSAGE,
@@ -48,7 +48,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, MemberPermission[]> = {
     MemberPermission.PIN_MESSAGE,
     MemberPermission.MANAGE_INVITATIONS,
   ],
-  [MemberRole.MODERATOR]: [
+  MODERATOR: [
     MemberPermission.SEND_MESSAGE,
     MemberPermission.EDIT_MESSAGE,
     MemberPermission.DELETE_MESSAGE,
@@ -58,7 +58,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, MemberPermission[]> = {
     MemberPermission.PIN_MESSAGE,
     MemberPermission.MANAGE_INVITATIONS,
   ],
-  [MemberRole.MEMBER]: [
+  MEMBER: [
     MemberPermission.SEND_MESSAGE,
     MemberPermission.EDIT_MESSAGE,
     MemberPermission.DELETE_MESSAGE,

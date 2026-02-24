@@ -29,7 +29,7 @@ export class HealthController {
       return {
         status: 'error',
         database: 'disconnected',
-        message: (error as any).message,
+        message: error.message,
       };
     }
   }

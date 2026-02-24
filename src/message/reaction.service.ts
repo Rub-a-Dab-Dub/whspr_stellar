@@ -245,7 +245,7 @@ export class ReactionService {
     const filtered = reactions
       .map((r) => r.user?.id)
       .filter((id) => id !== undefined);
-    return filtered as string[];
+    return filtered;
   }
 
   /**

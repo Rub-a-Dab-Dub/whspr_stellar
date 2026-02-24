@@ -13,15 +13,15 @@ describe('Room Moderation - Admin API (e2e)', () => {
   let app: INestApplication;
   let adminService: AdminService;
   let auditLogService: AuditLogService;
-  
+
   const adminToken = 'test-admin-token';
   const moderatorToken = 'test-moderator-token';
   const superAdminToken = 'test-superadmin-token';
-  
+
   const testRoomId = '550e8400-e29b-41d4-a716-446655440000';
   const testAdminId = '550e8400-e29b-41d4-a716-446655440001';
   const testModeratorId = '550e8400-e29b-41d4-a716-446655440002';
-  
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AdminController],
@@ -89,7 +89,12 @@ describe('Room Moderation - Admin API (e2e)', () => {
     });
 
     it('should create audit log entry for room closure', async () => {
-      await adminService.closeRoom(testRoomId, closeRoomDto, testModeratorId, {} as any);
+      await adminService.closeRoom(
+        testRoomId,
+        closeRoomDto,
+        testModeratorId,
+        {} as any,
+      );
 
       // Verify audit log was created
       const auditLogs = await auditLogService.searchAuditLogs({
@@ -144,7 +149,9 @@ describe('Room Moderation - Admin API (e2e)', () => {
         .expect(HttpStatus.OK);
 
       expect(response.body.refundedAmount).toBeDefined();
-      expect(parseFloat(response.body.refundedAmount)).toBeGreaterThanOrEqual(0);
+      expect(parseFloat(response.body.refundedAmount)).toBeGreaterThanOrEqual(
+        0,
+      );
     });
 
     it('should not refund for rooms > 24 hours old', async () => {
@@ -198,7 +205,12 @@ describe('Room Moderation - Admin API (e2e)', () => {
     });
 
     it('should create audit log with HIGH severity', async () => {
-      await adminService.deleteRoom(testRoomId, deleteRoomDto, testAdminId, {} as any);
+      await adminService.deleteRoom(
+        testRoomId,
+        deleteRoomDto,
+        testAdminId,
+        {} as any,
+      );
 
       const auditLogs = await auditLogService.searchAuditLogs({
         resourceId: testRoomId,
@@ -211,7 +223,12 @@ describe('Room Moderation - Admin API (e2e)', () => {
     it('should soft-delete all room messages', async () => {
       // This would require checking the message repository
       // Verify that all messages for the room are marked as deleted
-      await adminService.deleteRoom(testRoomId, deleteRoomDto, testAdminId, {} as any);
+      await adminService.deleteRoom(
+        testRoomId,
+        deleteRoomDto,
+        testAdminId,
+        {} as any,
+      );
 
       // In a real test, query the message repository and verify isDeleted = true
     });
@@ -228,7 +245,7 @@ describe('Room Moderation - Admin API (e2e)', () => {
         testRoomId,
         { reason: 'Test closure' },
         testAdminId,
-        {} as any
+        {} as any,
       );
 
       // Then restore it
@@ -249,7 +266,7 @@ describe('Room Moderation - Admin API (e2e)', () => {
         testRoomId,
         { reason: 'Test deletion' },
         testAdminId,
-        {} as any
+        {} as any,
       );
 
       // Then restore it
@@ -314,7 +331,9 @@ describe('Room Moderation - Admin API (e2e)', () => {
 
     it('should be queryable via /admin/audit-logs endpoint', async () => {
       const response = await request(app.getHttpServer())
-        .get('/admin/audit-logs?resourceType=room&actions=room.closed,room.deleted,room.restored')
+        .get(
+          '/admin/audit-logs?resourceType=room&actions=room.closed,room.deleted,room.restored',
+        )
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(HttpStatus.OK);
 
