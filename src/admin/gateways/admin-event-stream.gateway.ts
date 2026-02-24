@@ -19,6 +19,7 @@ export const ADMIN_STREAM_EVENTS = {
   USER_BANNED: 'admin.stream.user.banned',
   USER_UNBANNED: 'admin.stream.user.unbanned',
   USER_REGISTERED: 'admin.stream.user.registered',
+  USER_XP_ADJUSTED: 'admin.stream.user.xp.adjusted',
   TRANSACTION_LARGE: 'admin.stream.transaction.large',
   ROOM_FLAGGED: 'admin.stream.room.flagged',
   PLATFORM_ERROR: 'admin.stream.platform.error',
@@ -30,7 +31,8 @@ export const ADMIN_STREAM_EVENTS = {
   namespace: '/admin/ws',
 })
 export class AdminEventStreamGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 
@@ -42,7 +44,7 @@ export class AdminEventStreamGateway
     private readonly configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) { }
+  ) {}
 
   async handleConnection(client: Socket): Promise<void> {
     try {
@@ -145,6 +147,11 @@ export class AdminEventStreamGateway
 
   @OnEvent(ADMIN_STREAM_EVENTS.SECURITY_ALERT)
   onSecurityAlert(payload: AdminStreamEventPayload): void {
+    this.broadcast(payload);
+  }
+
+  @OnEvent(ADMIN_STREAM_EVENTS.USER_XP_ADJUSTED)
+  onUserXpAdjusted(payload: AdminStreamEventPayload): void {
     this.broadcast(payload);
   }
 }

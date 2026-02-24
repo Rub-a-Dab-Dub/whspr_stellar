@@ -8,7 +8,7 @@ export enum BlockchainTaskType {
   QUERY = 'query',
   CONTRACT_CALL = 'contract_call',
   BALANCE_CHECK = 'balance_check',
-  REFUND = 'refund', 
+  REFUND = 'refund',
 }
 
 @Processor(QUEUE_NAMES.BLOCKCHAIN_TASKS)

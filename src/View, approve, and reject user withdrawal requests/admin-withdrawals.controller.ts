@@ -20,7 +20,10 @@ import {
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { WithdrawalsService } from './withdrawals.service';
-import { RejectWithdrawalDto, WithdrawalRequestFilterDto } from './dto/withdrawal.dto';
+import {
+  RejectWithdrawalDto,
+  WithdrawalRequestFilterDto,
+} from './dto/withdrawal.dto';
 import { RolesGuard, Roles, UserRole } from '../common/guards/roles.guard';
 
 // Replace with your actual JWT/Auth guard
@@ -108,7 +111,8 @@ export class AdminWithdrawalsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Reject a withdrawal request',
-    description: 'Rejects the request and notifies the user with the provided reason.',
+    description:
+      'Rejects the request and notifies the user with the provided reason.',
   })
   @ApiParam({ name: 'requestId', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Withdrawal rejected' })

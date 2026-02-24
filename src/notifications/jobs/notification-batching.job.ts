@@ -206,7 +206,7 @@ export class NotificationBatchingJob {
         });
       }
 
-      userGroups.get(userId)!.notifications.push(notification);
+      userGroups.get(userId).notifications.push(notification);
     }
 
     return Array.from(userGroups.values());

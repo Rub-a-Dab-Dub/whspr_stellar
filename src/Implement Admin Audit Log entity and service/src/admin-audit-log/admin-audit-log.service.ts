@@ -1,8 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThanOrEqual, LessThanOrEqual } from "typeorm";
-import { AdminAuditLog } from "./entities";
-import { CreateAdminAuditLogDto, AdminAuditLogFilterDto } from "./dto";
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { AdminAuditLog } from './entities';
+import { CreateAdminAuditLogDto, AdminAuditLogFilterDto } from './dto';
 
 @Injectable()
 export class AdminAuditLogService {
@@ -71,46 +71,46 @@ export class AdminAuditLogService {
    * @returns Paginated audit logs
    */
   async findAll(filters: AdminAuditLogFilterDto) {
-    const query = this.adminAuditLogRepository.createQueryBuilder("auditLog");
+    const query = this.adminAuditLogRepository.createQueryBuilder('auditLog');
 
     if (filters.adminId) {
-      query.andWhere("auditLog.adminId = :adminId", {
+      query.andWhere('auditLog.adminId = :adminId', {
         adminId: filters.adminId,
       });
     }
 
     if (filters.action) {
-      query.andWhere("auditLog.action = :action", {
+      query.andWhere('auditLog.action = :action', {
         action: filters.action,
       });
     }
 
     if (filters.targetType) {
-      query.andWhere("auditLog.targetType = :targetType", {
+      query.andWhere('auditLog.targetType = :targetType', {
         targetType: filters.targetType,
       });
     }
 
     if (filters.targetId) {
-      query.andWhere("auditLog.targetId = :targetId", {
+      query.andWhere('auditLog.targetId = :targetId', {
         targetId: filters.targetId,
       });
     }
 
     if (filters.ipAddress) {
-      query.andWhere("auditLog.ipAddress = :ipAddress", {
+      query.andWhere('auditLog.ipAddress = :ipAddress', {
         ipAddress: filters.ipAddress,
       });
     }
 
     if (filters.startDate) {
-      query.andWhere("auditLog.createdAt >= :startDate", {
+      query.andWhere('auditLog.createdAt >= :startDate', {
         startDate: filters.startDate,
       });
     }
 
     if (filters.endDate) {
-      query.andWhere("auditLog.createdAt <= :endDate", {
+      query.andWhere('auditLog.createdAt <= :endDate', {
         endDate: filters.endDate,
       });
     }
@@ -120,7 +120,7 @@ export class AdminAuditLogService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await query
-      .orderBy("auditLog.createdAt", "DESC")
+      .orderBy('auditLog.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -142,7 +142,7 @@ export class AdminAuditLogService {
   async findByAdminId(adminId: string, limit: number = 20, offset: number = 0) {
     const [data, total] = await this.adminAuditLogRepository.findAndCount({
       where: { adminId },
-      order: { createdAt: "DESC" },
+      order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,
     });
@@ -163,7 +163,7 @@ export class AdminAuditLogService {
       where: {
         createdAt: MoreThanOrEqual(startDate),
       },
-      order: { createdAt: "DESC" },
+      order: { createdAt: 'DESC' },
       take: limit,
     });
 

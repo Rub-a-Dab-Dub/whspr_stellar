@@ -51,6 +51,7 @@ export class XpService {
       1.0,
     );
 
+    const baseXp = XP_VALUES[action];
     let boostMultiplier = 1.0;
     try {
       const boostRaw = await this.redisService.get(XP_BOOST_REDIS_KEY);

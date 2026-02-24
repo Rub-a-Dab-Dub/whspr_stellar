@@ -45,7 +45,7 @@ export class MessagesGateway
         return;
       }
 
-      const decoded = this.jwtService.verify(token) as Record<string, string>;
+      const decoded = this.jwtService.verify(token);
       const userId = decoded.sub || decoded.id;
 
       if (!this.userSockets.has(userId)) {
@@ -156,7 +156,7 @@ export class MessagesGateway
       }
 
       const token = client.handshake.auth.token as string;
-      const decoded = this.jwtService.verify(token) as Record<string, string>;
+      const decoded = this.jwtService.verify(token);
       const userId = decoded.sub || decoded.id;
 
       const message = await this.messageService.createMessage(

@@ -105,13 +105,13 @@ export class User {
   banExpiresAt: Date | undefined;
 
   @Column({ type: 'timestamp', nullable: true })
-  suspendedAt: Date | undefined;
+  suspendedAt: Date | null;
 
   @Column({ type: 'uuid', nullable: true })
-  suspendedBy: string | undefined;
+  suspendedBy: string | null;
 
   @Column({ type: 'text', nullable: true })
-  suspensionReason: string | undefined;
+  suspensionReason: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | undefined;

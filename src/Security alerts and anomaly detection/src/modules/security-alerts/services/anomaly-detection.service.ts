@@ -1,11 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   SecurityAlert,
   AlertSeverity,
-} from "../entities/security-alert.entity";
-import { SecurityAlertService } from "./security-alert.service";
+} from '../entities/security-alert.entity';
+import { SecurityAlertService } from './security-alert.service';
 
 export interface AnomalyRuleConfig {
   enabled: boolean;
@@ -24,43 +24,43 @@ export class AnomalyDetectionService {
   private ruleConfigs: Record<string, AnomalyRuleConfig> = {
     spam: {
       enabled: true,
-      name: "Spam Detection",
-      description: "User sending >100 messages in 1 minute",
-      severity: "medium",
+      name: 'Spam Detection',
+      description: 'User sending >100 messages in 1 minute',
+      severity: 'medium',
       threshold: 100,
       timeWindow: 60 * 1000, // 1 minute
     },
     wash_trading: {
       enabled: true,
-      name: "Wash Trading Detection",
+      name: 'Wash Trading Detection',
       description:
-        "User receiving >10 tips in 5 minutes from different senders",
-      severity: "high",
+        'User receiving >10 tips in 5 minutes from different senders',
+      severity: 'high',
       threshold: 10,
       timeWindow: 5 * 60 * 1000, // 5 minutes
     },
     early_withdrawal: {
       enabled: true,
-      name: "Early Withdrawal Detection",
+      name: 'Early Withdrawal Detection',
       description:
-        "New user performing withdrawal within 1 hour of registration",
-      severity: "high",
+        'New user performing withdrawal within 1 hour of registration',
+      severity: 'high',
       threshold: 1, // Any withdrawal within timeWindow triggers alert
       timeWindow: 60 * 60 * 1000, // 1 hour
     },
     ip_registration_fraud: {
       enabled: true,
-      name: "IP Registration Fraud Detection",
-      description: "Single IP registering >5 accounts in 24 hours",
-      severity: "medium",
+      name: 'IP Registration Fraud Detection',
+      description: 'Single IP registering >5 accounts in 24 hours',
+      severity: 'medium',
       threshold: 5,
       timeWindow: 24 * 60 * 60 * 1000, // 24 hours
     },
     admin_new_ip: {
       enabled: true,
-      name: "Admin New IP Login",
-      description: "Admin login from a new IP address",
-      severity: "critical",
+      name: 'Admin New IP Login',
+      description: 'Admin login from a new IP address',
+      severity: 'critical',
       threshold: 1, // Any new IP triggers alert
       timeWindow: 0, // No time window, just check if IP is new
     },
@@ -124,7 +124,7 @@ export class AnomalyDetectionService {
 
         if (messagesInWindow.length > config.threshold) {
           await this.securityAlertService.createAlert({
-            rule: "spam",
+            rule: 'spam',
             severity: config.severity,
             userId,
             details: {
@@ -178,7 +178,7 @@ export class AnomalyDetectionService {
 
         if (uniqueSenders.size > config.threshold) {
           await this.securityAlertService.createAlert({
-            rule: "wash_trading",
+            rule: 'wash_trading',
             severity: config.severity,
             userId: recipientId,
             details: {
@@ -218,7 +218,7 @@ export class AnomalyDetectionService {
 
       if (timeSinceRegistration <= config.timeWindow) {
         await this.securityAlertService.createAlert({
-          rule: "early_withdrawal",
+          rule: 'early_withdrawal',
           severity: config.severity,
           userId: withdrawal.userId,
           details: {
@@ -270,7 +270,7 @@ export class AnomalyDetectionService {
 
         if (registrationsInWindow.length > config.threshold) {
           await this.securityAlertService.createAlert({
-            rule: "ip_registration_fraud",
+            rule: 'ip_registration_fraud',
             severity: config.severity,
             details: {
               ipAddress,
@@ -307,7 +307,7 @@ export class AnomalyDetectionService {
       // Check if this IP has been used by this admin before
       const previousLogins = await this.alertRepository.find({
         where: {
-          rule: "admin_new_ip" as any,
+          rule: 'admin_new_ip' as any,
           adminId: login.adminId,
         },
       });
@@ -322,7 +322,7 @@ export class AnomalyDetectionService {
       // Also check actual login history if available
       // For now, we'll create an alert regardless (you should implement proper IP tracking)
       await this.securityAlertService.createAlert({
-        rule: "admin_new_ip",
+        rule: 'admin_new_ip',
         severity: config.severity,
         adminId: login.adminId,
         details: {

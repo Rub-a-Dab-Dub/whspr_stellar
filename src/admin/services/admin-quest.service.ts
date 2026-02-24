@@ -6,14 +6,15 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, LessThan, ILike } from 'typeorm';
+import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Quest, QuestStatus } from '../../quest/entities/quest.entity';
 import { UserQuestProgress } from '../../quest/entities/user-quest-progress.entity';
 import { CreateQuestDto } from '../dto/create-quest.dto';
 import { UpdateQuestDto } from '../dto/update-quest.dto';
 import { UpdateQuestStatusDto } from '../dto/update-quest-status.dto';
 import { GetQuestsDto } from '../dto/get-quests.dto';
-import { AuditLogService, AuditLogFilters } from './audit-log.service';
+import { AuditLogService } from './audit-log.service';
 import {
   AuditAction,
   AuditEventType,
@@ -21,6 +22,23 @@ import {
   AuditSeverity,
 } from '../entities/audit-log.entity';
 import { Request } from 'express';
+import { User } from '../../user/entities/user.entity';
+import { UserBadge } from '../../users/entities/user-badge.entity';
+import { XP_PER_LEVEL } from '../../users/constants/xp-actions.constants';
+import { ADMIN_STREAM_EVENTS } from '../gateways/admin-event-stream.gateway';
+
+export type QuestCompletionListQuery = {
+  page?: number;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: 'completedAt';
+  sortOrder?: 'ASC' | 'DESC';
+};
+
+export type RevokeQuestCompletionInput = {
+  reason: string;
+};
 
 @Injectable()
 export class AdminQuestService {
@@ -31,7 +49,12 @@ export class AdminQuestService {
     private readonly questRepository: Repository<Quest>,
     @InjectRepository(UserQuestProgress)
     private readonly progressRepository: Repository<UserQuestProgress>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(UserBadge)
+    private readonly userBadgeRepository: Repository<UserBadge>,
     private readonly auditLogService: AuditLogService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createQuest(
@@ -361,5 +384,251 @@ export class AdminQuestService {
       resourceId: quest.id,
       req,
     });
+  }
+
+  async getQuestCompletions(
+    questId: string,
+    query: QuestCompletionListQuery,
+  ): Promise<{
+    data: Array<{
+      userId: string;
+      username: string | null;
+      walletAddress: string | null;
+      completedAt: Date;
+      xpAwarded: number;
+      badgeAwarded: boolean;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const quest = await this.questRepository.findOne({
+      where: { id: questId, deletedAt: false },
+    });
+    if (!quest) {
+      throw new NotFoundException('Quest not found');
+    }
+
+    const page = Number(query.page || 1);
+    const limit = Number(query.limit || 20);
+    const skip = (page - 1) * limit;
+    const sortOrder = (query.sortOrder || 'DESC').toUpperCase() as
+      | 'ASC'
+      | 'DESC';
+
+    const qb = this.progressRepository
+      .createQueryBuilder('progress')
+      .innerJoin(User, 'user', 'user.id = progress.userId')
+      .where('progress.questId = :questId', { questId })
+      .andWhere('progress.isCompleted = :isCompleted', { isCompleted: true });
+
+    if (query.startDate) {
+      qb.andWhere('progress.completedAt >= :startDate', {
+        startDate: new Date(query.startDate),
+      });
+    }
+
+    if (query.endDate) {
+      qb.andWhere('progress.completedAt <= :endDate', {
+        endDate: new Date(query.endDate),
+      });
+    }
+
+    const total = await qb.getCount();
+
+    const rows = await qb
+      .select('progress.userId', 'userId')
+      .addSelect('user.username', 'username')
+      .addSelect('user.walletAddress', 'walletAddress')
+      .addSelect('progress.completedAt', 'completedAt')
+      .orderBy('progress.completedAt', sortOrder)
+      .offset(skip)
+      .limit(limit)
+      .getRawMany<{
+        userId: string;
+        username: string | null;
+        walletAddress: string | null;
+        completedAt: Date;
+      }>();
+
+    return {
+      data: rows.map((row) => ({
+        userId: row.userId,
+        username: row.username,
+        walletAddress: row.walletAddress,
+        completedAt: row.completedAt,
+        xpAwarded: quest.xpReward,
+        badgeAwarded: Boolean(quest.badgeRewardId),
+      })),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async getUserQuestCompletions(userId: string): Promise<
+    Array<{
+      questId: string;
+      title: string;
+      type: string;
+      completedAt: Date | null;
+      xpAwarded: number;
+      timesCompleted: number;
+    }>
+  > {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const rows = await this.progressRepository
+      .createQueryBuilder('progress')
+      .innerJoin(Quest, 'quest', 'quest.id = progress.questId')
+      .where('progress.userId = :userId', { userId })
+      .andWhere('progress.isCompleted = :isCompleted', { isCompleted: true })
+      .select('progress.questId', 'questId')
+      .addSelect('quest.title', 'title')
+      .addSelect('quest.type', 'type')
+      .addSelect('quest.xpReward', 'xpAwarded')
+      .addSelect('MAX(progress.completedAt)', 'completedAt')
+      .addSelect('COUNT(progress.id)', 'timesCompleted')
+      .groupBy('progress.questId')
+      .addGroupBy('quest.title')
+      .addGroupBy('quest.type')
+      .addGroupBy('quest.xpReward')
+      .orderBy('MAX(progress.completedAt)', 'DESC')
+      .getRawMany<{
+        questId: string;
+        title: string;
+        type: string;
+        xpAwarded: string;
+        completedAt: Date | null;
+        timesCompleted: string;
+      }>();
+
+    return rows.map((row) => ({
+      questId: row.questId,
+      title: row.title,
+      type: row.type,
+      completedAt: row.completedAt,
+      xpAwarded: Number(row.xpAwarded),
+      timesCompleted: Number(row.timesCompleted),
+    }));
+  }
+
+  async revokeUserQuestCompletion(
+    userId: string,
+    questId: string,
+    input: RevokeQuestCompletionInput,
+    adminId: string,
+    req?: Request,
+  ): Promise<{
+    success: true;
+    userId: string;
+    questId: string;
+    previousXp: number;
+    newXp: number;
+    previousLevel: number;
+    newLevel: number;
+    badgeRemoved: boolean;
+  }> {
+    const reason = input.reason?.trim();
+    if (!reason) {
+      throw new BadRequestException('reason is required');
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const quest = await this.questRepository.findOne({
+      where: { id: questId, deletedAt: false },
+    });
+    if (!quest) {
+      throw new NotFoundException('Quest not found');
+    }
+
+    const completion = await this.progressRepository.findOne({
+      where: { userId, questId, isCompleted: true },
+      order: { completedAt: 'DESC' },
+    });
+    if (!completion) {
+      throw new NotFoundException('Quest completion not found');
+    }
+
+    const previousXp = user.currentXp || 0;
+    const previousLevel = user.level || 1;
+    const newXp = Math.max(0, previousXp - (quest.xpReward || 0));
+    const newLevel = Math.max(1, Math.floor(newXp / XP_PER_LEVEL) + 1);
+
+    user.currentXp = newXp;
+    user.level = newLevel;
+    await this.userRepository.save(user);
+
+    let badgeRemoved = false;
+    if (quest.badgeRewardId) {
+      const userBadge = await this.userBadgeRepository
+        .createQueryBuilder('userBadge')
+        .innerJoin('userBadge.user', 'user')
+        .innerJoin('userBadge.badge', 'badge')
+        .where('user.id = :userId', { userId })
+        .andWhere('badge.id = :badgeId', { badgeId: quest.badgeRewardId })
+        .getOne();
+
+      if (userBadge) {
+        await this.userBadgeRepository.remove(userBadge);
+        badgeRemoved = true;
+      }
+    }
+
+    await this.progressRepository.remove(completion);
+
+    await this.auditLogService.log({
+      adminId,
+      action: AuditAction.USER_XP_ADJUSTED,
+      resourceType: 'QUEST_COMPLETION',
+      resourceId: completion.id,
+      details: `Revoked quest completion for quest ${questId}`,
+      changes: {
+        userId,
+        questId,
+        reason,
+        previousXp,
+        newXp,
+        previousLevel,
+        newLevel,
+        xpDeducted: quest.xpReward || 0,
+        badgeRemoved,
+      },
+      severity: AuditSeverity.MEDIUM,
+      outcome: AuditOutcome.SUCCESS,
+      ipAddress: req?.ip,
+      userAgent: req?.headers?.['user-agent'],
+    });
+
+    this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_XP_ADJUSTED, {
+      type: 'user.level.recalculated',
+      timestamp: new Date().toISOString(),
+      entity: {
+        userId,
+        questId,
+        previousXp,
+        newXp,
+        previousLevel,
+        newLevel,
+      },
+    });
+
+    return {
+      success: true,
+      userId,
+      questId,
+      previousXp,
+      newXp,
+      previousLevel,
+      newLevel,
+      badgeRemoved,
+    };
   }
 }

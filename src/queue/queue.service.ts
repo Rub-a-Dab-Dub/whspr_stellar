@@ -26,6 +26,26 @@ export class QueueService {
     private blockchainTaskQueue: Queue,
   ) {}
 
+  private getQueueMap(): Record<string, Queue> {
+    return {
+      [QUEUE_NAMES.WALLET_CREATION]: this.walletCreationQueue,
+      [QUEUE_NAMES.NOTIFICATIONS]: this.notificationQueue,
+      [QUEUE_NAMES.BLOCKCHAIN_TASKS]: this.blockchainTaskQueue,
+    };
+  }
+
+  private getQueueByName(queueName: string): Queue {
+    const queue = this.getQueueMap()[queueName];
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not found`);
+    }
+    return queue;
+  }
+
+  getQueueNames(): string[] {
+    return Object.keys(this.getQueueMap());
+  }
+
   /**
    * Add a wallet creation job to the queue
    */
@@ -120,16 +140,7 @@ export class QueueService {
    * Get queue statistics
    */
   async getQueueStats(queueName: string) {
-    const queueMap = {
-      [QUEUE_NAMES.WALLET_CREATION]: this.walletCreationQueue,
-      [QUEUE_NAMES.NOTIFICATIONS]: this.notificationQueue,
-      [QUEUE_NAMES.BLOCKCHAIN_TASKS]: this.blockchainTaskQueue,
-    };
-
-    const queue = queueMap[queueName];
-    if (!queue) {
-      throw new Error(`Queue ${queueName} not found`);
-    }
+    const queue = this.getQueueByName(queueName);
 
     const [waiting, active, completed, failed, delayed] = await Promise.all([
       queue.getWaitingCount(),
@@ -147,5 +158,61 @@ export class QueueService {
       failed,
       delayed,
     };
+  }
+
+  async getAllQueueStats() {
+    const queueNames = this.getQueueNames();
+    const stats = await Promise.all(
+      queueNames.map((queueName) => this.getQueueStats(queueName)),
+    );
+    return stats;
+  }
+
+  async retryFailedJobs(queueName: string, limit = 500) {
+    const queue = this.getQueueByName(queueName);
+    const failedJobs = await queue.getFailed(0, Math.max(limit - 1, 0));
+
+    let retried = 0;
+    const errors: Array<{ jobId: string | number; error: string }> = [];
+
+    for (const job of failedJobs) {
+      try {
+        await job.retry();
+        retried += 1;
+      } catch (error) {
+        errors.push({
+          jobId: job.id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return {
+      queueName,
+      attempted: failedJobs.length,
+      retried,
+      errors,
+      limit,
+      hasMore: (await queue.getFailedCount()) > limit,
+    };
+  }
+
+  async clearFailedJobs(queueName: string) {
+    const queue = this.getQueueByName(queueName);
+    const before = await queue.getFailedCount();
+    const cleanedJobs = await queue.clean(0, 'failed', Number.MAX_SAFE_INTEGER);
+    const after = await queue.getFailedCount();
+
+    return {
+      queueName,
+      failedBefore: before,
+      cleared: cleanedJobs.length,
+      failedAfter: after,
+    };
+  }
+
+  // Backward-compatible generic API used in some older services/specs.
+  async addJob(name: string, data: any): Promise<Job> {
+    return this.notificationQueue.add(name, data);
   }
 }

@@ -26,6 +26,7 @@ describe('AdminController', () => {
     updateConfig: jest.fn(),
     getRevenueAnalytics: jest.fn(),
     getOverviewAnalytics: jest.fn(),
+    getRetentionCohortAnalytics: jest.fn(),
     getLeaderboardTypes: jest.fn(),
     getLeaderboardEntries: jest.fn(),
     resetLeaderboard: jest.fn(),
@@ -33,13 +34,22 @@ describe('AdminController', () => {
     setLeaderboardPinned: jest.fn(),
     adminResetPassword: jest.fn(),
     getRoomDetails: jest.fn(),
+    refundTransaction: jest.fn(),
+  };
+  const platformWalletService = {
+    getPlatformWalletInfo: jest.fn(),
+    initiateWithdrawal: jest.fn(),
+    getWithdrawals: jest.fn(),
   };
 
   let controller: AdminController;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new AdminController(adminService as any);
+    controller = new AdminController(
+      adminService as any,
+      platformWalletService as any,
+    );
   });
 
   it('returns health status with timestamp', async () => {
@@ -152,7 +162,12 @@ describe('AdminController', () => {
     await controller.getUsers({ page: 1 } as any, currentUser, req);
     await controller.getUserDetail('u1', currentUser, req);
     await controller.banUser('u1', { reason: 'spam' } as any, currentUser, req);
-    await controller.unbanUser('u1', currentUser, req);
+    await controller.unbanUser(
+      'u1',
+      { reason: 'appeal accepted' } as any,
+      currentUser,
+      req,
+    );
     await controller.suspendUser(
       'u1',
       { suspendedUntil: new Date(Date.now() + 60000).toISOString() } as any,
@@ -214,6 +229,11 @@ describe('AdminController', () => {
       currentUser,
       req,
     );
+    await controller.getRetentionAnalytics(
+      { cohortPeriod: 'week', periods: 8 } as any,
+      currentUser,
+      req,
+    );
 
     expect(adminService.getUserSessions).toHaveBeenCalledWith('u1');
     expect(adminService.terminateSession).toHaveBeenCalledWith(
@@ -226,6 +246,11 @@ describe('AdminController', () => {
     expect(adminService.updateConfig).toHaveBeenCalledWith(
       'key1',
       expect.any(Object),
+      'admin-1',
+      req,
+    );
+    expect(adminService.getRetentionCohortAnalytics).toHaveBeenCalledWith(
+      expect.objectContaining({ cohortPeriod: 'week', periods: 8 }),
       'admin-1',
       req,
     );

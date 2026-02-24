@@ -32,7 +32,7 @@ export class PinataService {
         type: file.mimetype,
       });
 
-      const upload = await this.pinata.upload.file(fileToUpload);
+      const upload = await (this.pinata as any).upload.file(fileToUpload);
 
       const gatewayUrl = this.configService.get<string>('pinata.gatewayUrl');
       const url = `https://${gatewayUrl}/ipfs/${upload.cid}`;
@@ -53,7 +53,7 @@ export class PinataService {
 
   async getFile(cid: string): Promise<Response> {
     try {
-      const file = await this.pinata.gateways.get(cid);
+      const file = await (this.pinata as any).gateways.get(cid);
       return file;
     } catch (error) {
       const errorMessage =

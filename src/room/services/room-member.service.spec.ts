@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RoomMemberService } from './room-member.service';
 import { RoomMemberRepository } from '../repositories/room-member.repository';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { RedisService } from '../../redis/redis.service';
 import { DataSource } from 'typeorm';
 import {
@@ -8,13 +9,26 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { RoomMember } from '../entities/room-member.entity';
+import { Room } from '../entities/room.entity';
 import { MemberRole, MemberStatus } from '../entities/room-member.entity';
+import { User } from '../../user/entities/user.entity';
 
 describe('RoomMemberService', () => {
   let service: RoomMemberService;
   let memberRepository: jest.Mocked<RoomMemberRepository>;
   let redisService: jest.Mocked<RedisService>;
   let dataSource: jest.Mocked<DataSource>;
+  let roomRepository: { findOne: jest.Mock };
+  let mockMemberRepository: {
+    findMemberWithRole: jest.Mock;
+    countMembers: jest.Mock;
+    findByInviteToken: jest.Mock;
+    isMember: jest.Mock;
+    save: jest.Mock;
+    findOne: jest.Mock;
+    findAdmins: jest.Mock;
+  };
 
   const mockUser = { id: 'user-1', username: 'testuser' };
   const mockRoom = { id: 'room-1', name: 'Test Room', maxMembers: 100 };
@@ -29,19 +43,37 @@ describe('RoomMemberService', () => {
   };
 
   beforeEach(async () => {
+    mockMemberRepository = {
+      findMemberWithRole: jest.fn(),
+      countMembers: jest.fn(),
+      findByInviteToken: jest.fn(),
+      isMember: jest.fn(),
+      save: jest.fn(),
+      findOne: jest.fn(),
+      findAdmins: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RoomMemberService,
         {
+          provide: getRepositoryToken(RoomMember),
+          useValue: mockMemberRepository,
+        },
+        {
           provide: RoomMemberRepository,
+          useValue: mockMemberRepository,
+        },
+        {
+          provide: getRepositoryToken(Room),
           useValue: {
-            findMemberWithRole: jest.fn(),
-            countMembers: jest.fn(),
-            findByInviteToken: jest.fn(),
-            isMember: jest.fn(),
-            save: jest.fn(),
             findOne: jest.fn(),
-            findAdmins: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest.fn(),
           },
         },
         {
@@ -74,11 +106,11 @@ describe('RoomMemberService', () => {
     }).compile();
 
     service = module.get<RoomMemberService>(RoomMemberService);
-    memberRepository = module.get(
-      RoomMemberRepository,
-    ) as jest.Mocked<RoomMemberRepository>;
-    redisService = module.get(RedisService) as jest.Mocked<RedisService>;
-    dataSource = module.get(DataSource) as jest.Mocked<DataSource>;
+    memberRepository = module.get(RoomMemberRepository);
+    redisService = module.get(RedisService);
+    dataSource = module.get(DataSource);
+    roomRepository = module.get('RoomRepository');
+    roomRepository.findOne.mockResolvedValue(mockRoom);
   });
 
   describe('joinRoom', () => {

@@ -45,4 +45,14 @@ describe('IsAdminGuard', () => {
       guard.canActivate(makeContext({ role: UserRole.USER, roles: [] })),
     ).toThrow(ForbiddenException);
   });
+
+  it('throws forbidden for non-admin retention access', () => {
+    expect(() =>
+      guard.canActivate(
+        makeContext({
+          user: { role: UserRole.USER, roles: [{ name: UserRole.USER }] },
+        }),
+      ),
+    ).toThrow(ForbiddenException);
+  });
 });

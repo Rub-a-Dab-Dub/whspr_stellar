@@ -1,4 +1,3 @@
-
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -56,9 +55,9 @@ export enum ModerationAction {
 
 export enum PriorityLevel {
   CRITICAL = 'critical', // 1-2 hours
-  HIGH = 'high',         // 4-8 hours
-  MEDIUM = 'medium',     // 24 hours
-  LOW = 'low',           // 48+ hours
+  HIGH = 'high', // 4-8 hours
+  MEDIUM = 'medium', // 24 hours
+  LOW = 'low', // 48+ hours
 }
 
 export enum AppealStatus {
@@ -95,7 +94,11 @@ export class ModerationQueue {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'enum', enum: ModerationStatus, default: ModerationStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: ModerationStatus,
+    default: ModerationStatus.PENDING,
+  })
   status: ModerationStatus;
 
   @Column({ type: 'enum', enum: PriorityLevel, default: PriorityLevel.MEDIUM })
@@ -140,10 +143,10 @@ export class ModerationQueue {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => ModerationDecision, decision => decision.queueItem)
+  @OneToMany(() => ModerationDecision, (decision) => decision.queueItem)
   decisions: ModerationDecision[];
 
-  @OneToMany(() => ModerationAppeal, appeal => appeal.queueItem)
+  @OneToMany(() => ModerationAppeal, (appeal) => appeal.queueItem)
   appeals: ModerationAppeal[];
 }
 
@@ -157,7 +160,7 @@ export class ModerationDecision {
   @Column({ type: 'uuid' })
   queueItemId: string;
 
-  @ManyToOne(() => ModerationQueue, queue => queue.decisions)
+  @ManyToOne(() => ModerationQueue, (queue) => queue.decisions)
   @JoinColumn({ name: 'queueItemId' })
   queueItem: ModerationQueue;
 
@@ -204,7 +207,7 @@ export class ModerationAppeal {
   @Column({ type: 'uuid' })
   queueItemId: string;
 
-  @ManyToOne(() => ModerationQueue, queue => queue.appeals)
+  @ManyToOne(() => ModerationQueue, (queue) => queue.appeals)
   @JoinColumn({ name: 'queueItemId' })
   queueItem: ModerationQueue;
 

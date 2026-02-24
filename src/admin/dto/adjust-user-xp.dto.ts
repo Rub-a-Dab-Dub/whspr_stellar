@@ -1,4 +1,11 @@
-import { IsNumber, IsString, IsNotEmpty, Max, Min, MaxLength } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsNotEmpty,
+  Max,
+  Min,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AdjustUserXpDto {
@@ -13,7 +20,8 @@ export class AdjustUserXpDto {
 
   @ApiProperty({
     maxLength: 500,
-    description: 'Reason for XP adjustment (exploit mitigation, compensation, contest rewards, etc.)',
+    description:
+      'Reason for XP adjustment (exploit mitigation, compensation, contest rewards, etc.)',
     example: 'Contest winner - 1st place',
   })
   @IsString()

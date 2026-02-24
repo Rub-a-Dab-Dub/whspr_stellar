@@ -1,6 +1,4 @@
 import { DataSource } from 'typeorm';
-import { testDataSourceOptions } from '../config/data-source-test';
-import { seedTestDatabase } from './seeders/seed-test-db';
 
 /**
  * Setup function for e2e tests
@@ -9,6 +7,10 @@ import { seedTestDatabase } from './seeders/seed-test-db';
  * - Seeds test data
  */
 export async function setupTestDatabase(): Promise<DataSource> {
+  // Lazy-load heavy test DB modules so e2e files that mock data can run
+  // without compiling seed scripts.
+  const { testDataSourceOptions } = await import('../src/config/data-source-test');
+  const { seedTestDatabase } = await import('../src/database/seeders/seed-test-db');
   const dataSource = new DataSource(testDataSourceOptions);
 
   try {
@@ -41,7 +43,9 @@ export async function setupTestDatabase(): Promise<DataSource> {
  * - Clears test data
  * - Closes database connection
  */
-export async function teardownTestDatabase(dataSource: DataSource): Promise<void> {
+export async function teardownTestDatabase(
+  dataSource: DataSource,
+): Promise<void> {
   try {
     console.log('🧹 Cleaning up test database...');
 

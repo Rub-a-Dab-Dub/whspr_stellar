@@ -1,7 +1,18 @@
-import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AdminRoles, ADMIN_ROLES_KEY } from './decorators/admin-roles.decorator';
-import { AdminRole, getRoleLevel, hasRequiredRole } from './enums/admin-role.enum';
+import {
+  AdminRoles,
+  ADMIN_ROLES_KEY,
+} from './decorators/admin-roles.decorator';
+import {
+  AdminRole,
+  getRoleLevel,
+  hasRequiredRole,
+} from './enums/admin-role.enum';
 import { AdminGuard } from './guards/admin.guard';
 import { AdminRolesGuard } from './guards/admin-roles.guard';
 
@@ -38,7 +49,9 @@ describe('AdminRole hierarchy', () => {
   });
 
   it('SUPER_ADMIN satisfies MODERATOR requirement', () => {
-    expect(hasRequiredRole(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR)).toBe(true);
+    expect(hasRequiredRole(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR)).toBe(
+      true,
+    );
   });
 
   it('ADMIN satisfies MODERATOR requirement', () => {
@@ -54,7 +67,9 @@ describe('AdminRole hierarchy', () => {
   });
 
   it('MODERATOR does NOT satisfy SUPER_ADMIN requirement', () => {
-    expect(hasRequiredRole(AdminRole.MODERATOR, AdminRole.SUPER_ADMIN)).toBe(false);
+    expect(hasRequiredRole(AdminRole.MODERATOR, AdminRole.SUPER_ADMIN)).toBe(
+      false,
+    );
   });
 });
 
@@ -71,7 +86,12 @@ describe('AdminGuard', () => {
 
   it('returns user when user is a valid admin', () => {
     const user = { id: '1', isAdmin: true, role: AdminRole.ADMIN };
-    const result = guard.handleRequest(null, user, null, {} as ExecutionContext);
+    const result = guard.handleRequest(
+      null,
+      user,
+      null,
+      {} as ExecutionContext,
+    );
     expect(result).toBe(user);
   });
 
@@ -109,11 +129,12 @@ describe('AdminRolesGuard', () => {
     guard = new AdminRolesGuard(reflector);
   });
 
-  function buildContext(user: any, roles: AdminRole[] | undefined): ExecutionContext {
+  function buildContext(
+    user: any,
+    roles: AdminRole[] | undefined,
+  ): ExecutionContext {
     const ctx = mockExecutionContext(user);
-    jest
-      .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue(roles as any);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(roles as any);
     return ctx;
   }
 
@@ -130,7 +151,9 @@ describe('AdminRolesGuard', () => {
 
   // MODERATOR routes
   it('allows MODERATOR on a MODERATOR-required route', () => {
-    const ctx = buildContext({ role: AdminRole.MODERATOR }, [AdminRole.MODERATOR]);
+    const ctx = buildContext({ role: AdminRole.MODERATOR }, [
+      AdminRole.MODERATOR,
+    ]);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
@@ -140,7 +163,9 @@ describe('AdminRolesGuard', () => {
   });
 
   it('allows SUPER_ADMIN on a MODERATOR-required route', () => {
-    const ctx = buildContext({ role: AdminRole.SUPER_ADMIN }, [AdminRole.MODERATOR]);
+    const ctx = buildContext({ role: AdminRole.SUPER_ADMIN }, [
+      AdminRole.MODERATOR,
+    ]);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
@@ -156,23 +181,31 @@ describe('AdminRolesGuard', () => {
   });
 
   it('allows SUPER_ADMIN on an ADMIN-required route', () => {
-    const ctx = buildContext({ role: AdminRole.SUPER_ADMIN }, [AdminRole.ADMIN]);
+    const ctx = buildContext({ role: AdminRole.SUPER_ADMIN }, [
+      AdminRole.ADMIN,
+    ]);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   // SUPER_ADMIN routes
   it('denies MODERATOR on a SUPER_ADMIN-required route', () => {
-    const ctx = buildContext({ role: AdminRole.MODERATOR }, [AdminRole.SUPER_ADMIN]);
+    const ctx = buildContext({ role: AdminRole.MODERATOR }, [
+      AdminRole.SUPER_ADMIN,
+    ]);
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 
   it('denies ADMIN on a SUPER_ADMIN-required route', () => {
-    const ctx = buildContext({ role: AdminRole.ADMIN }, [AdminRole.SUPER_ADMIN]);
+    const ctx = buildContext({ role: AdminRole.ADMIN }, [
+      AdminRole.SUPER_ADMIN,
+    ]);
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 
   it('allows SUPER_ADMIN on a SUPER_ADMIN-required route', () => {
-    const ctx = buildContext({ role: AdminRole.SUPER_ADMIN }, [AdminRole.SUPER_ADMIN]);
+    const ctx = buildContext({ role: AdminRole.SUPER_ADMIN }, [
+      AdminRole.SUPER_ADMIN,
+    ]);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
@@ -189,10 +222,10 @@ describe('AdminRolesGuard', () => {
 
   // Multi-role requirements (OR semantics)
   it('allows MODERATOR when route accepts [MODERATOR, ADMIN]', () => {
-    const ctx = buildContext(
-      { role: AdminRole.MODERATOR },
-      [AdminRole.MODERATOR, AdminRole.ADMIN],
-    );
+    const ctx = buildContext({ role: AdminRole.MODERATOR }, [
+      AdminRole.MODERATOR,
+      AdminRole.ADMIN,
+    ]);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 });

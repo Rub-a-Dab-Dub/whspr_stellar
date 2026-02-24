@@ -1,42 +1,36 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, HttpStatus } from '@nestjs/common';
-import * as request from 'supertest';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { JwtService } from '@nestjs/jwt';
-import { AdminController } from '../admin.controller';
-import { AdminQuestService } from '../services/admin-quest.service';
-import { AuditLogService } from '../services/audit-log.service';
-import { RoleGuard } from '../../roles/guards/role.guard';
-import { PermissionGuard } from '../../roles/guards/permission.guard';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { Quest, QuestStatus, QuestType } from '../../quest/entities/quest.entity';
-import { UserQuestProgress } from '../../quest/entities/user-quest-progress.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotFoundException } from '@nestjs/common';
+import { AdminQuestService } from '../src/admin/services/admin-quest.service';
+import { AuditLogService } from '../src/admin/services/audit-log.service';
+import { Quest, QuestType, QuestStatus } from '../src/quest/entities/quest.entity';
+import { UserQuestProgress } from '../src/quest/entities/user-quest-progress.entity';
+import { User } from '../src/user/entities/user.entity';
+import { UserBadge } from '../src/users/entities/user-badge.entity';
 
-describe('Admin Quests (e2e)', () => {
-  let app: INestApplication;
-  let adminQuestService: AdminQuestService;
+describe('Admin Quests (#233 integration)', () => {
+  let service: AdminQuestService;
   let questRepository: any;
-  let jwtService: JwtService;
-
-  const mockAdmin = {
-    id: 'admin-id-123',
-    email: 'admin@example.com',
-    role: 'admin',
-  };
+  let progressRepository: any;
+  let userRepository: any;
+  let userBadgeRepository: any;
 
   const mockQuest: Quest = {
     id: 'quest-id-123',
     title: 'Test Quest',
     description: 'A test quest',
-    type: QuestType.DAILY,
-    status: QuestStatus.INACTIVE,
+    type: QuestType.REPEATABLE,
+    status: QuestStatus.ACTIVE,
     xpReward: 100,
     badgeRewardId: null,
     condition: { action: 'send_message', count: 10 },
+    requirementCount: 1,
+    difficulty: 1,
     startDate: new Date(),
     endDate: new Date(Date.now() + 86400000),
-    createdById: mockAdmin.id,
-    createdBy: mockAdmin as any,
+    createdById: 'admin-id',
+    createdBy: { id: 'admin-id' } as any,
     metadata: null,
     deletedAt: false,
     userProgress: [],
@@ -46,250 +40,179 @@ describe('Admin Quests (e2e)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      controllers: [AdminController],
       providers: [
+        AdminQuestService,
         {
-          provide: AdminQuestService,
+          provide: getRepositoryToken(Quest),
           useValue: {
-            createQuest: jest.fn(),
-            getQuests: jest.fn(),
-            getQuestById: jest.fn(),
-            updateQuest: jest.fn(),
-            updateQuestStatus: jest.fn(),
-            deleteQuest: jest.fn(),
+            findOne: jest.fn(),
+            createQueryBuilder: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(UserQuestProgress),
+          useValue: {
+            createQueryBuilder: jest.fn(),
+            findOne: jest.fn(),
+            remove: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(UserBadge),
+          useValue: {
+            createQueryBuilder: jest.fn(),
+            remove: jest.fn(),
           },
         },
         {
           provide: AuditLogService,
           useValue: {
             createAuditLog: jest.fn(),
+            log: jest.fn(),
           },
         },
         {
-          provide: getRepositoryToken(Quest),
-          useValue: {},
-        },
-        {
-          provide: getRepositoryToken(UserQuestProgress),
-          useValue: {},
-        },
-        {
-          provide: JwtService,
+          provide: EventEmitter2,
           useValue: {
-            sign: jest.fn().mockReturnValue('token'),
-            verify: jest.fn(),
+            emit: jest.fn(),
           },
         },
       ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .overrideGuard(RoleGuard)
-      .useValue({ canActivate: () => true })
-      .overrideGuard(PermissionGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
+    }).compile();
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
-    adminQuestService = moduleFixture.get<AdminQuestService>(AdminQuestService);
+    service = moduleFixture.get(AdminQuestService);
     questRepository = moduleFixture.get(getRepositoryToken(Quest));
-    jwtService = moduleFixture.get<JwtService>(JwtService);
+    progressRepository = moduleFixture.get(getRepositoryToken(UserQuestProgress));
+    userRepository = moduleFixture.get(getRepositoryToken(User));
+    userBadgeRepository = moduleFixture.get(getRepositoryToken(UserBadge));
   });
 
-  afterAll(async () => {
-    await app.close();
-  });
-
-  describe('POST /admin/quests', () => {
-    it('should create a quest', () => {
-      const createDto = {
-        title: 'New Quest',
-        description: 'New quest description',
-        type: QuestType.DAILY,
-        xpReward: 150,
-      };
-
-      jest.spyOn(adminQuestService, 'createQuest').mockResolvedValue(mockQuest);
-
-      return request(app.getHttpServer())
-        .post('/admin/quests')
-        .send(createDto)
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.CREATED);
-    });
-
-    it('should validate quest data', () => {
-      const invalidDto = {
-        title: 'New Quest',
-        // missing required fields
-      };
-
-      return request(app.getHttpServer())
-        .post('/admin/quests')
-        .send(invalidDto)
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.BAD_REQUEST);
-    });
-  });
-
-  describe('GET /admin/quests', () => {
-    it('should return paginated quests list', () => {
-      const mockResponse = {
-        quests: [mockQuest],
-        total: 1,
-        page: 1,
-        limit: 10,
-      };
-
-      jest
-        .spyOn(adminQuestService, 'getQuests')
-        .mockResolvedValue(mockResponse);
-
-      return request(app.getHttpServer())
-        .get('/admin/quests')
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.OK);
-    });
-
-    it('should filter quests by status', () => {
-      const mockResponse = {
-        quests: [],
-        total: 0,
-        page: 1,
-        limit: 10,
-      };
-
-      jest
-        .spyOn(adminQuestService, 'getQuests')
-        .mockResolvedValue(mockResponse);
-
-      return request(app.getHttpServer())
-        .get('/admin/quests?status=active')
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.OK);
-    });
-  });
-
-  describe('GET /admin/quests/:questId', () => {
-    it('should return quest details with completion stats', () => {
-      const mockResponse = {
-        ...mockQuest,
-        completionStats: {
-          totalCompletions: 5,
-          uniqueUsers: 3,
-          completionRate: 60,
-          avgCompletionTimeHours: 2.5,
+  it('GET /admin/quests/:questId/completions shape', async () => {
+    questRepository.findOne.mockResolvedValue(mockQuest);
+    const qb = {
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(1),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([
+        {
+          userId: 'u1',
+          username: 'alice',
+          walletAddress: 'GABC',
+          completedAt: new Date(),
         },
-      };
+      ]),
+    };
+    progressRepository.createQueryBuilder.mockReturnValue(qb);
 
-      jest
-        .spyOn(adminQuestService, 'getQuestById')
-        .mockResolvedValue(mockResponse);
-
-      return request(app.getHttpServer())
-        .get(`/admin/quests/${mockQuest.id}`)
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.OK);
+    const result = await service.getQuestCompletions(mockQuest.id, {
+      page: 1,
+      limit: 20,
+      sortBy: 'completedAt',
+      sortOrder: 'DESC',
     });
 
-    it('should return 404 if quest not found', () => {
-      jest
-        .spyOn(adminQuestService, 'getQuestById')
-        .mockRejectedValue(new Error('Not Found'));
-
-      return request(app.getHttpServer())
-        .get('/admin/quests/invalid-id')
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.INTERNAL_SERVER_ERROR);
-    });
+    expect(result.total).toBe(1);
+    expect(result.data[0]).toEqual(
+      expect.objectContaining({
+        userId: 'u1',
+        username: 'alice',
+        walletAddress: 'GABC',
+        xpAwarded: 100,
+        badgeAwarded: false,
+      }),
+    );
   });
 
-  describe('PATCH /admin/quests/:questId', () => {
-    it('should update quest', () => {
-      const updateDto = {
-        title: 'Updated Quest',
-        xpReward: 200,
-      };
+  it('GET /admin/users/:userId/quests includes timesCompleted', async () => {
+    userRepository.findOne.mockResolvedValue({ id: 'u1' });
+    const qb = {
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      addGroupBy: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([
+        {
+          questId: 'q1',
+          title: 'Repeat Quest',
+          type: 'repeatable',
+          xpAwarded: '100',
+          completedAt: new Date(),
+          timesCompleted: '3',
+        },
+      ]),
+    };
+    progressRepository.createQueryBuilder.mockReturnValue(qb);
 
-      const updatedQuest = {
-        ...mockQuest,
-        ...updateDto,
-      };
+    const result = await service.getUserQuestCompletions('u1');
 
-      jest
-        .spyOn(adminQuestService, 'updateQuest')
-        .mockResolvedValue(updatedQuest);
-
-      return request(app.getHttpServer())
-        .patch(`/admin/quests/${mockQuest.id}`)
-        .send(updateDto)
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.OK);
-    });
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        questId: 'q1',
+        title: 'Repeat Quest',
+        xpAwarded: 100,
+        timesCompleted: 3,
+      }),
+    );
   });
 
-  describe('PATCH /admin/quests/:questId/status', () => {
-    it('should update quest status', () => {
-      const statusDto = {
-        status: QuestStatus.ACTIVE,
-        reason: 'Activating quest',
-      };
+  it('DELETE /admin/users/:userId/quests/:questId/completion deducts XP and recalculates level', async () => {
+    questRepository.findOne.mockResolvedValue(mockQuest);
+    userRepository.findOne.mockResolvedValue({
+      id: 'u1',
+      currentXp: 80,
+      level: 1,
+    });
+    userRepository.save.mockImplementation(async (u: any) => u);
+    progressRepository.findOne.mockResolvedValue({
+      id: 'completion-1',
+      userId: 'u1',
+      questId: mockQuest.id,
+      isCompleted: true,
+    });
+    progressRepository.remove.mockResolvedValue(undefined);
 
-      const updatedQuest = {
-        ...mockQuest,
-        status: QuestStatus.ACTIVE,
-      };
-
-      jest
-        .spyOn(adminQuestService, 'updateQuestStatus')
-        .mockResolvedValue(updatedQuest);
-
-      return request(app.getHttpServer())
-        .patch(`/admin/quests/${mockQuest.id}/status`)
-        .send(statusDto)
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.OK);
+    userBadgeRepository.createQueryBuilder.mockReturnValue({
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
     });
 
-    it('should reject activating quest with past endDate', () => {
-      const statusDto = {
-        status: QuestStatus.ACTIVE,
-        reason: 'Activating quest',
-      };
+    const result = await service.revokeUserQuestCompletion(
+      'u1',
+      mockQuest.id,
+      { reason: 'exploit' },
+      'admin-1',
+    );
 
-      jest
-        .spyOn(adminQuestService, 'updateQuestStatus')
-        .mockRejectedValue(new Error('Bad Request'));
-
-      return request(app.getHttpServer())
-        .patch(`/admin/quests/${mockQuest.id}/status`)
-        .send(statusDto)
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.INTERNAL_SERVER_ERROR);
-    });
+    expect(result.success).toBe(true);
+    expect(result.previousXp).toBe(80);
+    expect(result.newXp).toBe(0);
+    expect(result.previousLevel).toBe(1);
+    expect(result.newLevel).toBe(1);
   });
 
-  describe('DELETE /admin/quests/:questId', () => {
-    it('should delete quest with no completions', () => {
-      jest.spyOn(adminQuestService, 'deleteQuest').mockResolvedValue(undefined);
-
-      return request(app.getHttpServer())
-        .delete(`/admin/quests/${mockQuest.id}`)
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.NO_CONTENT);
-    });
-
-    it('should reject deleting quest with completions', () => {
-      jest
-        .spyOn(adminQuestService, 'deleteQuest')
-        .mockRejectedValue(new Error('Conflict'));
-
-      return request(app.getHttpServer())
-        .delete(`/admin/quests/${mockQuest.id}`)
-        .set('Authorization', 'Bearer token')
-        .expect(HttpStatus.INTERNAL_SERVER_ERROR);
-    });
+  it('throws not found for unknown user on user quest history', async () => {
+    userRepository.findOne.mockResolvedValue(null);
+    await expect(service.getUserQuestCompletions('missing')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

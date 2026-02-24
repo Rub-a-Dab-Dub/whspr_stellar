@@ -11,16 +11,26 @@ import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
 import { ChainService } from '../../chain/chain.service';
 import { SupportedChain } from '../../chain/enums/supported-chain.enum';
-import { PlatformWalletWithdrawal, WithdrawalStatus } from '../entities/platform-wallet-withdrawal.entity';
+import {
+  PlatformWalletWithdrawal,
+  WithdrawalStatus,
+} from '../entities/platform-wallet-withdrawal.entity';
 import { WithdrawalWhitelist } from '../entities/withdrawal-whitelist.entity';
-import { RoomPayment, PaymentStatus } from '../../room/entities/room-payment.entity';
+import {
+  RoomPayment,
+  PaymentStatus,
+} from '../../room/entities/room-payment.entity';
 import { PlatformWalletWithdrawDto } from '../dto/platform-wallet-withdraw.dto';
 import { GetWithdrawalsDto } from '../dto/get-withdrawals.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { QUEUE_NAMES } from '../../queue/queue.constants';
 import { AuditLogService } from './audit-log.service';
-import { AuditAction, AuditSeverity } from '../entities/audit-log.entity';
+import {
+  AuditAction,
+  AuditEventType,
+  AuditSeverity,
+} from '../entities/audit-log.entity';
 import { Request } from 'express';
 
 @Injectable()
@@ -59,7 +69,9 @@ export class PlatformWalletService {
         const walletAddress = this.getPlatformWalletAddress(chain);
 
         if (!walletAddress) {
-          this.logger.warn(`No platform wallet address configured for chain ${chain}`);
+          this.logger.warn(
+            `No platform wallet address configured for chain ${chain}`,
+          );
           balances[chain] = { balance: '0', address: '' };
           continue;
         }
@@ -101,7 +113,7 @@ export class PlatformWalletService {
     req?: Request,
   ): Promise<{ jobId: string; withdrawalId: string }> {
     // Validate chain
-    const chain = this.chainService.validateChain(withdrawDto.chain) as SupportedChain;
+    const chain = this.chainService.validateChain(withdrawDto.chain);
 
     // Check if address is whitelisted
     const isWhitelisted = await this.whitelistRepository.findOne({
@@ -125,9 +137,7 @@ export class PlatformWalletService {
         req,
       });
 
-      throw new ForbiddenException(
-        'Withdrawal address is not whitelisted',
-      );
+      throw new ForbiddenException('Withdrawal address is not whitelisted');
     }
 
     // Get current balance
@@ -237,9 +247,7 @@ export class PlatformWalletService {
   /**
    * Get withdrawal history
    */
-  async getWithdrawals(
-    query: GetWithdrawalsDto,
-  ): Promise<{
+  async getWithdrawals(query: GetWithdrawalsDto): Promise<{
     withdrawals: PlatformWalletWithdrawal[];
     total: number;
     page: number;
@@ -248,7 +256,8 @@ export class PlatformWalletService {
     const { status, chain, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
-    const queryBuilder = this.withdrawalRepository.createQueryBuilder('withdrawal');
+    const queryBuilder =
+      this.withdrawalRepository.createQueryBuilder('withdrawal');
 
     if (status) {
       queryBuilder.andWhere('withdrawal.status = :status', { status });
@@ -277,7 +286,9 @@ export class PlatformWalletService {
   private getPlatformWalletAddress(chain: SupportedChain): string | null {
     const chainKey = chain.toUpperCase();
     return (
-      this.configService.get<string>(`CHAIN_${chainKey}_PLATFORM_WALLET_ADDRESS`) ||
+      this.configService.get<string>(
+        `CHAIN_${chainKey}_PLATFORM_WALLET_ADDRESS`,
+      ) ||
       this.configService.get<string>(`CHAIN_${chainKey}_ACCOUNT_ADDRESS`) ||
       null
     );

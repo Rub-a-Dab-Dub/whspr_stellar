@@ -3,9 +3,9 @@ import * as StellarSdk from 'stellar-sdk';
 
 @Injectable()
 export class RelayerService {
-  private server = new StellarSdk.Server(process.env.STELLAR_RPC!);
+  private server = new StellarSdk.Server(process.env.STELLAR_RPC);
   private relayerKeypair = StellarSdk.Keypair.fromSecret(
-    process.env.RELAYER_SECRET!,
+    process.env.RELAYER_SECRET,
   );
 
   async relay(xdr: string): Promise<string> {

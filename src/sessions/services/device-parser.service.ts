@@ -1,6 +1,6 @@
 // src/sessions/services/device-parser.service.ts
 import { Injectable } from '@nestjs/common';
-import * as UAParser from 'ua-parser-js';
+import { UAParser, type IResult } from 'ua-parser-js';
 import * as crypto from 'crypto';
 
 export interface DeviceInfo {
@@ -32,7 +32,7 @@ export class DeviceParserService {
     };
   }
 
-  private getDeviceType(result: UAParser.IResult): string {
+  private getDeviceType(result: IResult): string {
     if (result.device.type) {
       return result.device.type;
     }
@@ -41,7 +41,7 @@ export class DeviceParserService {
     return 'desktop';
   }
 
-  private getDeviceName(result: UAParser.IResult): string {
+  private getDeviceName(result: IResult): string {
     const parts: string[] = [];
 
     if (result.device.vendor) {
@@ -65,13 +65,13 @@ export class DeviceParserService {
     return parts.join(' ') || 'Unknown Device';
   }
 
-  private getBrowserInfo(result: UAParser.IResult): string {
+  private getBrowserInfo(result: IResult): string {
     const browser = result.browser.name || 'Unknown';
     const version = result.browser.version || '';
     return version ? `${browser} ${version}` : browser;
   }
 
-  private getOSInfo(result: UAParser.IResult): string {
+  private getOSInfo(result: IResult): string {
     const os = result.os.name || 'Unknown';
     const version = result.os.version || '';
     return version ? `${os} ${version}` : os;

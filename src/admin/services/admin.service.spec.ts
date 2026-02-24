@@ -17,8 +17,10 @@ import { RoomFilterStatus } from '../dto/get-rooms.dto';
 import { RoomType } from '../../room/entities/room.entity';
 import { PaymentStatus } from '../../room/entities/room-payment.entity';
 import { ADMIN_STREAM_EVENTS } from '../gateways/admin-event-stream.gateway';
+import { BanType } from '../dto/ban-user.dto';
 import { RevenuePeriod } from '../dto/get-revenue-analytics.dto';
 import { AnalyticsPeriod } from '../dto/get-overview-analytics.dto';
+import { CohortPeriod } from '../dto/get-retention-analytics.dto';
 
 const makeQueryBuilder = () => {
   const qb: any = {
@@ -53,6 +55,7 @@ describe('AdminService', () => {
 
   const userRepository = {
     createQueryBuilder: jest.fn(),
+    query: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
     remove: jest.fn(),
@@ -248,7 +251,10 @@ describe('AdminService', () => {
       });
     userRepository.save.mockImplementation(async (u) => u);
 
-    const result = await service.banUser('u1', 'admin-1', { reason: 'abuse' });
+    const result = await service.banUser('u1', 'admin-1', {
+      reason: 'abuse',
+      type: BanType.PERMANENT,
+    });
 
     expect(result.isBanned).toBe(true);
     expect(eventEmitter.emit).toHaveBeenCalledWith(
@@ -271,7 +277,10 @@ describe('AdminService', () => {
       .mockResolvedValueOnce({ id: 'u1', roles: [{ name: 'admin' }] });
 
     await expect(
-      service.banUser('u1', 'admin-1', { reason: 'test' }),
+      service.banUser('u1', 'admin-1', {
+        reason: 'test',
+        type: BanType.PERMANENT,
+      }),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -771,6 +780,64 @@ describe('AdminService', () => {
       expect.any(Object),
       300,
     );
+  });
+
+  it('builds weekly retention analytics and caches for one hour', async () => {
+    (redisService.get as jest.Mock).mockResolvedValue(null);
+    userRepository.query.mockResolvedValue([
+      {
+        cohort_period: '2026-01-05T00:00:00.000Z',
+        total_users: 10,
+        retained_users: 10,
+        retention_pct: '100.00',
+        period_number: 0,
+      },
+      {
+        cohort_period: '2026-01-05T00:00:00.000Z',
+        total_users: 10,
+        retained_users: 6,
+        retention_pct: '60.00',
+        period_number: 1,
+      },
+    ]);
+
+    const result = await service.getRetentionCohortAnalytics(
+      { cohortPeriod: CohortPeriod.WEEK, periods: 6 } as any,
+      'admin-1',
+    );
+
+    expect(result.cohortPeriod).toBe(CohortPeriod.WEEK);
+    expect(result.periods).toBe(6);
+    expect(result.rows).toHaveLength(2);
+    expect(userRepository.query).toHaveBeenCalledWith(expect.any(String), [
+      CohortPeriod.WEEK,
+      6,
+    ]);
+    expect(redisService.set).toHaveBeenCalledWith(
+      'retention:week:6',
+      expect.any(String),
+      3600,
+    );
+  });
+
+  it('returns cached monthly retention analytics when present', async () => {
+    (redisService.get as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        cohortPeriod: CohortPeriod.MONTH,
+        periods: 12,
+        rows: [{ period_number: 0 }],
+      }),
+    );
+
+    const result = await service.getRetentionCohortAnalytics(
+      { cohortPeriod: CohortPeriod.MONTH, periods: 12 } as any,
+      'admin-1',
+    );
+
+    expect(result.cohortPeriod).toBe(CohortPeriod.MONTH);
+    expect(result.periods).toBe(12);
+    expect(result.rows).toHaveLength(1);
+    expect(userRepository.query).not.toHaveBeenCalled();
   });
 
   it('manages sessions and password reset flows', async () => {

@@ -1,24 +1,24 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from '@nestjs/common';
 import {
   WebSocketGateway,
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from "@nestjs/websockets";
-import { Server, Socket } from "socket.io";
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
 import {
   SecurityAlert,
   AlertSeverity,
-} from "../entities/security-alert.entity";
+} from '../entities/security-alert.entity';
 
 @Injectable()
 @WebSocketGateway({
-  namespace: "security",
+  namespace: 'security',
   cors: {
-    origin: process.env.WS_CORS_ORIGIN || "*",
+    origin: process.env.WS_CORS_ORIGIN || '*',
     credentials: true,
   },
-  transports: ["websocket"],
+  transports: ['websocket'],
 })
 export class SecurityAlertsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -39,7 +39,7 @@ export class SecurityAlertsGateway
       return;
     }
 
-    if (!["ADMIN", "SUPER_ADMIN"].includes(userRole)) {
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(userRole)) {
       client.disconnect();
       return;
     }
@@ -63,7 +63,7 @@ export class SecurityAlertsGateway
    * Only for high/critical severity alerts
    */
   emitSecurityAlert(alert: SecurityAlert) {
-    const severityLevels: AlertSeverity[] = ["high", "critical"];
+    const severityLevels: AlertSeverity[] = ['high', 'critical'];
 
     if (!severityLevels.includes(alert.severity)) {
       return; // Don't emit low/medium severity alerts
@@ -82,7 +82,7 @@ export class SecurityAlertsGateway
     };
 
     // Emit to all connected admin clients
-    this.server.emit("security.alert", alertData);
+    this.server.emit('security.alert', alertData);
   }
 
   /**

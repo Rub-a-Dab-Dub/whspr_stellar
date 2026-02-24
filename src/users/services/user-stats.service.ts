@@ -235,7 +235,7 @@ export class UserStatsService {
         existing.tokensTransferred = weekly.tokensTransferred;
         await this.weeklyRepository.save(existing);
       } else {
-        await this.weeklyRepository.save(weekly as UserStatsWeekly);
+        await this.weeklyRepository.save(weekly);
       }
     }
   }

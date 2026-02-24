@@ -3,6 +3,7 @@ import { MessageService } from './message.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Message } from './entities/message.entity';
 import { MessageEditHistory } from './entities/message-edit-history.entity';
+import { Attachment } from './entities/attachment.entity';
 import {
   BadRequestException,
   ForbiddenException,
@@ -11,13 +12,26 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ProfanityFilterService } from './services/profanity-filter.service';
 import { NotificationService } from '../notifications/services/notification.service';
+import { UserStatsService } from '../users/services/user-stats.service';
+import { AdminService } from '../admin/services/admin.service';
+import { IpfsStorageService } from '../storage/services/ipfs-storage.service';
+import { ArweaveStorageService } from '../storage/services/arweave-storage.service';
+import { VirusScanService } from '../storage/services/virus-scan.service';
+import { ThumbnailService } from '../storage/services/thumbnail.service';
 
 describe('MessageService', () => {
   let service: MessageService;
   let mockMessageRepo: any;
   let mockEditHistoryRepo: any;
+  let mockAttachmentRepo: any;
   let mockProfanityFilterService: any;
   let mockNotificationService: any;
+  let mockUserStatsService: any;
+  let mockAdminService: any;
+  let mockIpfsService: any;
+  let mockArweaveService: any;
+  let mockVirusScanService: any;
+  let mockThumbnailService: any;
   let mockCacheManager: any;
 
   beforeEach(async () => {
@@ -36,12 +50,45 @@ describe('MessageService', () => {
       delete: jest.fn(),
     };
 
+    mockAttachmentRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+      find: jest.fn(),
+      delete: jest.fn(),
+    };
+
     mockProfanityFilterService = {
       containsProfanity: jest.fn().mockReturnValue(false),
     };
 
     mockNotificationService = {
       createMessageNotification: jest.fn(),
+    };
+
+    mockUserStatsService = {
+      recordMessageSent: jest.fn(),
+    };
+
+    mockAdminService = {
+      getConfigValue: jest.fn().mockResolvedValue(true),
+    };
+
+    mockIpfsService = {
+      upload: jest.fn(),
+      getGatewayUrl: jest.fn(),
+    };
+
+    mockArweaveService = {
+      upload: jest.fn(),
+      getGatewayUrl: jest.fn(),
+    };
+
+    mockVirusScanService = {
+      scanBuffer: jest.fn().mockResolvedValue({ clean: true }),
+    };
+
+    mockThumbnailService = {
+      generateThumbnail: jest.fn(),
     };
 
     mockCacheManager = {
@@ -62,8 +109,20 @@ describe('MessageService', () => {
           useValue: mockEditHistoryRepo,
         },
         {
+          provide: getRepositoryToken(Attachment),
+          useValue: mockAttachmentRepo,
+        },
+        {
           provide: ProfanityFilterService,
           useValue: mockProfanityFilterService,
+        },
+        {
+          provide: UserStatsService,
+          useValue: mockUserStatsService,
+        },
+        {
+          provide: AdminService,
+          useValue: mockAdminService,
         },
         {
           provide: NotificationService,
@@ -72,6 +131,22 @@ describe('MessageService', () => {
         {
           provide: CACHE_MANAGER,
           useValue: mockCacheManager,
+        },
+        {
+          provide: IpfsStorageService,
+          useValue: mockIpfsService,
+        },
+        {
+          provide: ArweaveStorageService,
+          useValue: mockArweaveService,
+        },
+        {
+          provide: VirusScanService,
+          useValue: mockVirusScanService,
+        },
+        {
+          provide: ThumbnailService,
+          useValue: mockThumbnailService,
         },
       ],
     }).compile();
@@ -105,17 +180,19 @@ describe('MessageService', () => {
 
       const result = await service.createMessage(createDto, userId);
 
-      expect(mockMessageRepo.create).toHaveBeenCalledWith({
-        conversationId: createDto.conversationId,
-        roomId: createDto.roomId,
-        authorId: userId,
-        content: createDto.content,
-        originalContent: null,
-        isEdited: false,
-        type: 'text',
-        mediaUrl: null,
-        fileName: null,
-      });
+      expect(mockMessageRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conversationId: createDto.conversationId,
+          roomId: createDto.roomId,
+          authorId: userId,
+          content: createDto.content,
+          originalContent: null,
+          isEdited: false,
+          type: 'text',
+          mediaUrl: null,
+          fileName: null,
+        }),
+      );
 
       expect(result.content).toBe(createDto.content);
       expect(result.authorId).toBe(userId);

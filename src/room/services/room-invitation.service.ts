@@ -13,7 +13,7 @@ import {
 import { RoomMember, MemberRole } from '../entities/room-member.entity';
 import { RoomInvitationRepository } from '../repositories/room-invitation.repository';
 import { Room } from '../entities/room.entity';
-import { User } from '../../../user/entities/user.entity';
+import { User } from '../../user/entities/user.entity';
 import { QueueService } from '../../queue/queue.service';
 import { RedisService } from '../../redis/redis.service';
 import {

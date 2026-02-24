@@ -30,6 +30,14 @@ export class SessionRepository {
     });
   }
 
+  async findActiveByRefreshToken(
+    refreshToken: string,
+  ): Promise<Session | null> {
+    return this.repository.findOne({
+      where: { refreshToken, isActive: true },
+    });
+  }
+
   async findActiveByUserId(userId: string): Promise<Session[]> {
     return this.repository.find({
       where: { userId, isActive: true },
@@ -54,6 +62,10 @@ export class SessionRepository {
     await this.repository.update(id, {
       lastActivity: new Date(),
     });
+  }
+
+  async updateSession(id: string, updates: Partial<Session>): Promise<void> {
+    await this.repository.update(id, updates);
   }
 
   async revokeSession(id: string): Promise<void> {

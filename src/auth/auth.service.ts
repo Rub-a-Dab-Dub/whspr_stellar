@@ -12,7 +12,7 @@ import { RedisService } from '../redis/redis.service';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { MailerService } from '@nestjs-modules/mailer';
-import { SessionService } from 'src/sessions/services/sessions.service';
+import { SessionService } from '../sessions/services/sessions.service';
 import { StreakService } from '../users/services/streak.service';
 import { UsersService as ProfileUsersService } from '../users/users.service';
 import { AuditLogService } from '../admin/services/audit-log.service';

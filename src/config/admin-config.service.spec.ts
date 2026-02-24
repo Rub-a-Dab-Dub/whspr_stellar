@@ -43,7 +43,9 @@ describe('AdminConfigService', () => {
 
   it('should throw when ADMIN_JWT_SECRET is missing', () => {
     mockConfigService.get.mockImplementation((key: string) =>
-      key === 'ADMIN_JWT_SECRET' ? undefined : (validEnv as Record<string, unknown>)[key],
+      key === 'ADMIN_JWT_SECRET'
+        ? undefined
+        : (validEnv as Record<string, unknown>)[key],
     );
 
     expect(() => service.jwtSecret).toThrow('ADMIN_JWT_SECRET is required');
@@ -51,7 +53,9 @@ describe('AdminConfigService', () => {
 
   it('should throw when ADMIN_JWT_SECRET is empty string', () => {
     mockConfigService.get.mockImplementation((key: string) =>
-      key === 'ADMIN_JWT_SECRET' ? '' : (validEnv as Record<string, unknown>)[key],
+      key === 'ADMIN_JWT_SECRET'
+        ? ''
+        : (validEnv as Record<string, unknown>)[key],
     );
 
     expect(() => service.jwtSecret).toThrow('ADMIN_JWT_SECRET is required');

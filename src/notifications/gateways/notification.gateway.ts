@@ -44,7 +44,7 @@ export class NotificationGateway
         return;
       }
 
-      const decoded = this.jwtService.verify(token) as Record<string, string>;
+      const decoded = this.jwtService.verify(token);
       const userId = decoded.sub || decoded.id;
 
       if (!userId) {

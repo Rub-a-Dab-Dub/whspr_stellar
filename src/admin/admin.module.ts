@@ -52,6 +52,10 @@ import { ModerationQueue } from '../moderation/moderation-queue.entity';
 import { FlaggedMessage } from '../moderation/flagged-message.entity';
 import { NotificationService } from '../notifications/services/notification.service';
 import { QueueService } from '../queue/queue.service';
+import { UsersModule } from '../user/user.module';
+import { ChainModule } from '../chain/chain.module';
+import { SystemController } from './system/system.controller';
+import { SystemService } from './system/system.service';
 import { BroadcastNotification } from '../notifications/entities/broadcast-notification.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { AdminBroadcastService } from './services/admin-broadcast.service';
@@ -85,6 +89,7 @@ import { RateLimitsService } from './services/rate-limits.service';
     SessionModule,
     MessageModule,
     UsersModule,
+    ChainModule,
     NotificationsModule,
     QueueModule,
     ChainModule,
@@ -119,6 +124,7 @@ import { RateLimitsService } from './services/rate-limits.service';
       TicketMessage,
     ]),
   ],
+  controllers: [AdminController, IpWhitelistController, SystemController],
   controllers: [
     AdminController,
     IpWhitelistController,
@@ -142,6 +148,7 @@ import { RateLimitsService } from './services/rate-limits.service';
     AdminBadgesService,
     NotificationService,
     QueueService,
+    SystemService,
     AdminBroadcastService,
     BroadcastDeliveryStatsService,
     WebhookService,

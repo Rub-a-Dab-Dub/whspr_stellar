@@ -16,7 +16,9 @@ export class AdminConfigService {
   }
 
   get jwtRefreshExpiresIn(): string {
-    return this.configService.get<string>('ADMIN_JWT_REFRESH_EXPIRES_IN') ?? '7d';
+    return (
+      this.configService.get<string>('ADMIN_JWT_REFRESH_EXPIRES_IN') ?? '7d'
+    );
   }
 
   get maxLoginAttempts(): number {
@@ -24,7 +26,9 @@ export class AdminConfigService {
   }
 
   get lockoutDurationMs(): number {
-    return this.configService.get<number>('ADMIN_LOCKOUT_DURATION_MS') ?? 1800000;
+    return (
+      this.configService.get<number>('ADMIN_LOCKOUT_DURATION_MS') ?? 1800000
+    );
   }
 
   get rateLimitPerMinute(): number {
@@ -32,7 +36,10 @@ export class AdminConfigService {
   }
 
   get largeTransactionThreshold(): number {
-    return this.configService.get<number>('ADMIN_LARGE_TRANSACTION_THRESHOLD') ?? 10000;
+    return (
+      this.configService.get<number>('ADMIN_LARGE_TRANSACTION_THRESHOLD') ??
+      10000
+    );
   }
 
   // ─── SLA thresholds (hours) ──────────────────────────────────────────────

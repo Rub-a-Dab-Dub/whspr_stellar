@@ -1,11 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReactionService } from './reaction.service';
 import { ReactionRepository } from './repositories/reaction.repository';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { MessageService } from './message.service';
 import { RedisService } from '../redis/redis.service';
 import { CacheService } from '../cache/cache.service';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { MessageReaction } from './entities/message-reaction.entity';
+import { NotificationService } from '../notifications/services/notification.service';
 
 describe('ReactionService', () => {
   let service: ReactionService;
@@ -36,7 +38,7 @@ describe('ReactionService', () => {
       providers: [
         ReactionService,
         {
-          provide: ReactionRepository,
+          provide: getRepositoryToken(MessageReaction),
           useValue: {
             findUserReaction: jest.fn(),
             addReaction: jest.fn(),
@@ -48,6 +50,10 @@ describe('ReactionService', () => {
             getReactionsCountForMessages: jest.fn(),
             find: jest.fn(),
           },
+        },
+        {
+          provide: ReactionRepository,
+          useExisting: getRepositoryToken(MessageReaction),
         },
         {
           provide: MessageService,
@@ -70,16 +76,20 @@ describe('ReactionService', () => {
             delete: jest.fn(),
           },
         },
+        {
+          provide: NotificationService,
+          useValue: {
+            createReactionNotification: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<ReactionService>(ReactionService);
-    reactionRepository = module.get(
-      ReactionRepository,
-    ) as jest.Mocked<ReactionRepository>;
-    messageService = module.get(MessageService) as jest.Mocked<MessageService>;
-    redisService = module.get(RedisService) as jest.Mocked<RedisService>;
-    cacheService = module.get(CacheService) as jest.Mocked<CacheService>;
+    reactionRepository = module.get(ReactionRepository);
+    messageService = module.get(MessageService);
+    redisService = module.get(RedisService);
+    cacheService = module.get(CacheService);
   });
 
   describe('addReaction', () => {

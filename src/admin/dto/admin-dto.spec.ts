@@ -15,7 +15,7 @@ import {
 } from './admin-auth-response.dto';
 import { AdminLeaderboardQueryDto } from './admin-leaderboard-query.dto';
 import { AdminResetPasswordDto } from './admin-reset-password.dto';
-import { BanUserDto } from './ban-user.dto';
+import { BanType, BanUserDto } from './ban-user.dto';
 import { BulkActionDto, BulkActionType } from './bulk-action.dto';
 import { ChangeAdminRoleDto } from './change-admin-role.dto';
 import { DateRangeFilterDto } from './date-range-filter.dto';
@@ -30,6 +30,10 @@ import {
   GetRevenueAnalyticsDto,
   RevenuePeriod,
 } from './get-revenue-analytics.dto';
+import {
+  GetRetentionAnalyticsDto,
+  CohortPeriod,
+} from './get-retention-analytics.dto';
 import { GetRoomDetailsDto } from './get-room-details.dto';
 import { GetRoomsDto, RoomFilterStatus } from './get-rooms.dto';
 import { GetUsersDto, UserFilterStatus } from './get-users.dto';
@@ -76,7 +80,10 @@ describe('Admin DTOs', () => {
   });
 
   it('validates user-management DTOs', async () => {
-    const ban = plainToInstance(BanUserDto, { reason: 'Spam' });
+    const ban = plainToInstance(BanUserDto, {
+      reason: 'Spam',
+      type: BanType.PERMANENT,
+    });
     const suspend = plainToInstance(SuspendUserDto, {
       suspendedUntil: '2030-01-01T00:00:00Z',
       reason: 'Repeated abuse',
@@ -123,6 +130,10 @@ describe('Admin DTOs', () => {
     const overview = plainToInstance(GetOverviewAnalyticsDto, {
       period: AnalyticsPeriod.WEEK,
     });
+    const retention = plainToInstance(GetRetentionAnalyticsDto, {
+      cohortPeriod: CohortPeriod.WEEK,
+      periods: '8',
+    });
     const auditLogs = plainToInstance(GetAuditLogsDto, {
       eventType: AuditEventType.ADMIN,
       outcome: AuditOutcome.SUCCESS,
@@ -145,6 +156,7 @@ describe('Admin DTOs', () => {
     expect((await validate(roomDetails)).length).toBe(0);
     expect((await validate(revenue)).length).toBe(0);
     expect((await validate(overview)).length).toBe(0);
+    expect((await validate(retention)).length).toBe(0);
     expect((await validate(auditLogs)).length).toBe(0);
     expect((await validate(leaderboard)).length).toBe(0);
     expect((await validate(dateRange)).length).toBe(0);
@@ -152,6 +164,21 @@ describe('Admin DTOs', () => {
     expect(users.page).toBe(2);
     expect(users.limit).toBe(25);
     expect(roomDetails.limit).toBe(10);
+    expect(retention.periods).toBe(8);
+  });
+
+  it('rejects invalid retention cohort parameters', async () => {
+    const invalidPeriod = plainToInstance(GetRetentionAnalyticsDto, {
+      cohortPeriod: 'day',
+      periods: 4,
+    });
+    const invalidCount = plainToInstance(GetRetentionAnalyticsDto, {
+      cohortPeriod: CohortPeriod.MONTH,
+      periods: 13,
+    });
+
+    expect((await validate(invalidPeriod)).length).toBeGreaterThan(0);
+    expect((await validate(invalidCount)).length).toBeGreaterThan(0);
   });
 
   it('validates pagination/pinned/leaderboard reset/config DTOs', async () => {

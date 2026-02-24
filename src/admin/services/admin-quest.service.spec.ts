@@ -1,18 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminQuestService } from './admin-quest.service';
 import { Quest, QuestStatus, QuestType } from '../../quest/entities/quest.entity';
 import { UserQuestProgress } from '../../quest/entities/user-quest-progress.entity';
 import { AuditLogService } from './audit-log.service';
 import { CreateQuestDto } from '../dto/create-quest.dto';
 import { UpdateQuestStatusDto } from '../dto/update-quest-status.dto';
+import { User } from '../../user/entities/user.entity';
+import { UserBadge } from '../../users/entities/user-badge.entity';
 
 describe('AdminQuestService', () => {
   let service: AdminQuestService;
   let questRepository: any;
   let progressRepository: any;
+  let userRepository: any;
+  let userBadgeRepository: any;
   let auditLogService: any;
+  let eventEmitter: any;
 
   const mockAdmin = {
     id: 'admin-id-123',
@@ -28,6 +34,8 @@ describe('AdminQuestService', () => {
     xpReward: 100,
     badgeRewardId: null,
     condition: { action: 'send_message', count: 10 },
+    requirementCount: 1,
+    difficulty: 1,
     startDate: new Date(),
     endDate: new Date(Date.now() + 86400000),
     createdById: mockAdmin.id,
@@ -58,12 +66,35 @@ describe('AdminQuestService', () => {
           useValue: {
             createQueryBuilder: jest.fn(),
             countBy: jest.fn(),
+            findOne: jest.fn(),
+            remove: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(UserBadge),
+          useValue: {
+            createQueryBuilder: jest.fn(),
+            remove: jest.fn(),
           },
         },
         {
           provide: AuditLogService,
           useValue: {
             createAuditLog: jest.fn(),
+            log: jest.fn(),
+          },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: {
+            emit: jest.fn(),
           },
         },
       ],
@@ -72,7 +103,10 @@ describe('AdminQuestService', () => {
     service = module.get<AdminQuestService>(AdminQuestService);
     questRepository = module.get(getRepositoryToken(Quest));
     progressRepository = module.get(getRepositoryToken(UserQuestProgress));
+    userRepository = module.get(getRepositoryToken(User));
+    userBadgeRepository = module.get(getRepositoryToken(UserBadge));
     auditLogService = module.get(AuditLogService);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   describe('createQuest', () => {
@@ -215,6 +249,88 @@ describe('AdminQuestService', () => {
       await expect(
         service.deleteQuest('invalid-quest-id', mockAdmin.id),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('revokeUserQuestCompletion', () => {
+    beforeEach(() => {
+      userBadgeRepository.createQueryBuilder.mockReturnValue({
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      });
+    });
+
+    it('deducts XP down to 0 and keeps level at 1', async () => {
+      questRepository.findOne.mockResolvedValue({ ...mockQuest, xpReward: 100, badgeRewardId: null });
+      userRepository.findOne.mockResolvedValue({
+        id: 'user-1',
+        currentXp: 80,
+        level: 1,
+      });
+      userRepository.save.mockImplementation(async (u) => u);
+      progressRepository.findOne.mockResolvedValue({
+        id: 'completion-1',
+        userId: 'user-1',
+        questId: mockQuest.id,
+        isCompleted: true,
+      });
+      progressRepository.remove.mockResolvedValue(undefined);
+      auditLogService.log.mockResolvedValue({});
+
+      const result = await service.revokeUserQuestCompletion(
+        'user-1',
+        mockQuest.id,
+        { reason: 'exploit' },
+        mockAdmin.id,
+      );
+
+      expect(result.newXp).toBe(0);
+      expect(result.newLevel).toBe(1);
+      expect(userRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ currentXp: 0, level: 1 }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalled();
+    });
+
+    it('drops level when XP crosses threshold', async () => {
+      questRepository.findOne.mockResolvedValue({ ...mockQuest, xpReward: 200, badgeRewardId: null });
+      userRepository.findOne.mockResolvedValue({
+        id: 'user-2',
+        currentXp: 2050,
+        level: 3,
+      });
+      userRepository.save.mockImplementation(async (u) => u);
+      progressRepository.findOne.mockResolvedValue({
+        id: 'completion-2',
+        userId: 'user-2',
+        questId: mockQuest.id,
+        isCompleted: true,
+      });
+      progressRepository.remove.mockResolvedValue(undefined);
+      auditLogService.log.mockResolvedValue({});
+
+      const result = await service.revokeUserQuestCompletion(
+        'user-2',
+        mockQuest.id,
+        { reason: 'invalid completion' },
+        mockAdmin.id,
+      );
+
+      expect(result.previousLevel).toBe(3);
+      expect(result.newLevel).toBe(2);
+      expect(result.previousXp).toBe(2050);
+      expect(result.newXp).toBe(1850);
+      expect(auditLogService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          changes: expect.objectContaining({
+            previousXp: 2050,
+            newXp: 1850,
+            reason: 'invalid completion',
+          }),
+        }),
+      );
     });
   });
 });

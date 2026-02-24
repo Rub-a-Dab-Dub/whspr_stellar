@@ -33,6 +33,8 @@ import { CreateQuestDto } from './dto/create-quest.dto';
 import { UpdateQuestDto } from './dto/update-quest.dto';
 import { UpdateQuestStatusDto } from './dto/update-quest-status.dto';
 import { GetQuestsDto } from './dto/get-quests.dto';
+import { GetQuestCompletionsDto } from './dto/get-quest-completions.dto';
+import { RevokeQuestCompletionDto } from './dto/revoke-quest-completion.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RoleGuard, PermissionGuard)
@@ -374,5 +376,38 @@ export class AdminController {
     @Req() req: Request,
   ) {
     await this.adminQuestService.deleteQuest(questId, currentUser.userId, req);
+  }
+
+  @Get('quests/:questId/completions')
+  @HttpCode(HttpStatus.OK)
+  async getQuestCompletions(
+    @Param('questId') questId: string,
+    @Query() query: GetQuestCompletionsDto,
+  ) {
+    return await this.adminQuestService.getQuestCompletions(questId, query);
+  }
+
+  @Get('users/:userId/quests')
+  @HttpCode(HttpStatus.OK)
+  async getUserQuestCompletions(@Param('userId') userId: string) {
+    return await this.adminQuestService.getUserQuestCompletions(userId);
+  }
+
+  @Delete('users/:userId/quests/:questId/completion')
+  @HttpCode(HttpStatus.OK)
+  async revokeUserQuestCompletion(
+    @Param('userId') userId: string,
+    @Param('questId') questId: string,
+    @Body() body: RevokeQuestCompletionDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.adminQuestService.revokeUserQuestCompletion(
+      userId,
+      questId,
+      body,
+      currentUser.userId,
+      req,
+    );
   }
 }

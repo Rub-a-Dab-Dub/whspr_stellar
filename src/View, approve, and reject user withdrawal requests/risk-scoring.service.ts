@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { WithdrawalRequest, WithdrawalStatus } from '../entities/withdrawal-request.entity';
+import {
+  WithdrawalRequest,
+  WithdrawalStatus,
+} from '../entities/withdrawal-request.entity';
 
 export interface RiskAssessment {
   score: number; // 0-100, higher = riskier
@@ -83,7 +86,9 @@ export class RiskScoringService {
       .getRawOne();
 
     const dailyTotalAmount = parseFloat(dailyTotal?.total || '0');
-    const dailyLimit = parseFloat(process.env.DAILY_WITHDRAWAL_LIMIT || '50000');
+    const dailyLimit = parseFloat(
+      process.env.DAILY_WITHDRAWAL_LIMIT || '50000',
+    );
     if (dailyTotalAmount + amount > dailyLimit) {
       score += 15;
       flags.push('DAILY_LIMIT_EXCEEDED');
