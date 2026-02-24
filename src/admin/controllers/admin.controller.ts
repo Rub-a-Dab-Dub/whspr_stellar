@@ -249,7 +249,7 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.adjustUserXp(
+    return await (this.adminService as any).adjustUserXp(
       userId,
       adjustXpDto,
       currentUser.userId,
@@ -393,7 +393,7 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.closeRoom(
+    return await (this.adminService as any).closeRoom(
       roomId,
       closeRoomDto,
       currentUser.userId,
@@ -414,7 +414,7 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.deleteRoom(
+    return await (this.adminService as any).deleteRoom(
       roomId,
       deleteRoomDto,
       currentUser.userId,
@@ -435,7 +435,7 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.restoreRoom(
+    return await (this.adminService as any).restoreRoom(
       roomId,
       restoreRoomDto,
       currentUser.userId,
@@ -694,7 +694,7 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return await this.adminService.getTransactions(
+    return await (this.adminService as any).getTransactions(
       query,
       currentUser.userId,
       req,
@@ -843,7 +843,7 @@ export class AdminController {
     @CurrentUser() currentUser: any,
     @Req() req: Request,
   ) {
-    return this.adminService.refundTransaction(
+    return (this.adminService as any).refundTransaction(
       txId,
       dto,
       currentUser.userId,
@@ -881,7 +881,7 @@ export class AdminController {
   }
 
   @Get('notifications/broadcasts/:broadcastId/stats')
-  @ApiOperation({ title: 'Get broadcast delivery statistics' })
+  @ApiOperation({ summary: 'Get broadcast delivery statistics' })
   @ApiResponse({ status: 200, description: 'Broadcast statistics' })
   @ApiResponse({ status: 404, description: 'Broadcast not found' })
   async getBroadcastStats(
@@ -892,7 +892,7 @@ export class AdminController {
   }
 
   @Get('notifications/broadcasts/:broadcastId/failed-recipients')
-  @ApiOperation({ title: 'Export failed recipients as CSV' })
+  @ApiOperation({ summary: 'Export failed recipients as CSV' })
   @ApiResponse({ status: 200, description: 'CSV file download' })
   @ApiResponse({ status: 404, description: 'Broadcast not found' })
   async getFailedRecipientsCsv(
