@@ -112,13 +112,6 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   suspensionReason: string | null;
-  suspendedAt: Date | undefined;
-
-  @Column({ type: 'uuid', nullable: true })
-  suspendedBy: string | undefined;
-
-  @Column({ type: 'text', nullable: true })
-  suspensionReason: string | undefined;
 
   @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | undefined;

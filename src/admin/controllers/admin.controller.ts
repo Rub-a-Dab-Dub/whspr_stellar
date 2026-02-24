@@ -4,6 +4,7 @@ import {
   Post,
   Patch,
   Delete,
+  Optional,
   Body,
   Param,
   Query,
@@ -63,6 +64,9 @@ import { RefundTransactionDto } from '../dto/refund-transaction.dto';
 import { BroadcastNotificationDto } from '../dto/broadcast-notification.dto';
 import { AdminBroadcastService } from '../services/admin-broadcast.service';
 import { BroadcastDeliveryStatsService } from '../services/broadcast-delivery-stats.service';
+import { AdminQuestService } from '../services/admin-quest.service';
+import { GetQuestCompletionsDto } from '../dto/get-quest-completions.dto';
+import { RevokeQuestCompletionDto } from '../dto/revoke-quest-completion.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -72,10 +76,20 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly platformWalletService: PlatformWalletService,
+    @Optional()
+    private readonly adminBroadcastService?: AdminBroadcastService,
+    @Optional()
+    private readonly broadcastDeliveryStatsService?: BroadcastDeliveryStatsService,
+    @Optional()
+    private readonly adminQuestService?: AdminQuestService,
   ) {}
-    private readonly adminBroadcastService: AdminBroadcastService,
-    private readonly broadcastDeliveryStatsService: BroadcastDeliveryStatsService,
-  ) { }
+
+  private get questService(): AdminQuestService {
+    if (!this.adminQuestService) {
+      throw new Error('AdminQuestService is not available');
+    }
+    return this.adminQuestService;
+  }
 
   @Get('health')
   @HttpCode(HttpStatus.OK)
@@ -238,6 +252,46 @@ export class AdminController {
     return await this.adminService.adjustUserXp(
       userId,
       adjustXpDto,
+      currentUser.userId,
+      req,
+    );
+  }
+
+  @Get('quests/:questId/completions')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Get paginated completion records for a quest',
+  })
+  async getQuestCompletions(
+    @Param('questId') questId: string,
+    @Query() query: GetQuestCompletionsDto,
+  ) {
+    return await this.questService.getQuestCompletions(questId, query);
+  }
+
+  @Get('users/:userId/quests')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get completion history for a user' })
+  async getUserQuestCompletions(@Param('userId') userId: string) {
+    return await this.questService.getUserQuestCompletions(userId);
+  }
+
+  @Delete('users/:userId/quests/:questId/completion')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Revoke a specific quest completion from a user',
+  })
+  async revokeUserQuestCompletion(
+    @Param('userId') userId: string,
+    @Param('questId') questId: string,
+    @Body() body: RevokeQuestCompletionDto,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    return await this.questService.revokeUserQuestCompletion(
+      userId,
+      questId,
+      body,
       currentUser.userId,
       req,
     );
