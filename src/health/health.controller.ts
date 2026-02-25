@@ -1,0 +1,55 @@
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  HealthCheck,
+  HealthCheckService,
+  TypeOrmHealthIndicator,
+} from '@nestjs/terminus';
+import { ChainHealthIndicator } from './chain-health.indicator';
+import { Public } from '../auth/decorators/public.decorator';
+
+@ApiTags('health')
+@Controller('health')
+export class HealthController {
+  constructor(
+    private readonly health: HealthCheckService,
+    private readonly db: TypeOrmHealthIndicator,
+    private readonly chain: ChainHealthIndicator,
+  ) {}
+
+  @Public()
+  @Get('live')
+  @HealthCheck()
+  @ApiOperation({ summary: 'Liveness probe — is the process running?' })
+  @ApiResponse({ status: 200, description: 'Process is alive' })
+  liveness() {
+    // Liveness bypasses DB/Redis checks
+    return this.health.check([]);
+  }
+
+  @Public()
+  @Get('ready')
+  @HealthCheck()
+  @ApiOperation({ summary: 'Readiness probe — is the app ready to serve traffic?' })
+  @ApiResponse({ status: 200, description: 'All dependencies healthy' })
+  @ApiResponse({ status: 503, description: 'One or more dependencies unhealthy' })
+  readiness() {
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.chain.isHealthy(),
+    ]);
+  }
+
+  @Public()
+  @Get()
+  @HealthCheck()
+  @ApiOperation({ summary: 'Comprehensive health — all checks with response times' })
+  @ApiResponse({ status: 200, description: 'All checks passed' })
+  @ApiResponse({ status: 503, description: 'One or more checks failed' })
+  comprehensive() {
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.chain.isHealthy(),
+    ]);
+  }
+}
