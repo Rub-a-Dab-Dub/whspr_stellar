@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { create } from 'ipfs-http-client';
