@@ -96,4 +96,49 @@ export class PaymentsController {
       },
     };
   }
+
+  @Post('tip')
+  @HttpCode(HttpStatus.CREATED)
+  async createTip(
+    @Request() req: { user: { id?: string; sub?: string } },
+    @Body() dto: CreateTipDto,
+  ) {
+    const userId = req.user.id ?? req.user.sub;
+    const payment = await this.paymentsService.createTip(
+      userId,
+      dto.recipientId,
+      dto.roomId,
+      dto.amount,
+      dto.tokenAddress,
+      dto.txHash,
+    );
+    return {
+      success: true,
+      message: 'Tip processed successfully',
+      data: payment,
+    };
+  }
+
+  @Get('history')
+  async getPaymentHistory(
+    @Request() req: { user: { id?: string; sub?: string } },
+    @Query() query: PaymentHistoryQueryDto,
+  ) {
+    const userId = req.user.id ?? req.user.sub;
+    const { payments, total } = await this.paymentsService.getPaymentHistory(
+      userId,
+      query.type,
+      query.limit ?? 20,
+      query.offset ?? 0,
+    );
+    return {
+      success: true,
+      data: payments,
+      pagination: {
+        total,
+        limit: query.limit ?? 20,
+        offset: query.offset ?? 0,
+      },
+    };
+  }
 }

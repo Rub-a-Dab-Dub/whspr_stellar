@@ -66,6 +66,9 @@ export class User {
   @Column({ default: false })
   isOnline: boolean;
 
+  @Column({ default: 0 })
+  xp: number;
+
   @Column({ default: false })
   isBanned: boolean;
 

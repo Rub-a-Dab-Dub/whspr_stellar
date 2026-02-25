@@ -12,8 +12,10 @@ import {
   ResolvedRecipient,
 } from './services/recipient-resolution.service';
 import { PaymentBlockchainService } from './services/payment-blockchain.service';
+import { TransactionVerificationService } from './services/transaction-verification.service';
 import { PaymentsGateway } from './payments.gateway';
 import { User } from '../user/entities/user.entity';
+import { Message, MessageType } from '../messages/entities/message.entity';
 
 @Injectable()
 export class PaymentsService {
@@ -24,10 +26,13 @@ export class PaymentsService {
     private readonly paymentRepository: Repository<Payment>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Message)
+    private readonly messageRepository: Repository<Message>,
     private readonly recipientResolution: RecipientResolutionService,
     private readonly blockchainService: PaymentBlockchainService,
+    private readonly transactionVerification: TransactionVerificationService,
     private readonly paymentsGateway: PaymentsGateway,
-  ) {}
+  ) { }
 
   async createTransfer(
     senderId: string,
@@ -148,6 +153,134 @@ export class PaymentsService {
         userId,
       })
       .andWhere('payment.type = :type', { type: PaymentType.P2P })
+      .orderBy('payment.createdAt', 'DESC')
+      .skip(offset)
+      .take(limit);
+
+    const [payments, total] = await queryBuilder.getManyAndCount();
+    return { payments, total };
+  }
+
+  async createTip(
+    senderId: string,
+    recipientId: string,
+    roomId: string,
+    amount: number,
+    tokenAddress: string,
+    txHash: string,
+  ): Promise<Payment> {
+    // Check if transaction already processed
+    const existingPayment = await this.paymentRepository.findOne({
+      where: { transactionHash: txHash },
+    });
+
+    if (existingPayment) {
+      throw new BadRequestException('Transaction already processed');
+    }
+
+    // Verify sender and recipient exist
+    const [sender, recipient] = await Promise.all([
+      this.userRepository.findOne({ where: { id: senderId }, select: ['id', 'walletAddress', 'xp'] }),
+      this.userRepository.findOne({ where: { id: recipientId }, select: ['id', 'walletAddress', 'xp'] }),
+    ]);
+
+    if (!sender) {
+      throw new NotFoundException('Sender not found');
+    }
+
+    if (!recipient) {
+      throw new NotFoundException('Recipient not found');
+    }
+
+    if (senderId === recipientId) {
+      throw new BadRequestException('Cannot tip yourself');
+    }
+
+    // Verify transaction on-chain
+    const verifiedTx = await this.transactionVerification.verifyTransaction(txHash);
+
+    // Verify contract match
+    if (!this.transactionVerification.verifyContractMatch(verifiedTx)) {
+      throw new BadRequestException('Transaction not from correct contract');
+    }
+
+    // Verify amounts (2% platform fee)
+    const { isValid, recipientAmount, platformFee } =
+      this.transactionVerification.verifyAmounts(verifiedTx.amount, amount, 2);
+
+    if (!isValid) {
+      throw new BadRequestException('Transaction amount does not match expected amount');
+    }
+
+    // Create payment record
+    const payment = this.paymentRepository.create({
+      senderId,
+      recipientId,
+      recipientWalletAddress: recipient.walletAddress!,
+      amount: amount.toFixed(8),
+      tokenAddress: tokenAddress === 'native' ? null : tokenAddress,
+      transactionHash: txHash,
+      type: PaymentType.TIP,
+      status: PaymentStatus.COMPLETED,
+      roomId,
+      completedAt: new Date(),
+    });
+
+    await this.paymentRepository.save(payment);
+
+    // Award XP: +20 to sender, +5 to recipient
+    sender.xp = (sender.xp || 0) + 20;
+    recipient.xp = (recipient.xp || 0) + 5;
+    await Promise.all([
+      this.userRepository.save(sender),
+      this.userRepository.save(recipient),
+    ]);
+
+    // Create TIP message in room
+    const message = this.messageRepository.create({
+      senderId,
+      roomId,
+      type: MessageType.TIP,
+      paymentId: payment.id,
+      content: `Tipped ${recipientAmount} tokens (${platformFee} platform fee)`,
+    });
+    await this.messageRepository.save(message);
+
+    // Emit WebSocket event
+    this.paymentsGateway.emitTipReceived(recipientId, {
+      paymentId: payment.id,
+      amount: payment.amount,
+      tokenAddress: payment.tokenAddress,
+      senderId,
+      roomId,
+      transactionHash: txHash,
+    });
+
+    this.logger.log(`Tip processed: ${senderId} -> ${recipientId}, amount: ${amount}, room: ${roomId}`);
+
+    return payment;
+  }
+
+  async getPaymentHistory(
+    userId: string,
+    type?: 'sent' | 'received',
+    limit: number = 20,
+    offset: number = 0,
+  ): Promise<{ payments: Payment[]; total: number }> {
+    const queryBuilder = this.paymentRepository
+      .createQueryBuilder('payment')
+      .leftJoinAndSelect('payment.sender', 'sender')
+      .leftJoinAndSelect('payment.recipient', 'recipient');
+
+    if (type === 'sent') {
+      queryBuilder.where('payment.senderId = :userId', { userId });
+    } else if (type === 'received') {
+      queryBuilder.where('payment.recipientId = :userId', { userId });
+    } else {
+      queryBuilder.where('payment.senderId = :userId OR payment.recipientId = :userId', { userId });
+    }
+
+    queryBuilder
       .orderBy('payment.createdAt', 'DESC')
       .skip(offset)
       .take(limit);
