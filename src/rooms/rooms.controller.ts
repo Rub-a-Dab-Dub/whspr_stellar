@@ -150,6 +150,7 @@ export class RoomsController {
     const roomIds = rooms.map(r => r.id);
     
     const dashboard = await this.statsService.getCreatorDashboard(userId, roomIds);
+    
     const totalMembers = await this.roomsService.getTotalMemberCount(roomIds);
     
     return { ...dashboard, totalMembers };
