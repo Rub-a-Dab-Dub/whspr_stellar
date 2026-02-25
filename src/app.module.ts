@@ -17,6 +17,7 @@ import { QueuesModule } from './queues/queues.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { SecurityModule } from './security/security.module';
 import { SeedModule } from './database/seeds/seed.module';
+import { CacheModule as CustomCacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { SeedModule } from './database/seeds/seed.module';
     RateLimitModule,
     SecurityModule,
     SeedModule,
+    CustomCacheModule,
   ],
   controllers: [AppController],
   providers: [AppService],
