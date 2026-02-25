@@ -1,4 +1,16 @@
-import { IsString, IsEnum, IsOptional, IsNumber, IsDateString, Length, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+  IsDateString,
+  Length,
+  Min,
+  Max,
+  IsArray,
+  ArrayMaxSize,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { RoomType } from '../entities/room.entity';
 
@@ -38,4 +50,28 @@ export class CreateRoomDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+
+  @ApiPropertyOptional({
+    example: ['crypto', 'defi', 'stellar'],
+    description: 'Topic tags for room discovery (max 5)',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5, { message: 'A room can have at most 5 tags' })
+  @IsString({ each: true })
+  @MaxLength(32, {
+    each: true,
+    message: 'Each tag must be at most 32 characters',
+  })
+  tags?: string[];
+
+  @ApiPropertyOptional({
+    example: 'stellar',
+    description: 'Blockchain network identifier for chain-based filtering',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  chain?: string;
 }

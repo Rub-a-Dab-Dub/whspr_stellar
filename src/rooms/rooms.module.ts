@@ -1,16 +1,22 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
 import { Room } from './entities/room.entity';
 import { RoomMember } from './entities/room-member.entity';
 import { RoomBlockchainService } from './services/room-blockchain.service';
+import { RoomTrendingCronService } from './services/room-trending-cron.service';
 import { UserModule } from '../user/user.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Room, RoomMember]), UserModule],
+  imports: [
+    TypeOrmModule.forFeature([Room, RoomMember]),
+    ScheduleModule.forRoot(),
+    UserModule,
+  ],
   controllers: [RoomsController],
-  providers: [RoomsService, RoomBlockchainService],
+  providers: [RoomsService, RoomBlockchainService, RoomTrendingCronService],
   exports: [RoomsService],
 })
 export class RoomsModule {}
