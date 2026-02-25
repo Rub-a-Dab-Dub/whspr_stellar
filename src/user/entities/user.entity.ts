@@ -25,6 +25,9 @@ export class User {
   @Index()
   walletAddress: string | null;
 
+  @Column({ default: 'USER' })
+  role: string;
+
   @Column({ default: false })
   isBanned: boolean;
 
