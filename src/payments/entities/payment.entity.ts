@@ -18,7 +18,9 @@ export enum PaymentStatus {
   PENDING = 'pending',
   PROCESSING = 'processing',
   COMPLETED = 'completed',
+  VERIFIED = 'verified',
   FAILED = 'failed',
+  REFUNDED = 'refunded',
 }
 
 @Entity('payments')

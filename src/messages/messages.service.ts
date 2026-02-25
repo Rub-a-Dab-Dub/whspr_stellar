@@ -103,7 +103,7 @@ export class MessagesService {
     userId: string,
     roomId: bigint,
     contentHash: string,
-    tipAmount: bigint = 0n,
+    tipAmount: bigint = BigInt(0),
   ) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
