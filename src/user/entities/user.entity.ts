@@ -25,6 +25,15 @@ export class User {
   @Index()
   walletAddress: string | null;
 
+  @Column({ nullable: true })
+  avatarUrl: string | null;
+
+  @Column({ default: 1 })
+  level: number;
+
+  @Column({ default: false })
+  isOnline: boolean;
+
   @Column({ default: false })
   isBanned: boolean;
 
