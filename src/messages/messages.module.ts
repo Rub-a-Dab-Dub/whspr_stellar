@@ -6,16 +6,18 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MessageMedia } from './entities/message-media.entity';
 import { Message } from './entities/message.entity';
 import { MessageEdit } from './entities/message-edit.entity';
+import { MessageReaction } from './entities/message-reaction.entity';
 import { RoomMember } from '../rooms/entities/room-member.entity';
 import { User } from '../user/entities/user.entity';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
+import { MessagesGateway } from './messages.gateway';
+import { ReactionsService } from './reactions.service';
 import { IpfsService } from './services/ipfs.service';
 import { NoOpMediaScanService } from './services/no-op-media-scan.service';
 import { ContractMessageService } from './services/contract-message.service';
 import { MEDIA_SCAN_SERVICE } from './services/media-scan.service';
 import { AnalyticsModule } from '../analytics/analytics.module';
-import { MessagesGateway } from './messages.gateway';
 
 @Module({
   imports: [
@@ -24,6 +26,7 @@ import { MessagesGateway } from './messages.gateway';
       User,
       Message,
       MessageEdit,
+      MessageReaction,
       RoomMember,
     ]),
     JwtModule.register({}),
@@ -34,14 +37,15 @@ import { MessagesGateway } from './messages.gateway';
   controllers: [MessagesController],
   providers: [
     MessagesService,
+    MessagesGateway,
+    ReactionsService,
     IpfsService,
     ContractMessageService,
-    MessagesGateway,
     {
       provide: MEDIA_SCAN_SERVICE,
       useClass: NoOpMediaScanService,
     },
   ],
-  exports: [MessagesService],
+  exports: [MessagesService, ReactionsService],
 })
 export class MessagesModule {}

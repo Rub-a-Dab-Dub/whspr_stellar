@@ -47,8 +47,23 @@ export class MessagesGateway
     });
   }
 
-  // Example method to join a room, if clients need to join rooms
+  // Helper to join a room channel
   joinRoom(client: Socket, roomId: string) {
-    client.join(`room_${roomId}`);
+    void client.join(`room_${roomId}`);
+  }
+
+  /**
+   * Broadcast aggregated reaction counts to all room subscribers.
+   * Called by ReactionsService after every add/remove.
+   */
+  broadcastReactionUpdated(
+    roomId: string,
+    messageId: string,
+    reactions: Record<string, number>,
+  ): void {
+    this.server.to(`room_${roomId}`).emit('message.reaction_updated', {
+      messageId,
+      reactions,
+    });
   }
 }
