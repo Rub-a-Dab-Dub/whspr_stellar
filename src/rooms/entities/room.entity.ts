@@ -10,7 +10,9 @@ import {
 
 export enum RoomType {
   PUBLIC = 'PUBLIC',
+  PRIVATE = 'PRIVATE',
   TOKEN_GATED = 'TOKEN_GATED',
+  TIMED = 'TIMED',
 }
 
 @Entity('rooms')
@@ -46,6 +48,15 @@ export class Room {
 
   @Column({ name: 'token_address', length: 56, nullable: true })
   tokenAddress: string;
+
+  @Column({ name: 'max_members', default: 100 })
+  maxMembers: number;
+
+  @Column({ name: 'expires_at', nullable: true })
+  expiresAt: Date;
+
+  @Column({ name: 'is_active', default: true })
+  isActive: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

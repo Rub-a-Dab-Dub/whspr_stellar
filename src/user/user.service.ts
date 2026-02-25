@@ -55,4 +55,8 @@ export class UserService {
       isOnline: user.isOnline,
     }));
   }
+
+  async addXP(userId: string, amount: number): Promise<void> {
+    await this.userRepository.increment({ id: userId }, 'xp', amount);
+  }
 }

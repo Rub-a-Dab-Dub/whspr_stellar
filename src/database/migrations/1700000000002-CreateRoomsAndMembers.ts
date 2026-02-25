@@ -5,7 +5,7 @@ export class CreateRoomsAndMembers1700000000002 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TYPE "public"."rooms_type_enum" AS ENUM('PUBLIC', 'TOKEN_GATED')
+      CREATE TYPE "public"."rooms_type_enum" AS ENUM('PUBLIC', 'PRIVATE', 'TOKEN_GATED', 'TIMED')
     `);
     
     await queryRunner.query(`
@@ -18,6 +18,9 @@ export class CreateRoomsAndMembers1700000000002 implements MigrationInterface {
         "creator_wallet_address" character varying(56),
         "entryFee" numeric(18,8),
         "token_address" character varying(56),
+        "max_members" integer DEFAULT 100,
+        "expires_at" TIMESTAMP,
+        "is_active" boolean NOT NULL DEFAULT true,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_0368a2d7c215f2d0458a54933f2" PRIMARY KEY ("id")

@@ -31,6 +31,9 @@ export class User {
   @Column({ default: 1 })
   level: number;
 
+  @Column({ default: 0 })
+  xp: number;
+
   @Column({ default: false })
   isOnline: boolean;
 
