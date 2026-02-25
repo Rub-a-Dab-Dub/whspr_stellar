@@ -5,6 +5,8 @@ import { User } from '../user/entities/user.entity';
 import { XpTransaction, XpReason } from './entities/xp-transaction.entity';
 import { XpGateway } from './gateways/xp.gateway';
 import { XP_RULES, xpToLevel } from './xp.constants';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { EventType } from '../analytics/entities/analytics-event.entity';
 
 export interface AwardResult {
   xpAwarded: number;
@@ -26,6 +28,7 @@ export class UserXpService {
     private readonly xpTxRepo: Repository<XpTransaction>,
     private readonly xpGateway: XpGateway,
     private readonly dataSource: DataSource,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   // ─── Public API ───────────────────────────────────────────────────────────
@@ -67,7 +70,19 @@ export class UserXpService {
     meta?: string,
   ): Promise<AwardResult> {
     if (xp <= 0) throw new Error('XP amount must be positive.');
-    return this.applyAward(userId, xp, reason, meta);
+    const result = await this.applyAward(userId, xp, reason, meta);
+
+    // Track quest completion
+    if (reason === XpReason.QUEST_COMPLETE) {
+      await this.analyticsService.track(userId, EventType.QUEST_COMPLETED, {
+        xpAwarded: xp,
+        questName: meta,
+        leveledUp: result.leveledUp,
+        newLevel: result.currentLevel,
+      });
+    }
+
+    return result;
   }
 
   // ─── XP History ───────────────────────────────────────────────────────────

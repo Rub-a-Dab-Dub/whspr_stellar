@@ -6,6 +6,8 @@ import { User } from '../user/entities/user.entity';
 import { IpfsService } from './services/ipfs.service';
 import { IMediaScanService, MEDIA_SCAN_SERVICE } from './services/media-scan.service';
 import { ContractMessageService } from './services/contract-message.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { EventType } from '../analytics/entities/analytics-event.entity';
 
 const MEDIA_RATE_LIMIT_PER_HOUR = 10;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -30,6 +32,7 @@ export class MessagesService {
     @Inject(MEDIA_SCAN_SERVICE)
     private readonly mediaScanService: IMediaScanService,
     private readonly contractMessageService: ContractMessageService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   async uploadMedia(
@@ -113,11 +116,27 @@ export class MessagesService {
       throw new BadRequestException('User has no wallet address linked');
     }
 
-    return this.contractMessageService.sendMessage(
+    const result = await this.contractMessageService.sendMessage(
       user.walletAddress,
       roomId,
       contentHash,
       tipAmount,
     );
+
+    // Track analytics
+    await this.analyticsService.track(userId, EventType.MESSAGE_SENT, {
+      roomId: roomId.toString(),
+      contentHash,
+      hasTip: tipAmount > BigInt(0),
+    });
+
+    if (tipAmount > BigInt(0)) {
+      await this.analyticsService.track(userId, EventType.TIP_SENT, {
+        roomId: roomId.toString(),
+        amount: tipAmount.toString(),
+      });
+    }
+
+    return result;
   }
 }

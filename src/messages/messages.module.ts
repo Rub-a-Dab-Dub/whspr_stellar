@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { MessageMedia } from './entities/message-media.entity';
 import { User } from '../user/entities/user.entity';
 import { MessagesController } from './messages.controller';
@@ -16,6 +17,7 @@ import { MEDIA_SCAN_SERVICE } from './services/media-scan.service';
     TypeOrmModule.forFeature([MessageMedia, User]),
     JwtModule.register({}),
     ConfigModule,
+    AnalyticsModule,
   ],
   controllers: [MessagesController],
   providers: [
