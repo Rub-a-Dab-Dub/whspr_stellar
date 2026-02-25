@@ -1,9 +1,13 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ConfigModule as AppConfigModule } from './config/config.module';
+import { DatabaseModule } from './database/database.module';
+import { RedisModule } from './redis/redis.module';
+import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { AdminModule } from './admin/admin.module';
@@ -22,26 +26,12 @@ import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    AppConfigModule,
 
-    // ── Database ───────────────────────────────────────────────────────────
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DATABASE_HOST', 'localhost'),
-        port: configService.get<number>('DATABASE_PORT', 5432),
-        username: configService.get<string>('DATABASE_USER', 'postgres'),
-        password: configService.get<string>('DATABASE_PASS', 'postgres'),
-        database: configService.get<string>('DATABASE_NAME', 'whspr'),
-        autoLoadEntities: true,
-        synchronize: configService.get<string>('NODE_ENV') !== 'production',
-        logging: configService.get<string>('NODE_ENV') === 'development',
-      }),
-    }),
+    DatabaseModule,
+    RedisModule,
 
-    // ── Redis Cache ──────────────────────────────────────────────────────
+    // Redis Cache (Nest CacheModule for existing cache.service)
     CacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
@@ -54,7 +44,6 @@ import { AnalyticsModule } from './analytics/analytics.module';
       }),
     }),
 
-    // ── Feature Modules ─────────────────────────────────────────────────
     AuthModule,
     UserModule,
     AdminModule,
@@ -74,4 +63,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestLoggingMiddleware).forRoutes('*');
+  }
+}
