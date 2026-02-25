@@ -6,6 +6,7 @@ import {
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 import { ChainHealthIndicator } from './chain-health.indicator';
+import { RedisHealthIndicator } from '../redis/redis-health.indicator';
 import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('health')
@@ -14,6 +15,7 @@ export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly db: TypeOrmHealthIndicator,
+    private readonly redis: RedisHealthIndicator,
     private readonly chain: ChainHealthIndicator,
   ) {}
 
@@ -36,6 +38,7 @@ export class HealthController {
   readiness() {
     return this.health.check([
       () => this.db.pingCheck('database'),
+      () => this.redis.isHealthy('redis'),
       () => this.chain.isHealthy(),
     ]);
   }
@@ -43,12 +46,16 @@ export class HealthController {
   @Public()
   @Get()
   @HealthCheck()
-  @ApiOperation({ summary: 'Comprehensive health — all checks with response times' })
+  @ApiOperation({
+    summary: 'Health — DB, Redis, and chain connectivity',
+    description: 'GET /health: DB + Redis + chain checks (for load balancers and probes)',
+  })
   @ApiResponse({ status: 200, description: 'All checks passed' })
   @ApiResponse({ status: 503, description: 'One or more checks failed' })
-  comprehensive() {
+  healthCheck() {
     return this.health.check([
       () => this.db.pingCheck('database'),
+      () => this.redis.isHealthy('redis'),
       () => this.chain.isHealthy(),
     ]);
   }
