@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { PaymentsModule } from './payments/payments.module';
 import { MessagesModule } from './messages/messages.module';
+import { PlatformConfigModule } from './platform-config/platform-config.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { MessagesModule } from './messages/messages.module';
     }),
     PaymentsModule,
     MessagesModule,
+    PlatformConfigModule,
   ],
 })
 export class AppModule {}
