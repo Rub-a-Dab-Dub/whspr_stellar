@@ -11,6 +11,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 // import { RolesGuard } from './auth/guards/roles.guard';
 import { User } from './user/entities/user.entity';
 import { AdminModule } from './admin/admin.module';
+import { MessagesModule } from './messages/messages.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { AdminModule } from './admin/admin.module';
     AuthModule,
     UsersModule,
     AdminModule,
+    PaymentsModule,
+    MessagesModule,
     // AdminModule,
   ],
 
