@@ -19,7 +19,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { UserRole } from '../user/entities/user.entity';
-import { UsersService } from '../user/user.service';
+import { UserService } from '../user/user.service';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { SetUserActiveDto } from './dto/set-user-active.dto';
 
@@ -34,7 +34,7 @@ import { SetUserActiveDto } from './dto/set-user-active.dto';
 @Controller('admin')
 @Roles(UserRole.ADMIN)
 export class AdminController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UserService) {}
 
   // ─── User management ────────────────────────────────────────────────────────
 
