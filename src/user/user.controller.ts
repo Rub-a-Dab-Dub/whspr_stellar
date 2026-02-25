@@ -1,34 +1,60 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { Controller, Get, Param, Query, ParseUUIDPipe } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
+import { UserXpService } from '../xp/user-xp.service';
+import { XpHistoryQueryDto } from '../xp/dto/xp-history-query.dto';
 
-@Controller('user')
+@ApiTags('users')
+@ApiBearerAuth()
+@Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userXpService: UserXpService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.userService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.userService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.remove(+id);
+  /**
+   * GET /users/:id/xp-history
+   * Paginated XP transaction history for a user.
+   */
+  @Get(':id/xp-history')
+  @ApiOperation({
+    summary: 'Get paginated XP transaction history for a user',
+    description:
+      'Returns all XP award events ordered most recent first, ' +
+      'along with current xpTotal and level.',
+  })
+  @ApiParam({ name: 'id', description: 'User UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'XP history returned successfully',
+    schema: {
+      example: {
+        xpTotal: 1250,
+        level: 2,
+        total: 8,
+        transactions: [
+          {
+            id: 'uuid',
+            userId: 'uuid',
+            amount: 10,
+            reason: 'send_message',
+            meta: null,
+            xpAfter: 1250,
+            levelAfter: 2,
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getXpHistory(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Query() query: XpHistoryQueryDto,
+  ) {
+    return this.userXpService.getHistory(userId, query.limit, query.offset);
   }
 }

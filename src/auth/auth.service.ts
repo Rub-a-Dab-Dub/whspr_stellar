@@ -1,7 +1,6 @@
 import {
   Injectable,
   UnauthorizedException,
-  BadRequestException,
   Inject,
   Logger,
 } from '@nestjs/common';
@@ -11,19 +10,34 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ethers } from 'ethers';
 import * as crypto from 'crypto';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '../user/user.service';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { UserRole } from 'src/user/entities/user.entity';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Redis TTL for nonces: 5 minutes (in milliseconds for cache-manager v5+) */
+/** Redis TTL for nonces: 5 minutes */
 const NONCE_TTL_MS = 5 * 60 * 1000;
 
-/** Redis TTL for refresh tokens: 7 days */
+/** Redis TTL for refresh token families: 7 days */
 const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Redis TTL for access token revocation: 15 minutes (matches JWT_EXPIRES_IN default) */
+const ACCESS_REVOKE_TTL_MS = 15 * 60 * 1000;
+
 const NONCE_PREFIX = 'auth:nonce:';
-const REFRESH_PREFIX = 'auth:refresh:';
+
+/**
+ * Stores the current valid jti for each token family.
+ * Key: auth:family:{familyId}  →  value: current valid jti
+ */
+const FAMILY_PREFIX = 'auth:family:';
+
+/**
+ * Revocation list for both access and refresh tokens.
+ * Key: auth:revoked:{jti}  →  value: '1'
+ */
+const REVOKED_PREFIX = 'auth:revoked:';
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -43,9 +57,6 @@ export class AuthService {
   /**
    * Generate a cryptographically random one-time nonce for a given wallet
    * address and store it in Redis with a 5-minute TTL.
-   *
-   * The signed message format is deterministic so the frontend knows exactly
-   * what to pass to eth_sign / personal_sign.
    */
   async generateNonce(
     walletAddress: string,
@@ -70,6 +81,7 @@ export class AuthService {
   /**
    * Verify the EIP-191 signed message against the stored nonce.
    * On success: consume nonce, upsert user, issue access + refresh tokens.
+   * A new token family is created for every fresh login.
    */
   async verifySignature(
     walletAddress: string,
@@ -94,7 +106,9 @@ export class AuthService {
     try {
       recoveredAddress = ethers.verifyMessage(message, signature);
     } catch {
-      throw new UnauthorizedException('Signature parsing failed. Ensure the signature is a valid EIP-191 hex string.');
+      throw new UnauthorizedException(
+        'Signature parsing failed. Ensure the signature is a valid EIP-191 hex string.',
+      );
     }
 
     // 4. Compare recovered address (case-insensitive)
@@ -110,19 +124,31 @@ export class AuthService {
     // 6. Upsert user record
     const user = await this.usersService.findOrCreate(normalized);
 
-    // 7. Issue tokens
-    const { accessToken, refreshToken } = await this.issueTokenPair(user.id, user.walletAddress, user.role);
+    // 7. Issue tokens with a fresh family
+    const familyId = crypto.randomUUID();
+    const tokens = await this.issueTokenPair(
+      user.id,
+      user.walletAddress,
+      user.role,
+      familyId,
+    );
 
-    this.logger.log(`Authenticated: userId=${user.id} wallet=${normalized}`);
+    this.logger.log(
+      `Authenticated: userId=${user.id} wallet=${normalized} family=${familyId}`,
+    );
 
-    return { accessToken, refreshToken };
+    return tokens;
   }
 
   // ─── Refresh ────────────────────────────────────────────────────────────────
 
   /**
-   * Validate a refresh token stored in Redis and issue a new access + refresh
-   * token pair (rotation). The old refresh token is invalidated on use.
+   * Validate a refresh token and issue a new access + refresh token pair
+   * (rotation). The old refresh token is single-use — each use generates a
+   * new jti and invalidates the old one.
+   *
+   * Reuse detection: if the presented jti does NOT match the current family
+   * head, the entire family is revoked immediately (compromise detected).
    */
   async refreshTokens(
     refreshToken: string,
@@ -137,27 +163,60 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token.');
     }
 
-    // 2. Check Redis allowlist — token must still be live
-    const storedToken = await this.cacheManager.get<string>(
-      `${REFRESH_PREFIX}${payload.sub}`,
+    const { sub: userId, familyId, jti } = payload;
+
+    if (!familyId || !jti) {
+      throw new UnauthorizedException('Malformed refresh token.');
+    }
+
+    // 2. Check revocation list — explicit revocations (logout / compromise)
+    const isRevoked = await this.cacheManager.get<string>(
+      `${REVOKED_PREFIX}${jti}`,
     );
-    if (!storedToken || storedToken !== refreshToken) {
+    if (isRevoked) {
+      throw new UnauthorizedException('Refresh token has been revoked.');
+    }
+
+    // 3. Check family head — detect reuse of an old (already-rotated) token
+    const currentJti = await this.cacheManager.get<string>(
+      `${FAMILY_PREFIX}${familyId}`,
+    );
+
+    if (!currentJti) {
+      // Family has been fully revoked (e.g., after logout or compromise)
       throw new UnauthorizedException(
-        'Refresh token has been revoked or already used.',
+        'Token family is no longer valid. Please re-authenticate.',
       );
     }
 
-    // 3. Load user
-    const user = await this.usersService.findById(payload.sub);
+    if (currentJti !== jti) {
+      // Token reuse detected — revoke entire family immediately
+      this.logger.warn(
+        `Token reuse detected for userId=${userId} family=${familyId}. Revoking family.`,
+      );
+      await this.revokeFamilyAndToken(familyId, jti);
+      throw new UnauthorizedException(
+        'Token reuse detected. All sessions have been invalidated for security.',
+      );
+    }
+
+    // 4. Load user
+    const user = await this.usersService.findById(userId);
     if (!user || !user.isActive) {
       throw new UnauthorizedException('User not found or inactive.');
     }
 
-    // 4. Rotate — invalidate old token, issue fresh pair
-    await this.cacheManager.del(`${REFRESH_PREFIX}${payload.sub}`);
-    const tokens = await this.issueTokenPair(user.id, user.walletAddress, user.role);
+    // 5. Rotate — add old jti to revocation list, issue fresh pair in same family
+    await this.revokeJti(jti, REFRESH_TTL_MS);
 
-    this.logger.debug(`Token rotated for userId=${user.id}`);
+    const tokens = await this.issueTokenPair(
+      user.id,
+      user.walletAddress,
+      user.role,
+      familyId,
+    );
+
+    this.logger.debug(`Token rotated for userId=${userId} family=${familyId}`);
 
     return tokens;
   }
@@ -165,12 +224,48 @@ export class AuthService {
   // ─── Logout ─────────────────────────────────────────────────────────────────
 
   /**
-   * Invalidate the refresh token for the authenticated user.
-   * The short-lived access token will expire naturally.
+   * POST /auth/logout
+   * Invalidate the current refresh token family and add the access token jti
+   * to the revocation list so it cannot be used for its remaining TTL.
    */
-  async logout(userId: string): Promise<void> {
-    await this.cacheManager.del(`${REFRESH_PREFIX}${userId}`);
+  async logout(
+    userId: string,
+    accessTokenJti: string,
+    refreshToken?: string,
+  ): Promise<void> {
+    // Revoke access token immediately (short TTL matching JWT_EXPIRES_IN)
+    await this.revokeJti(accessTokenJti, ACCESS_REVOKE_TTL_MS);
+
+    if (refreshToken) {
+      try {
+        const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        });
+        if (payload.familyId) {
+          await this.revokeFamilyAndToken(payload.familyId, payload.jti);
+        }
+      } catch {
+        // Refresh token already expired or invalid — family may already be gone
+        this.logger.debug(
+          `Could not decode refresh token during logout for userId=${userId}`,
+        );
+      }
+    }
+
     this.logger.debug(`Logged out userId=${userId}`);
+  }
+
+  // ─── Token Checks ───────────────────────────────────────────────────────────
+
+  /**
+   * Check whether a given jti is on the revocation list.
+   * Used by the JWT guard to reject access tokens after logout.
+   */
+  async isRevoked(jti: string): Promise<boolean> {
+    const value = await this.cacheManager.get<string>(
+      `${REVOKED_PREFIX}${jti}`,
+    );
+    return !!value;
   }
 
   // ─── Private Helpers ────────────────────────────────────────────────────────
@@ -189,26 +284,65 @@ export class AuthService {
     userId: string,
     walletAddress: string,
     role: string,
+    familyId: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload: JwtPayload = { sub: userId, walletAddress, role: role as any };
+    const accessJti = crypto.randomUUID();
+    const refreshJti = crypto.randomUUID();
 
-    const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '15m'),
-    });
+    const basePayload: Omit<JwtPayload, 'jti'> = {
+      sub: userId,
+      walletAddress,
+      role: role as UserRole,
+      familyId,
+    };
 
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'),
-    });
+    const accessToken = this.jwtService.sign(
+      { ...basePayload, jti: accessJti },
+      {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '15m'),
+      },
+    );
 
-    // Store refresh token in Redis for revocation
+    const refreshToken = this.jwtService.sign(
+      { ...basePayload, jti: refreshJti },
+      {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.get<string>(
+          'JWT_REFRESH_EXPIRES_IN',
+          '7d',
+        ),
+      },
+    );
+
+    // Update family head to the new refresh jti
     await this.cacheManager.set(
-      `${REFRESH_PREFIX}${userId}`,
-      refreshToken,
+      `${FAMILY_PREFIX}${familyId}`,
+      refreshJti,
       REFRESH_TTL_MS,
     );
 
     return { accessToken, refreshToken };
+  }
+
+  /**
+   * Add a jti to the revocation list with the given TTL.
+   */
+  private async revokeJti(jti: string, ttlMs: number): Promise<void> {
+    await this.cacheManager.set(`${REVOKED_PREFIX}${jti}`, '1', ttlMs);
+  }
+
+  /**
+   * Revoke an entire token family (delete the family head) and optionally
+   * add a specific jti to the revocation list.
+   */
+  private async revokeFamilyAndToken(
+    familyId: string,
+    jti?: string,
+  ): Promise<void> {
+    await this.cacheManager.del(`${FAMILY_PREFIX}${familyId}`);
+    if (jti) {
+      await this.revokeJti(jti, REFRESH_TTL_MS);
+    }
   }
 }

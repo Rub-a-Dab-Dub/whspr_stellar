@@ -65,4 +65,14 @@ export class User {
 
   @DeleteDateColumn()
   deletedAt: Date | null;
+
+  // ── XP / Gamification ─────────────────────────────────────────────────────
+
+  /** Cumulative experience points */
+  @Column({ name: 'xp_total', type: 'int', default: 0 })
+  xpTotal: number;
+
+  /** Current level derived from xpTotal (auto-updated by UserXpService) */
+  @Column({ name: 'level', type: 'int', default: 1 })
+  level: number;
 }

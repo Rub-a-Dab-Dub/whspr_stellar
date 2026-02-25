@@ -1,14 +1,17 @@
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-  Delete,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { NonceRequestDto, VerifySignatureDto, RefreshTokenDto } from './dto/auth.dto';
+import {
+  NonceRequestDto,
+  VerifySignatureDto,
+  RefreshTokenDto,
+  LogoutDto,
+} from './dto/auth.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -21,7 +24,6 @@ export class AuthController {
   /**
    * POST /auth/nonce
    * Generate a one-time nonce for the given wallet address.
-   * Public — no authentication required.
    */
   @Public()
   @Post('nonce')
@@ -30,7 +32,7 @@ export class AuthController {
     summary: 'Generate a one-time nonce for wallet authentication',
     description:
       'Returns a nonce and the exact message the wallet must sign. ' +
-      'The nonce expires after 5 minutes. Use eth_sign or personal_sign in MetaMask.',
+      'The nonce expires after 5 minutes.',
   })
   @ApiResponse({
     status: 200,
@@ -49,7 +51,6 @@ export class AuthController {
   /**
    * POST /auth/verify
    * Verify the signed nonce and issue access + refresh tokens.
-   * Public — this is the authentication endpoint itself.
    */
   @Public()
   @Post('verify')
@@ -57,8 +58,8 @@ export class AuthController {
   @ApiOperation({
     summary: 'Verify a signed nonce and issue JWT tokens',
     description:
-      'Verifies the EIP-191 signature using ethers.js verifyMessage(). ' +
-      'On success, returns a short-lived access token and a 7-day refresh token.',
+      'Verifies the EIP-191 signature. On success, returns a short-lived ' +
+      'access token and a 7-day refresh token (with token family tracking).',
   })
   @ApiResponse({
     status: 200,
@@ -70,7 +71,10 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Invalid signature or expired nonce' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid signature or expired nonce',
+  })
   async verify(@Body() dto: VerifySignatureDto) {
     return this.authService.verifySignature(dto.walletAddress, dto.signature);
   }
@@ -78,7 +82,8 @@ export class AuthController {
   /**
    * POST /auth/refresh
    * Exchange a valid refresh token for a new access + refresh token pair.
-   * Public — the refresh token IS the authentication credential here.
+   * Rotation is enforced — old token is invalidated on use.
+   * Token reuse triggers immediate revocation of the entire family.
    */
   @Public()
   @Post('refresh')
@@ -86,31 +91,38 @@ export class AuthController {
   @ApiOperation({
     summary: 'Refresh access token using a refresh token',
     description:
-      'Rotates the refresh token (old token is invalidated on use). ' +
-      'Returns a new access token and refresh token.',
+      'Single-use rotation: old token is invalidated and a new pair is issued. ' +
+      'Token reuse detection revokes the entire token family.',
   })
   @ApiResponse({ status: 200, description: 'Tokens refreshed successfully' })
-  @ApiResponse({ status: 401, description: 'Invalid or revoked refresh token' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid, expired, revoked, or reused refresh token',
+  })
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshTokens(dto.refreshToken);
   }
 
   /**
-   * DELETE /auth/logout
-   * Invalidate the refresh token for the authenticated user.
+   * POST /auth/logout
+   * Invalidate both the access token and the refresh token family.
    * Requires a valid access token (guarded by global JwtAuthGuard).
    */
-  @Delete('logout')
+  @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Logout and invalidate refresh token',
+    summary: 'Logout and invalidate both access and refresh token families',
     description:
-      'Revokes the stored refresh token. The access token expires naturally after its TTL.',
+      'Adds the access token jti to the revocation list and deletes the ' +
+      'entire refresh token family from Redis.',
   })
   @ApiResponse({ status: 204, description: 'Logged out successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async logout(@CurrentUser() user: JwtPayload): Promise<void> {
-    await this.authService.logout(user.sub);
+  async logout(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: LogoutDto,
+  ): Promise<void> {
+    await this.authService.logout(user.sub, user.jti!, dto.refreshToken);
   }
 }

@@ -12,6 +12,8 @@ import { AdminModule } from './admin/admin.module';
 import { MessagesModule } from './messages/messages.module';
 import { PaymentsModule } from './payments/payments.module';
 import { RolesGuard } from './auth/guards/roles.guard';
+import { XpModule } from './xp/xp.module';
+import { SessionKeysModule } from './session-keys/session-keys.module';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AdminModule,
     PaymentsModule,
     MessagesModule,
+    XpModule,
+    SessionKeysModule,
     // AdminModule,
   ],
 
