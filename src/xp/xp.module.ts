@@ -6,6 +6,7 @@ import { User } from '../user/entities/user.entity';
 import { XpTransaction } from './entities/xp-transaction.entity';
 import { XpGateway } from './gateways/xp.gateway';
 import { UserXpService } from './user-xp.service';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { UserXpService } from './user-xp.service';
         secret: cfg.get<string>('JWT_SECRET'),
       }),
     }),
+    AnalyticsModule,
   ],
   providers: [UserXpService, XpGateway],
   exports: [UserXpService],

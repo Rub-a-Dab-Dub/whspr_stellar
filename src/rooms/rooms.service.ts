@@ -18,6 +18,8 @@ import { GetRoomsDto } from './dto/get-rooms.dto';
 import { SearchRoomsDto } from './dto/search-rooms.dto';
 import { DiscoverRoomsDto } from './dto/discover-rooms.dto';
 import { UserService } from '../user/user.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { EventType } from '../analytics/entities/analytics-event.entity';
 
 // ─── Cursor helpers ───────────────────────────────────────────────────────────
 
@@ -46,6 +48,7 @@ export class RoomsService {
     private configService: ConfigService,
     private userService: UserService,
     private dataSource: DataSource,
+    private analyticsService: AnalyticsService,
   ) {}
 
   // ─── Create ─────────────────────────────────────────────────────────────────
@@ -82,6 +85,14 @@ export class RoomsService {
 
     const savedRoom = await this.roomRepository.save(room);
     await this.userService.addXP(creatorId, 50);
+
+    // Track room creation
+    await this.analyticsService.track(creatorId, EventType.ROOM_CREATED, {
+      roomId: savedRoom.id,
+      roomType: savedRoom.type,
+      isPrivate: savedRoom.isPrivate,
+    });
+
     return savedRoom;
   }
 
@@ -303,6 +314,26 @@ export class RoomsService {
     return room;
   }
 
+  async findOne(id: string): Promise<Room> {
+    return this.getRoomById(id);
+  }
+
+  async findByCreator(creatorId: string): Promise<Room[]> {
+    return this.roomRepository.find({ where: { creatorId } });
+  }
+
+  async getTotalMemberCount(roomIds: string[]): Promise<number> {
+    if (roomIds.length === 0) return 0;
+    
+    const result = await this.roomMemberRepository
+      .createQueryBuilder('member')
+      .select('COUNT(DISTINCT member.userId)', 'count')
+      .where('member.roomId IN (:...roomIds)', { roomIds })
+      .getRawOne();
+    
+    return parseInt(result.count || '0');
+  }
+
   async updateRoom(
     id: string,
     updateRoomDto: UpdateRoomDto,
@@ -433,6 +464,13 @@ export class RoomsService {
       roomId,
       userId,
       transactionHash,
+      paidAmount: room.entryFee,
+    });
+
+    // Track room join
+    await this.analyticsService.track(userId, EventType.ROOM_JOINED, {
+      roomId,
+      roomType: room.type,
       paidAmount: room.entryFee,
     });
 

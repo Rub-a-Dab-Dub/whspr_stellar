@@ -11,6 +11,8 @@ import { Cache } from 'cache-manager';
 import { ethers } from 'ethers';
 import * as crypto from 'crypto';
 import { UsersService } from '../user/user.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { EventType } from '../analytics/entities/analytics-event.entity';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { UserRole } from 'src/user/entities/user.entity';
 
@@ -50,6 +52,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   // ─── Nonce ──────────────────────────────────────────────────────────────────
@@ -136,6 +139,12 @@ export class AuthService {
     this.logger.log(
       `Authenticated: userId=${user.id} wallet=${normalized} family=${familyId}`,
     );
+
+    // Track login event
+    await this.analyticsService.track(user.id, EventType.USER_LOGIN, {
+      walletAddress: normalized,
+      familyId,
+    });
 
     return tokens;
   }

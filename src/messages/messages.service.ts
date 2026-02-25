@@ -17,6 +17,9 @@ import {
   MEDIA_SCAN_SERVICE,
 } from './services/media-scan.service';
 import { ContractMessageService } from './services/contract-message.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { EventType } from '../analytics/entities/analytics-event.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MessagesGateway } from './messages.gateway';
 import {
   ForbiddenException,
@@ -53,7 +56,14 @@ export class MessagesService {
     @Inject(MEDIA_SCAN_SERVICE)
     private readonly mediaScanService: IMediaScanService,
     private readonly contractMessageService: ContractMessageService,
+<<<<<<< HEAD
+    private readonly analyticsService: AnalyticsService,
+    private readonly eventEmitter: EventEmitter2,
+||||||| 3641dcb4
+    private readonly analyticsService: AnalyticsService,
+=======
     private readonly messagesGateway: MessagesGateway,
+>>>>>>> fe3df2de6c21aa9e7001133f69f1a04d881a871b
   ) {}
 
   async uploadMedia(
@@ -137,12 +147,35 @@ export class MessagesService {
       throw new BadRequestException('User has no wallet address linked');
     }
 
-    return this.contractMessageService.sendMessage(
+    const result = await this.contractMessageService.sendMessage(
       user.walletAddress,
       roomId,
       contentHash,
       tipAmount,
     );
+
+    // Emit event for room stats
+    this.eventEmitter.emit('message.sent', {
+      roomId: roomId.toString(),
+      userId,
+      tipAmount,
+    });
+
+    // Track analytics
+    await this.analyticsService.track(userId, EventType.MESSAGE_SENT, {
+      roomId: roomId.toString(),
+      contentHash,
+      hasTip: tipAmount > BigInt(0),
+    });
+
+    if (tipAmount > BigInt(0)) {
+      await this.analyticsService.track(userId, EventType.TIP_SENT, {
+        roomId: roomId.toString(),
+        amount: tipAmount.toString(),
+      });
+    }
+
+    return result;
   }
 
   async editMessage(userId: string, messageId: string, newContent: string) {
