@@ -1,54 +1,61 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    ManyToOne,
-    JoinColumn,
-    CreateDateColumn,
-    Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  Index,
 } from 'typeorm';
 
 export enum MessageType {
-    TEXT = 'TEXT',
-    MEDIA = 'MEDIA',
-    TIP = 'TIP',
+  TEXT = 'TEXT',
+  MEDIA = 'MEDIA',
+  TIP = 'TIP',
+  SYSTEM = 'SYSTEM',
 }
 
 @Entity('messages')
 @Index(['roomId', 'createdAt'])
 @Index(['senderId', 'createdAt'])
 export class Message {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @ManyToOne('User', { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'sender_id' })
-    sender: unknown;
+  @ManyToOne('User', { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'sender_id' })
+  sender: unknown;
 
-    @Column({ name: 'sender_id' })
-    senderId: string;
+  @Column({ name: 'sender_id' })
+  senderId: string;
 
-    @Column({ name: 'room_id' })
-    roomId: string;
+  @Column({ name: 'room_id' })
+  roomId: string;
 
-    @Column({
-        type: 'enum',
-        enum: MessageType,
-        default: MessageType.TEXT,
-    })
-    type: MessageType;
+  @Column({
+    type: 'enum',
+    enum: MessageType,
+    default: MessageType.TEXT,
+  })
+  type: MessageType;
 
-    @Column({ type: 'text', nullable: true })
-    content: string | null;
+  @Column({ type: 'text', nullable: true })
+  content: string | null;
 
-    @Column({ name: 'payment_id', nullable: true })
-    @Index()
-    paymentId: string | null;
+  @Column({ name: 'payment_id', nullable: true })
+  @Index()
+  paymentId: string | null;
 
-    @ManyToOne('Payment', { onDelete: 'SET NULL', nullable: true })
-    @JoinColumn({ name: 'payment_id' })
-    payment: unknown | null;
+  @ManyToOne('Payment', { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'payment_id' })
+  payment: unknown | null;
 
-    @CreateDateColumn({ name: 'created_at' })
-    createdAt: Date;
+  @Column({ name: 'is_deleted', default: false })
+  isDeleted: boolean;
+
+  @Column({ name: 'edited_at', nullable: true })
+  editedAt: Date | null;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
 }

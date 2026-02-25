@@ -1,14 +1,28 @@
-import { Injectable, Logger, BadRequestException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { MessageMedia, MediaType } from './entities/message-media.entity';
+import { Message, MessageType } from './entities/message.entity';
+import { MessageEdit } from './entities/message-edit.entity';
 import { User } from '../user/entities/user.entity';
+import { RoomMember } from '../rooms/entities/room-member.entity';
 import { IpfsService } from './services/ipfs.service';
-import { IMediaScanService, MEDIA_SCAN_SERVICE } from './services/media-scan.service';
+import {
+  IMediaScanService,
+  MEDIA_SCAN_SERVICE,
+} from './services/media-scan.service';
 import { ContractMessageService } from './services/contract-message.service';
-import { AnalyticsService } from '../analytics/analytics.service';
-import { EventType } from '../analytics/entities/analytics-event.entity';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { MessagesGateway } from './messages.gateway';
+import {
+  ForbiddenException,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 
 const MEDIA_RATE_LIMIT_PER_HOUR = 10;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -29,12 +43,17 @@ export class MessagesService {
     private readonly messageMediaRepository: Repository<MessageMedia>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Message)
+    private readonly messageRepository: Repository<Message>,
+    @InjectRepository(MessageEdit)
+    private readonly messageEditRepository: Repository<MessageEdit>,
+    @InjectRepository(RoomMember)
+    private readonly roomMemberRepository: Repository<RoomMember>,
     private readonly ipfsService: IpfsService,
     @Inject(MEDIA_SCAN_SERVICE)
     private readonly mediaScanService: IMediaScanService,
     private readonly contractMessageService: ContractMessageService,
-    private readonly analyticsService: AnalyticsService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly messagesGateway: MessagesGateway,
   ) {}
 
   async uploadMedia(
@@ -147,5 +166,138 @@ export class MessagesService {
     }
 
     return result;
+  }
+
+  async editMessage(userId: string, messageId: string, newContent: string) {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.isDeleted) {
+      throw new ForbiddenException('Cannot edit a deleted message');
+    }
+
+    if (
+      message.type === MessageType.SYSTEM ||
+      message.type === MessageType.TIP
+    ) {
+      throw new ForbiddenException('Cannot edit SYSTEM or TIP messages');
+    }
+
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('You can only edit your own messages');
+    }
+
+    const editWindowMs = 15 * 60 * 1000; // 15 minutes
+    if (Date.now() - message.createdAt.getTime() > editWindowMs) {
+      throw new ForbiddenException(
+        'Messages can only be edited within 15 minutes of sending',
+      );
+    }
+
+    // Preserve previous content in audit table
+    const messageEdit = this.messageEditRepository.create({
+      messageId: message.id,
+      previousContent: message.content,
+      editedById: userId,
+    });
+    await this.messageEditRepository.save(messageEdit);
+
+    // Update message
+    message.content = newContent;
+    message.editedAt = new Date();
+    await this.messageRepository.save(message);
+
+    // Broadcast edit
+    this.messagesGateway.emitMessageEdited(
+      message.roomId.toString(),
+      message.id,
+      message.content,
+      message.editedAt,
+    );
+
+    return { success: true, data: message };
+  }
+
+  async deleteMessage(userId: string, messageId: string) {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+      relations: ['sender'], // may need if relying on sender checks
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.isDeleted) {
+      throw new ConflictException('Message already deleted');
+    }
+
+    let isAuthorized = false;
+
+    if (message.senderId === userId) {
+      isAuthorized = true;
+    } else {
+      // Check if user is moderator or creator
+      const rm = await this.roomMemberRepository.findOne({
+        where: { roomId: message.roomId, userId },
+        relations: ['room'],
+      });
+
+      if (rm) {
+        // user is the creator or a moderator
+        const roomObj = rm.room as any; // The entity isn't fully typed for nested 'room' here due to 'unknown' in RoomMember, safely cast
+        if (roomObj?.creatorId === userId) {
+          isAuthorized = true;
+        } else if ((rm as any).role === 'MODERATOR') {
+          isAuthorized = true;
+        }
+      } else {
+        // Check Room explicitly if rm is missing but they are creator
+        const rmCreatorCheck = await this.roomMemberRepository.manager.query(
+          `SELECT creator_id FROM rooms WHERE id = $1`,
+          [message.roomId],
+        );
+        if (
+          rmCreatorCheck &&
+          rmCreatorCheck.length > 0 &&
+          rmCreatorCheck[0].creator_id === userId
+        ) {
+          isAuthorized = true;
+        }
+      }
+    }
+
+    if (!isAuthorized) {
+      throw new ForbiddenException(
+        'Only the sender or a room moderator/creator can delete this message',
+      );
+    }
+
+    // Save delete state as an edit trail
+    const messageEdit = this.messageEditRepository.create({
+      messageId: message.id,
+      previousContent: message.content,
+      editedById: userId,
+    });
+    await this.messageEditRepository.save(messageEdit);
+
+    // Soft delete / placeholder
+    message.isDeleted = true;
+    message.content = '[Message deleted]';
+    message.editedAt = new Date(); // To satisfy "editedAt timestamp updated on edit" potentially
+    await this.messageRepository.save(message);
+
+    // Broadcast delete event
+    this.messagesGateway.emitMessageDeleted(
+      message.roomId.toString(),
+      message.id,
+    );
+
+    return { success: true };
   }
 }

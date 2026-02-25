@@ -21,6 +21,17 @@ export class UserService {
     return user;
   }
 
+  async findOneByWalletAddress(walletAddress: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { walletAddress },
+    });
+    if (!user)
+      throw new NotFoundException(
+        `User with wallet ${walletAddress} not found`,
+      );
+    return user;
+  }
+
   async updateRole(id: string, role: UserRole): Promise<User> {
     const user = await this.findOne(id);
     user.role = role;
@@ -53,12 +64,12 @@ export class UserService {
         {
           query: `%${trimmedQuery}%`,
           walletQuery: `${trimmedQuery}%`,
-          rawQuery: trimmedQuery
+          rawQuery: trimmedQuery,
         },
       )
       .orderBy(
         'CASE WHEN user.username ILIKE :exactQuery THEN 1 WHEN user.walletAddress ILIKE :exactWalletQuery THEN 2 ELSE 3 END',
-        'ASC'
+        'ASC',
       )
       .addOrderBy('similarity(user.username, :rawQuery)', 'DESC')
       .addOrderBy('user.level', 'DESC')
