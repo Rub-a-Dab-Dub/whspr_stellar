@@ -5,17 +5,17 @@ import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
 import { Payment } from './entities/payment.entity';
 import { User } from '../user/entities/user.entity';
+import { Message } from '../messages/entities/message.entity';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PaymentsGateway } from './payments.gateway';
 import { RecipientResolutionService } from './services/recipient-resolution.service';
 import { PaymentBlockchainService } from './services/payment-blockchain.service';
-import { TxVerificationService } from './services/tx-verification.service';
-import { TxVerificationProcessor } from './processors/tx-verification.processor';
+import { TransactionVerificationService } from './services/transaction-verification.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Payment, User]),
+    TypeOrmModule.forFeature([Payment, User, Message]),
     JwtModule.register({}),
     ConfigModule,
     BullModule.registerQueue({
@@ -36,9 +36,8 @@ import { TxVerificationProcessor } from './processors/tx-verification.processor'
     PaymentsGateway,
     RecipientResolutionService,
     PaymentBlockchainService,
-    TxVerificationService,
-    TxVerificationProcessor,
+    TransactionVerificationService,
   ],
   exports: [PaymentsService, TxVerificationService],
 })
-export class PaymentsModule {}
+export class PaymentsModule { }

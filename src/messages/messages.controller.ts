@@ -12,13 +12,18 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SessionKeyGuard } from '../session-keys/guards/session-key.guard';
+import { RequiresSessionKeyScope } from '../session-keys/decorators/requires-session-key-scope.decorator';
+import { SessionKeyScope } from '../session-keys/entities/session-key.entity';
 import { MessagesService } from './messages.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { IMAGE_MAX_BYTES, VIDEO_MAX_BYTES } from './services/ipfs.service';
 
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'];
 
+@ApiTags('messages')
 @Controller('messages')
 @UseGuards(JwtAuthGuard)
 export class MessagesController {
@@ -29,9 +34,7 @@ export class MessagesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: {
-        fileSize: VIDEO_MAX_BYTES,
-      },
+      limits: { fileSize: VIDEO_MAX_BYTES },
     }),
   )
   async uploadMedia(
@@ -39,12 +42,8 @@ export class MessagesController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     const userId = req.user.id ?? req.user.sub;
-    if (!userId) {
-      throw new BadRequestException('User not authenticated');
-    }
-    if (!file?.buffer) {
-      throw new BadRequestException('No file uploaded');
-    }
+    if (!userId) throw new BadRequestException('User not authenticated');
+    if (!file?.buffer) throw new BadRequestException('No file uploaded');
 
     const mime = file.mimetype ?? '';
     if (!ALLOWED_MIMES.includes(mime)) {
@@ -65,7 +64,6 @@ export class MessagesController {
       file.buffer,
       mime,
     );
-
     return {
       success: true,
       data: {
@@ -79,14 +77,22 @@ export class MessagesController {
 
   @Post('send')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(SessionKeyGuard)
+  @RequiresSessionKeyScope(SessionKeyScope.MESSAGE)
+  @ApiOperation({
+    summary: 'Send a message (supports session key via x-session-key header)',
+  })
+  @ApiHeader({
+    name: 'x-session-key',
+    required: false,
+    description: 'Session key public key for paymaster-submitted messages',
+  })
   async sendMessage(
     @Request() req: { user: { id?: string; sub?: string } },
     @Body() dto: SendMessageDto,
   ) {
     const userId = req.user.id ?? req.user.sub;
-    if (!userId) {
-      throw new BadRequestException('User not authenticated');
-    }
+    if (!userId) throw new BadRequestException('User not authenticated');
 
     const result = await this.messagesService.sendMessage(
       userId,

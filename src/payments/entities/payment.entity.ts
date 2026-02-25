@@ -74,12 +74,15 @@ export class Payment {
   @Column({ name: 'failure_reason', type: 'text', nullable: true })
   failureReason: string | null;
 
+  @Column({ name: 'room_id', nullable: true })
+  roomId: string | null;
+
+  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
+  completedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
-
-  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
-  completedAt: Date | null;
 }

@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 
 export const PAYMENT_EVENTS = {
   TRANSFER_RECEIVED: 'payment.transfer_received',
+  TIP_RECEIVED: 'payment.tip_received',
 } as const;
 
 @WebSocketGateway({
@@ -26,7 +27,7 @@ export class PaymentsGateway implements OnGatewayConnection, OnGatewayDisconnect
   private readonly logger = new Logger(PaymentsGateway.name);
   private readonly userSockets = new Map<string, Set<string>>();
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(private readonly jwtService: JwtService) { }
 
   handleConnection(client: { handshake: { auth: { token?: string } }; id: string; join: (room: string) => void; data: { userId?: string }; disconnect: () => void }) {
     try {
@@ -79,5 +80,17 @@ export class PaymentsGateway implements OnGatewayConnection, OnGatewayDisconnect
   }): void {
     this.server.to(`user:${recipientUserId}`).emit(PAYMENT_EVENTS.TRANSFER_RECEIVED, payload);
     this.logger.debug(`Emitted payment.transfer_received to user ${recipientUserId}`);
+  }
+
+  emitTipReceived(recipientUserId: string, payload: {
+    paymentId: string;
+    amount: string;
+    tokenAddress: string | null;
+    senderId: string;
+    roomId: string;
+    transactionHash: string;
+  }): void {
+    this.server.to(`user:${recipientUserId}`).emit(PAYMENT_EVENTS.TIP_RECEIVED, payload);
+    this.logger.debug(`Emitted payment.tip_received to user ${recipientUserId}`);
   }
 }
