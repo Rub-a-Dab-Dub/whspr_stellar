@@ -1,24 +1,28 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CacheModule } from '@nestjs/cache-manager';
-import { APP_GUARD } from '@nestjs/core';
-import { redisStore } from 'cache-manager-redis-store';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './user/user.module';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { User } from './user/entities/user.entity';
-import { AdminModule } from './admin/admin.module';
-import { MessagesModule } from './messages/messages.module';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PaymentsModule } from './payments/payments.module';
-import { RolesGuard } from './auth/guards/roles.guard';
+import { MessagesModule } from './messages/messages.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
-    // ── Configuration ──────────────────────────────────────────────────────
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
+    ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100,
+    }]),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DATABASE_HOST ?? 'localhost',
+      port: parseInt(process.env.DATABASE_PORT ?? '5432', 10),
+      username: process.env.DATABASE_USER ?? 'postgres',
+      password: process.env.DATABASE_PASS ?? 'postgres',
+      database: process.env.DATABASE_NAME ?? 'whspr',
+      autoLoadEntities: true,
+      synchronize: false,
     }),
 
     // ── Database ───────────────────────────────────────────────────────────
@@ -58,21 +62,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AdminModule,
     PaymentsModule,
     MessagesModule,
-    // AdminModule,
-  ],
-
-  providers: [
-    // ── Guard chain (order matters): JWT first, then roles ─────────────────
-    // JwtAuthGuard runs first: validates token / respects @Public()
-    // RolesGuard runs second: checks role metadata against request.user
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
+    UserModule,
   ],
 })
 export class AppModule {}
