@@ -6,13 +6,12 @@ import { APP_GUARD } from '@nestjs/core';
 import { redisStore } from 'cache-manager-redis-store';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './user/user.module';
-// import { AdminModule } from './admin/admin.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-// import { RolesGuard } from './auth/guards/roles.guard';
 import { User } from './user/entities/user.entity';
 import { AdminModule } from './admin/admin.module';
 import { MessagesModule } from './messages/messages.module';
 import { PaymentsModule } from './payments/payments.module';
+import { RolesGuard } from './auth/guards/roles.guard';
 
 @Module({
   imports: [
@@ -70,10 +69,10 @@ import { PaymentsModule } from './payments/payments.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: RolesGuard,
-    // },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
   ],
 })
 export class AppModule {}
