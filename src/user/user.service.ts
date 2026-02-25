@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { UserSearchResultDto } from './dto/search-user.dto';
 
 @Injectable()
@@ -10,6 +10,28 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
+
+  async findAll(): Promise<User[]> {
+    return this.userRepository.find();
+  }
+
+  async findOne(id: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    return user;
+  }
+
+  async updateRole(id: string, role: UserRole): Promise<User> {
+    const user = await this.findOne(id);
+    user.role = role;
+    return this.userRepository.save(user);
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<User> {
+    const user = await this.findOne(id);
+    user.isActive = isActive;
+    return this.userRepository.save(user);
+  }
 
   async searchUsers(query: string): Promise<UserSearchResultDto[]> {
     const trimmedQuery = query.trim();
@@ -28,10 +50,10 @@ export class UserService {
       .andWhere('user.suspendedUntil IS NULL OR user.suspendedUntil < NOW()')
       .andWhere(
         '(user.username ILIKE :query OR user.walletAddress ILIKE :walletQuery OR similarity(user.username, :rawQuery) > 0.3)',
-        { 
-          query: `%${trimmedQuery}%`, 
+        {
+          query: `%${trimmedQuery}%`,
           walletQuery: `${trimmedQuery}%`,
-          rawQuery: trimmedQuery 
+          rawQuery: trimmedQuery
         },
       )
       .orderBy(
@@ -49,7 +71,7 @@ export class UserService {
 
     return results.map((user) => ({
       id: user.id,
-      username: user.username,
+      username: user.username ?? '',
       avatarUrl: user.avatarUrl,
       level: user.level,
       isOnline: user.isOnline,

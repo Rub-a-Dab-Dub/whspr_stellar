@@ -12,6 +12,7 @@ import { PaymentsGateway } from './payments.gateway';
 import { RecipientResolutionService } from './services/recipient-resolution.service';
 import { PaymentBlockchainService } from './services/payment-blockchain.service';
 import { TransactionVerificationService } from './services/transaction-verification.service';
+import { TxVerificationService } from './services/tx-verification.service';
 
 @Module({
   imports: [
@@ -21,10 +22,10 @@ import { TransactionVerificationService } from './services/transaction-verificat
     BullModule.registerQueue({
       name: 'tx-verification',
       defaultJobOptions: {
-        attempts: 5,           // Up to 5 retries
+        attempts: 5,
         backoff: {
-          type: 'exponential', // Exponential backoff
-          delay: 5000,         // Starts at 5s, then 25s, 125s, etc.
+          type: 'exponential',
+          delay: 5000,
         },
         removeOnComplete: true,
       },
@@ -37,6 +38,7 @@ import { TransactionVerificationService } from './services/transaction-verificat
     RecipientResolutionService,
     PaymentBlockchainService,
     TransactionVerificationService,
+    TxVerificationService,
   ],
   exports: [PaymentsService, TxVerificationService],
 })
