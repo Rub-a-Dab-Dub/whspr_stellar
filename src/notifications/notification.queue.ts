@@ -1,5 +1,6 @@
 import { Queue, Worker } from "bullmq";
 import { NotificationService } from "./notification.service";
+import { PushNotificationService } from "./notification.push";
 
 const notificationQueue = new Queue("notifications");
 const service = new NotificationService();
@@ -18,4 +19,17 @@ new Worker("notifications", async (job) => {
     await service.createNotification({ ...notification, userId });
     // Optionally emit via WebSocket
   }
+});
+
+
+const pushQueue = new Queue("pushNotifications");
+// Producer
+export async function enqueuePush(token: string, notification: any) {
+  await pushQueue.add("send", { token, notification }, { attempts: 3, backoff: { type: "exponential", delay: 2000 } });
+}
+
+// Worker
+new Worker("pushNotifications", async (job) => {
+  const { token, notification } = job.data;
+  await service.sendFCM(token, notification);
 });
