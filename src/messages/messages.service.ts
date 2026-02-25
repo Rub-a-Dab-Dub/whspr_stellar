@@ -2,6 +2,9 @@ import {
   Injectable,
   Logger,
   BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  ConflictException,
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,14 +24,15 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import { EventType } from '../analytics/entities/analytics-event.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MessagesGateway } from './messages.gateway';
-import {
-  ForbiddenException,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { UserXpService } from '../xp/user-xp.service';
+import { XpReason } from '../xp/entities/xp-transaction.entity';
 
 const MEDIA_RATE_LIMIT_PER_HOUR = 10;
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+/** Max XP gainable from messages per hour (rate-limit cap) */
+const MESSAGE_XP_CAP_PER_HOUR = 100;
+const MESSAGE_XP_AMOUNT = 10;
 
 export interface UploadMediaResult {
   ipfsHash: string;
@@ -37,9 +41,27 @@ export interface UploadMediaResult {
   mediaType: MediaType;
 }
 
+export interface SendMessagePayload {
+  roomId: string;
+  content?: string;
+  type?: MessageType;
+  ipfsHash?: string;
+  replyToId?: string;
+}
+
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
+
+  /**
+   * In-memory rolling XP totals per user for the current hour.
+   * Key: userId  Value: { xpThisHour, windowStart }
+   * Resets automatically once the window is older than ONE_HOUR_MS.
+   */
+  private readonly xpHourlyTracker = new Map<
+    string,
+    { xpThisHour: number; windowStart: number }
+  >();
 
   constructor(
     @InjectRepository(MessageMedia)
@@ -56,15 +78,13 @@ export class MessagesService {
     @Inject(MEDIA_SCAN_SERVICE)
     private readonly mediaScanService: IMediaScanService,
     private readonly contractMessageService: ContractMessageService,
-<<<<<<< HEAD
     private readonly analyticsService: AnalyticsService,
     private readonly eventEmitter: EventEmitter2,
-||||||| 3641dcb4
-    private readonly analyticsService: AnalyticsService,
-=======
     private readonly messagesGateway: MessagesGateway,
->>>>>>> fe3df2de6c21aa9e7001133f69f1a04d881a871b
+    private readonly xpService: UserXpService,
   ) {}
+
+  // ─── Media upload ─────────────────────────────────────────────────────────
 
   async uploadMedia(
     userId: string,
@@ -133,6 +153,112 @@ export class MessagesService {
     };
   }
 
+  // ─── Persist & broadcast ─────────────────────────────────────────────────
+
+  /**
+   * Persist a message to the DB first, then broadcast it.
+   * Awards +10 XP (rate-capped at 100 XP/hour from messages).
+   */
+  async persistAndBroadcast(
+    senderId: string,
+    payload: SendMessagePayload,
+  ): Promise<Message> {
+    const {
+      roomId,
+      content,
+      type = MessageType.TEXT,
+      ipfsHash,
+      replyToId,
+    } = payload;
+
+    // Verify room exists and is not expired / archived
+    const roomCheck = await this.messageRepository.manager.query(
+      `SELECT id, is_expired, is_active FROM rooms WHERE id = $1`,
+      [roomId],
+    );
+    if (!roomCheck || roomCheck.length === 0) {
+      throw new NotFoundException('Room not found');
+    }
+    const room = roomCheck[0];
+    if (room.is_expired) {
+      throw new ForbiddenException(
+        'Room has expired – no new messages allowed',
+      );
+    }
+    if (!room.is_active) {
+      throw new ForbiddenException('Room is archived');
+    }
+
+    // Persist message BEFORE broadcasting (never lose a message)
+    const message = this.messageRepository.create({
+      senderId,
+      roomId,
+      content: content ?? null,
+      type,
+      ipfsHash: ipfsHash ?? null,
+      replyToId: replyToId ?? null,
+    });
+    const saved = await this.messageRepository.save(message);
+
+    // Broadcast to room
+    this.messagesGateway.broadcastMessage(roomId, saved);
+
+    // Emit internal event for room stats
+    this.eventEmitter.emit('message.sent', {
+      roomId,
+      userId: senderId,
+    });
+
+    // Analytics
+    await this.analyticsService
+      .track(senderId, EventType.MESSAGE_SENT, {
+        roomId,
+        messageId: saved.id,
+        type,
+      })
+      .catch(() => {
+        /* non-critical */
+      });
+
+    // XP award (rate-capped: max 100 XP/hour from messages)
+    this.awardMessageXp(senderId).catch((err) =>
+      this.logger.warn(`XP award failed for ${senderId}: ${err.message}`),
+    );
+
+    return saved;
+  }
+
+  /**
+   * Awards +10 XP for sending a message.
+   * A rolling in-memory window ensures the user earns ≤ 100 XP/hour
+   * from message-send events regardless of concurrency spikes.
+   */
+  private async awardMessageXp(userId: string): Promise<void> {
+    const now = Date.now();
+    let tracker = this.xpHourlyTracker.get(userId);
+
+    // Reset window if older than 1 hour
+    if (!tracker || now - tracker.windowStart >= ONE_HOUR_MS) {
+      tracker = { xpThisHour: 0, windowStart: now };
+      this.xpHourlyTracker.set(userId, tracker);
+    }
+
+    if (tracker.xpThisHour >= MESSAGE_XP_CAP_PER_HOUR) {
+      this.logger.debug(`XP cap reached for ${userId} – skipping award`);
+      return;
+    }
+
+    const toAward = Math.min(
+      MESSAGE_XP_AMOUNT,
+      MESSAGE_XP_CAP_PER_HOUR - tracker.xpThisHour,
+    );
+
+    tracker.xpThisHour += toAward;
+    await this.xpService.award(userId, XpReason.SEND_MESSAGE);
+  }
+
+  // ─── Legacy on-chain send ───────────────────────────────────────────────
+
   async sendMessage(
     userId: string,
     roomId: bigint,
@@ -154,14 +280,12 @@ export class MessagesService {
       tipAmount,
     );
 
-    // Emit event for room stats
     this.eventEmitter.emit('message.sent', {
       roomId: roomId.toString(),
       userId,
       tipAmount,
     });
 
-    // Track analytics
     await this.analyticsService.track(userId, EventType.MESSAGE_SENT, {
       roomId: roomId.toString(),
       contentHash,
@@ -177,6 +301,8 @@ export class MessagesService {
 
     return result;
   }
+
+  // ─── Edit ────────────────────────────────────────────────────────────────
 
   async editMessage(userId: string, messageId: string, newContent: string) {
     const message = await this.messageRepository.findOne({
@@ -209,7 +335,6 @@ export class MessagesService {
       );
     }
 
-    // Preserve previous content in audit table
     const messageEdit = this.messageEditRepository.create({
       messageId: message.id,
       previousContent: message.content,
@@ -217,12 +342,10 @@ export class MessagesService {
     });
     await this.messageEditRepository.save(messageEdit);
 
-    // Update message
     message.content = newContent;
     message.editedAt = new Date();
     await this.messageRepository.save(message);
 
-    // Broadcast edit
     this.messagesGateway.emitMessageEdited(
       message.roomId.toString(),
       message.id,
@@ -233,10 +356,12 @@ export class MessagesService {
     return { success: true, data: message };
   }
 
+  // ─── Delete ──────────────────────────────────────────────────────────────
+
   async deleteMessage(userId: string, messageId: string) {
     const message = await this.messageRepository.findOne({
       where: { id: messageId },
-      relations: ['sender'], // may need if relying on sender checks
+      relations: ['sender'],
     });
 
     if (!message) {
@@ -252,30 +377,27 @@ export class MessagesService {
     if (message.senderId === userId) {
       isAuthorized = true;
     } else {
-      // Check if user is moderator or creator
       const rm = await this.roomMemberRepository.findOne({
         where: { roomId: message.roomId, userId },
         relations: ['room'],
       });
 
       if (rm) {
-        // user is the creator or a moderator
-        const roomObj = rm.room as any; // The entity isn't fully typed for nested 'room' here due to 'unknown' in RoomMember, safely cast
+        const roomObj = rm.room as any;
         if (roomObj?.creatorId === userId) {
           isAuthorized = true;
         } else if ((rm as any).role === 'MODERATOR') {
           isAuthorized = true;
         }
       } else {
-        // Check Room explicitly if rm is missing but they are creator
-        const rmCreatorCheck = await this.roomMemberRepository.manager.query(
+        const creatorCheck = await this.roomMemberRepository.manager.query(
           `SELECT creator_id FROM rooms WHERE id = $1`,
           [message.roomId],
         );
         if (
-          rmCreatorCheck &&
-          rmCreatorCheck.length > 0 &&
-          rmCreatorCheck[0].creator_id === userId
+          creatorCheck &&
+          creatorCheck.length > 0 &&
+          creatorCheck[0].creator_id === userId
         ) {
           isAuthorized = true;
         }
@@ -288,7 +410,6 @@ export class MessagesService {
       );
     }
 
-    // Save delete state as an edit trail
     const messageEdit = this.messageEditRepository.create({
       messageId: message.id,
       previousContent: message.content,
@@ -296,13 +417,12 @@ export class MessagesService {
     });
     await this.messageEditRepository.save(messageEdit);
 
-    // Soft delete / placeholder
     message.isDeleted = true;
     message.content = '[Message deleted]';
-    message.editedAt = new Date(); // To satisfy "editedAt timestamp updated on edit" potentially
+    message.deletedAt = new Date();
+    message.editedAt = new Date();
     await this.messageRepository.save(message);
 
-    // Broadcast delete event
     this.messagesGateway.emitMessageDeleted(
       message.roomId.toString(),
       message.id,
