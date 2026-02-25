@@ -10,19 +10,55 @@ import {
   Request,
   Query,
 } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RoomsService } from './rooms.service';
 import { JoinRoomDto, ConfirmJoinDto } from './dto/join-room.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { GetRoomsDto } from './dto/get-rooms.dto';
-import { InviteMemberDto } from './dto/invite-member.dto';
-import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { SearchRoomsDto } from './dto/search-rooms.dto';
+import { DiscoverRoomsDto } from './dto/discover-rooms.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@ApiTags('rooms')
 @Controller('rooms')
 @UseGuards(JwtAuthGuard)
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
+
+  // ─── Discovery endpoints ─────────────────────────────────────────────────────
+
+  @Get('discover')
+  @ApiOperation({
+    summary: 'Trending rooms',
+    description:
+      'Returns active rooms ranked by trending score (messageCount24h × memberCount), ' +
+      'recalculated every 15 minutes. Supports cursor-based pagination.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of trending rooms with nextCursor',
+  })
+  async getTrendingRooms(@Query() dto: DiscoverRoomsDto) {
+    return this.roomsService.getTrendingRooms(dto);
+  }
+
+  @Get('search')
+  @ApiOperation({
+    summary: 'Search rooms',
+    description:
+      'Filter rooms by keyword (q), tags, entry fee range (minFee / maxFee), ' +
+      'and blockchain network (chain). Cursor-based pagination.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Filtered room list with nextCursor',
+  })
+  async searchRooms(@Query() dto: SearchRoomsDto) {
+    return this.roomsService.searchRooms(dto);
+  }
+
+  // ─── Standard CRUD ───────────────────────────────────────────────────────────
 
   @Post()
   async createRoom(@Body() createRoomDto: CreateRoomDto, @Request() req) {
@@ -54,7 +90,7 @@ export class RoomsController {
   @Delete(':id')
   async deleteRoom(@Param('id') id: string, @Request() req) {
     const userId = req.user.sub;
-    const isAdmin = req.user.role === 'admin'; // Assuming role is in JWT
+    const isAdmin = req.user.role === 'admin';
     return this.roomsService.deleteRoom(id, userId, isAdmin);
   }
 
@@ -84,59 +120,5 @@ export class RoomsController {
       userId,
       confirmJoinDto.transactionHash,
     );
-  }
-
-  @Post(':id/invite')
-  async inviteMember(
-    @Param('id') roomId: string,
-    @Body() inviteDto: InviteMemberDto,
-    @Request() req,
-  ) {
-    const initiatorId = req.user.sub;
-    return this.roomsService.inviteMember(roomId, inviteDto, initiatorId);
-  }
-
-  @Delete(':id/members/:userId')
-  async removeMember(
-    @Param('id') roomId: string,
-    @Param('userId') userId: string,
-    @Request() req,
-  ) {
-    const initiatorId = req.user.sub;
-    return this.roomsService.removeMember(roomId, userId, initiatorId);
-  }
-
-  @Post(':id/ban/:userId')
-  async banMember(
-    @Param('id') roomId: string,
-    @Param('userId') userId: string,
-    @Request() req,
-  ) {
-    const initiatorId = req.user.sub;
-    return this.roomsService.banMember(roomId, userId, initiatorId);
-  }
-
-  @Patch(':id/members/:userId/role')
-  async updateMemberRole(
-    @Param('id') roomId: string,
-    @Param('userId') userId: string,
-    @Body() updateRoleDto: UpdateMemberRoleDto,
-    @Request() req,
-  ) {
-    const initiatorId = req.user.sub;
-    return this.roomsService.updateMemberRole(
-      roomId,
-      userId,
-      updateRoleDto,
-      initiatorId,
-    );
-  }
-
-  @Get(':id/members')
-  async getRoomMembers(
-    @Param('id') roomId: string,
-    @Query() getRoomsDto: GetRoomsDto,
-  ) {
-    return this.roomsService.getMembers(roomId, getRoomsDto);
   }
 }

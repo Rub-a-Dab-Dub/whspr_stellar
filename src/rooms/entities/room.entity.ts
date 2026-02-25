@@ -58,6 +58,33 @@ export class Room {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  /**
+   * Topic tags for discovery (max 5 items).
+   * Stored as a comma-separated text column via TypeORM's simple-array strategy.
+   */
+  @Column({ type: 'simple-array', nullable: true, default: null })
+  tags: string[];
+
+  /**
+   * Blockchain network identifier (e.g. "stellar", "ethereum").
+   * Used for chain-based filtering in the discovery API.
+   */
+  @Column({ length: 64, nullable: true, default: null })
+  chain: string;
+
+  /**
+   * Trending score = messageCount24h × memberCount.
+   * Recalculated every 15 minutes by the cron job.
+   */
+  @Column({
+    name: 'trending_score',
+    type: 'numeric',
+    precision: 20,
+    scale: 4,
+    default: 0,
+  })
+  trendingScore: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
