@@ -314,6 +314,26 @@ export class RoomsService {
     return room;
   }
 
+  async findOne(id: string): Promise<Room> {
+    return this.getRoomById(id);
+  }
+
+  async findByCreator(creatorId: string): Promise<Room[]> {
+    return this.roomRepository.find({ where: { creatorId } });
+  }
+
+  async getTotalMemberCount(roomIds: string[]): Promise<number> {
+    if (roomIds.length === 0) return 0;
+    
+    const result = await this.roomMemberRepository
+      .createQueryBuilder('member')
+      .select('COUNT(DISTINCT member.userId)', 'count')
+      .where('member.roomId IN (:...roomIds)', { roomIds })
+      .getRawOne();
+    
+    return parseInt(result.count || '0');
+  }
+
   async updateRoom(
     id: string,
     updateRoomDto: UpdateRoomDto,
