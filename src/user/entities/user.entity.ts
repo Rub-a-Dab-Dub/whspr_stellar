@@ -28,6 +28,9 @@ export class User {
   @Column({ nullable: true })
   avatarUrl: string | null;
 
+  @Column({ nullable: true })
+  avatarIpfsHash: string | null;
+
   @Column({ default: 1 })
   level: number;
 
