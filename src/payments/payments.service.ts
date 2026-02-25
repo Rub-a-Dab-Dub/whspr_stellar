@@ -1,8 +1,16 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment, PaymentStatus, PaymentType } from './entities/payment.entity';
-import { RecipientResolutionService, ResolvedRecipient } from './services/recipient-resolution.service';
+import {
+  RecipientResolutionService,
+  ResolvedRecipient,
+} from './services/recipient-resolution.service';
 import { PaymentBlockchainService } from './services/payment-blockchain.service';
 import { TransactionVerificationService } from './services/transaction-verification.service';
 import { PaymentsGateway } from './payments.gateway';
@@ -32,7 +40,10 @@ export class PaymentsService {
     amount: number,
     tokenAddress: string,
   ): Promise<Payment> {
-    const resolved = await this.recipientResolution.resolve(recipient, senderId);
+    const resolved = await this.recipientResolution.resolve(
+      recipient,
+      senderId,
+    );
     const sender = await this.userRepository.findOne({
       where: { id: senderId },
       select: ['id', 'walletAddress'],
@@ -115,8 +126,13 @@ export class PaymentsService {
     }
   }
 
-  private async handleTransferFailure(paymentId: string, reason: string): Promise<void> {
-    const payment = await this.paymentRepository.findOne({ where: { id: paymentId } });
+  private async handleTransferFailure(
+    paymentId: string,
+    reason: string,
+  ): Promise<void> {
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
     if (!payment) return;
 
     payment.status = PaymentStatus.FAILED;
@@ -133,7 +149,9 @@ export class PaymentsService {
       .createQueryBuilder('payment')
       .leftJoinAndSelect('payment.sender', 'sender')
       .leftJoinAndSelect('payment.recipient', 'recipient')
-      .where('payment.senderId = :userId OR payment.recipientId = :userId', { userId })
+      .where('payment.senderId = :userId OR payment.recipientId = :userId', {
+        userId,
+      })
       .andWhere('payment.type = :type', { type: PaymentType.P2P })
       .orderBy('payment.createdAt', 'DESC')
       .skip(offset)
