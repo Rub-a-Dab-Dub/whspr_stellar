@@ -8,6 +8,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { Room, RoomType } from './entities/room.entity';
 import { RoomMember, RoomMemberRole } from './entities/room-member.entity';
 import { RoomBlockchainService } from './services/room-blockchain.service';
@@ -20,6 +22,11 @@ import { DiscoverRoomsDto } from './dto/discover-rooms.dto';
 import { UserService } from '../user/user.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { EventType } from '../analytics/entities/analytics-event.entity';
+import { QUEUE_NAMES } from '../queues/queues.module';
+import {
+  EXPIRE_ROOM_JOB,
+  ExpireRoomJobData,
+} from './processors/room-expiry.processor';
 
 // ─── Cursor helpers ───────────────────────────────────────────────────────────
 
@@ -49,6 +56,8 @@ export class RoomsService {
     private userService: UserService,
     private dataSource: DataSource,
     private analyticsService: AnalyticsService,
+    @InjectQueue(QUEUE_NAMES.ROOM_EXPIRY)
+    private roomExpiryQueue: Queue,
   ) {}
 
   // ─── Create ─────────────────────────────────────────────────────────────────
@@ -86,11 +95,23 @@ export class RoomsService {
     const savedRoom = await this.roomRepository.save(room);
     await this.userService.addXP(creatorId, 50);
 
+    // Schedule expiry job when expiresAt is set
+    if (savedRoom.expiresAt) {
+      const delay = savedRoom.expiresAt.getTime() - Date.now();
+      if (delay > 0) {
+        await this.roomExpiryQueue.add(
+          EXPIRE_ROOM_JOB,
+          { roomId: savedRoom.id } as ExpireRoomJobData,
+          { delay, attempts: 3, backoff: { type: 'exponential', delay: 3000 } },
+        );
+      }
+    }
+
     // Track room creation
     await this.analyticsService.track(creatorId, EventType.ROOM_CREATED, {
       roomId: savedRoom.id,
       roomType: savedRoom.type,
-      isPrivate: savedRoom.isPrivate,
+      isPrivate: (savedRoom as any).isPrivate,
     });
 
     return savedRoom;
@@ -105,7 +126,11 @@ export class RoomsService {
     const skip = (page - 1) * limit;
 
     const [rooms, total] = await this.roomRepository.findAndCount({
-      where: { type: RoomType.PUBLIC, isActive: true, expiresAt: require('typeorm').IsNull() },
+      where: {
+        type: RoomType.PUBLIC,
+        isActive: true,
+        expiresAt: require('typeorm').IsNull(),
+      },
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -306,12 +331,17 @@ export class RoomsService {
 
   // ─── CRUD helpers ─────────────────────────────────────────────────────────────
 
-  async getRoomById(id: string): Promise<Room> {
+  async getRoomById(
+    id: string,
+  ): Promise<Room & { timeRemaining: number | null }> {
     const room = await this.roomRepository.findOne({ where: { id } });
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-    return room;
+    const timeRemaining = room.expiresAt
+      ? Math.max(0, Math.floor((room.expiresAt.getTime() - Date.now()) / 1000))
+      : null;
+    return Object.assign(room, { timeRemaining });
   }
 
   async findOne(id: string): Promise<Room> {
@@ -324,13 +354,13 @@ export class RoomsService {
 
   async getTotalMemberCount(roomIds: string[]): Promise<number> {
     if (roomIds.length === 0) return 0;
-    
+
     const result = await this.roomMemberRepository
       .createQueryBuilder('member')
       .select('COUNT(DISTINCT member.userId)', 'count')
       .where('member.roomId IN (:...roomIds)', { roomIds })
       .getRawOne();
-    
+
     return parseInt(result.count || '0');
   }
 

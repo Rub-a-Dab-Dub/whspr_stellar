@@ -58,6 +58,17 @@ export class Room {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ name: 'is_expired', default: false })
+  isExpired: boolean;
+
+  @Column({
+    name: 'archived_at',
+    nullable: true,
+    type: 'timestamp',
+    default: null,
+  })
+  archivedAt: Date | null;
+
   /**
    * Topic tags for discovery (max 5 items).
    * Stored as a comma-separated text column via TypeORM's simple-array strategy.

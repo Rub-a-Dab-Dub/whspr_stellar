@@ -56,14 +56,9 @@ export class MessagesService {
     @Inject(MEDIA_SCAN_SERVICE)
     private readonly mediaScanService: IMediaScanService,
     private readonly contractMessageService: ContractMessageService,
-<<<<<<< HEAD
     private readonly analyticsService: AnalyticsService,
     private readonly eventEmitter: EventEmitter2,
-||||||| 3641dcb4
-    private readonly analyticsService: AnalyticsService,
-=======
     private readonly messagesGateway: MessagesGateway,
->>>>>>> fe3df2de6c21aa9e7001133f69f1a04d881a871b
   ) {}
 
   async uploadMedia(
