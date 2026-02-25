@@ -5,7 +5,7 @@ export class CreateRoomsAndMembers1700000000002 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TYPE "public"."rooms_type_enum" AS ENUM('PUBLIC', 'TOKEN_GATED')
+      CREATE TYPE "public"."rooms_type_enum" AS ENUM('PUBLIC', 'PRIVATE', 'TOKEN_GATED', 'TIMED')
     `);
     
     await queryRunner.query(`
@@ -18,6 +18,9 @@ export class CreateRoomsAndMembers1700000000002 implements MigrationInterface {
         "creator_wallet_address" character varying(56),
         "entryFee" numeric(18,8),
         "token_address" character varying(56),
+        "max_members" integer DEFAULT 100,
+        "expires_at" TIMESTAMP,
+        "is_active" boolean NOT NULL DEFAULT true,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_0368a2d7c215f2d0458a54933f2" PRIMARY KEY ("id")
@@ -32,7 +35,7 @@ export class CreateRoomsAndMembers1700000000002 implements MigrationInterface {
         "transaction_hash" character varying,
         "paidAmount" numeric(18,8),
         "joined_at" TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_6e8e7c4c4b4b4b4b4b4b4b4b4b4b" PRIMARY KEY ("id"),
+        CONSTRAINT "PK_room_members" PRIMARY KEY ("id"),
         CONSTRAINT "UQ_room_user" UNIQUE ("room_id", "user_id"),
         CONSTRAINT "UQ_transaction_hash" UNIQUE ("transaction_hash")
       )
@@ -40,6 +43,14 @@ export class CreateRoomsAndMembers1700000000002 implements MigrationInterface {
 
     await queryRunner.query(`
       CREATE INDEX "IDX_room_members_room_id_user_id" ON "room_members" ("room_id", "user_id")
+    `);
+
+    await queryRunner.query(`
+      CREATE INDEX "IDX_rooms_creator_id" ON "rooms" ("creator_id")
+    `);
+
+    await queryRunner.query(`
+      CREATE INDEX "IDX_rooms_type_active" ON "rooms" ("type", "is_active")
     `);
 
     await queryRunner.query(`
@@ -62,6 +73,8 @@ export class CreateRoomsAndMembers1700000000002 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "room_members" DROP CONSTRAINT "FK_room_members_user"`);
     await queryRunner.query(`ALTER TABLE "room_members" DROP CONSTRAINT "FK_room_members_room"`);
     await queryRunner.query(`ALTER TABLE "rooms" DROP CONSTRAINT "FK_rooms_creator"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_rooms_type_active"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_rooms_creator_id"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_room_members_room_id_user_id"`);
     await queryRunner.query(`DROP TABLE "room_members"`);
     await queryRunner.query(`DROP TABLE "rooms"`);

@@ -5,9 +5,10 @@ import { RoomsService } from './rooms.service';
 import { Room } from './entities/room.entity';
 import { RoomMember } from './entities/room-member.entity';
 import { RoomBlockchainService } from './services/room-blockchain.service';
+import { UserModule } from '../user/user.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Room, RoomMember])],
+  imports: [TypeOrmModule.forFeature([Room, RoomMember]), UserModule],
   controllers: [RoomsController],
   providers: [RoomsService, RoomBlockchainService],
   exports: [RoomsService],
