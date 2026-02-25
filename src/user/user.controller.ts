@@ -1,60 +1,39 @@
-import { Controller, Get, Param, Query, ParseUUIDPipe } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
-import { UserXpService } from '../xp/user-xp.service';
-import { XpHistoryQueryDto } from '../xp/dto/xp-history-query.dto';
+import { Controller, Get, Query, UseGuards, Post, UseInterceptors, UploadedFile, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UserService } from './user.service';
+import { AvatarService } from './services/avatar.service';
+import { SearchUserDto, UserSearchResultDto } from './dto/search-user.dto';
 
 @ApiTags('users')
-@ApiBearerAuth()
 @Controller('users')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class UserController {
-  constructor(private readonly userXpService: UserXpService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly avatarService: AvatarService,
+  ) {}
 
-  /**
-   * GET /users/:id/xp-history
-   * Paginated XP transaction history for a user.
-   */
-  @Get(':id/xp-history')
-  @ApiOperation({
-    summary: 'Get paginated XP transaction history for a user',
-    description:
-      'Returns all XP award events ordered most recent first, ' +
-      'along with current xpTotal and level.',
-  })
-  @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({
-    status: 200,
-    description: 'XP history returned successfully',
-    schema: {
-      example: {
-        xpTotal: 1250,
-        level: 2,
-        total: 8,
-        transactions: [
-          {
-            id: 'uuid',
-            userId: 'uuid',
-            amount: 10,
-            reason: 'send_message',
-            meta: null,
-            xpAfter: 1250,
-            levelAfter: 2,
-            createdAt: '2025-01-01T00:00:00.000Z',
-          },
-        ],
-      },
-    },
-  })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async getXpHistory(
-    @Param('id', ParseUUIDPipe) userId: string,
-    @Query() query: XpHistoryQueryDto,
-  ) {
-    return this.userXpService.getHistory(userId, query.limit, query.offset);
+  @Get('search')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @ApiOperation({ summary: 'Search users by username or wallet address' })
+  @ApiResponse({ status: 200, type: [UserSearchResultDto] })
+  async searchUsers(@Query() dto: SearchUserDto): Promise<UserSearchResultDto[]> {
+    return this.userService.searchUsers(dto.q);
+  }
+
+  @Post('me/avatar')
+  @UseInterceptors(FileInterceptor('avatar'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload user avatar' })
+  @ApiResponse({ status: 200, description: 'Avatar uploaded successfully' })
+  async uploadAvatar(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ): Promise<{ avatarUrl: string; ipfsHash: string }> {
+    return this.avatarService.uploadAvatar(req.user.id, file);
   }
 }
