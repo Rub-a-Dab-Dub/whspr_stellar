@@ -9,7 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Room, RoomType } from './entities/room.entity';
-import { RoomMember } from './entities/room-member.entity';
+import { RoomMember, RoomMemberRole } from './entities/room-member.entity';
 import { RoomBlockchainService } from './services/room-blockchain.service';
 import { PaymentInstructionsDto } from './dto/join-room.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -357,6 +357,9 @@ export class RoomsService {
       where: { roomId, userId },
     });
     if (existingMember) {
+      if (existingMember.isBanned) {
+        throw new ForbiddenException('User is banned from this room');
+      }
       throw new ConflictException('User is already a member of this room');
     }
 
