@@ -54,6 +54,9 @@ export class User {
   @Column({ default: false })
   isBanned: boolean;
 
+  @Column({ default: false })
+  isAdmin: boolean;
+
   @Column({ type: 'timestamp', nullable: true })
   suspendedUntil: Date | null;
 

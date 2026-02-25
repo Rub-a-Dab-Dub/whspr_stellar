@@ -1,6 +1,9 @@
 import {
   Controller,
   Post,
+  Patch,
+  Delete,
+  Param,
   Body,
   Request,
   UseGuards,
@@ -22,7 +25,7 @@ import { RequiresSessionKeyScope } from '../session-keys/decorators/requires-ses
 import { SessionKeyScope } from '../session-keys/entities/session-key.entity';
 import { MessagesService } from './messages.service';
 import { SendMessageDto } from './dto/send-message.dto';
-import { GetMessagesDto } from './dto/get-messages.dto';
+import { UpdateMessageDto } from './dto/update-message.dto';
 import { IMAGE_MAX_BYTES, VIDEO_MAX_BYTES } from './services/ipfs.service';
 
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'];
@@ -118,16 +121,30 @@ export class MessagesController {
     };
   }
 
-  @Get('rooms/:id/messages')
-  @ApiOperation({ summary: 'Get paginated message history for a room' })
-  async getRoomMessages(
+  @Patch(':id')
+  @ApiOperation({ summary: 'Edit a message (within 15 minutes)' })
+  async editMessage(
     @Request() req: { user: { id?: string; sub?: string } },
-    @Param('id') roomId: string,
-    @Query() getMessagesDto: GetMessagesDto,
+    @Param('id') messageId: string,
+    @Body() dto: UpdateMessageDto,
   ) {
     const userId = req.user.id ?? req.user.sub;
     if (!userId) throw new BadRequestException('User not authenticated');
 
-    return this.messagesService.getRoomMessages(userId, roomId, getMessagesDto);
+    return this.messagesService.editMessage(userId, messageId, dto.content);
+  }
+
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Soft delete a message (sender, moderator, or creator)',
+  })
+  async deleteMessage(
+    @Request() req: { user: { id?: string; sub?: string } },
+    @Param('id') messageId: string,
+  ) {
+    const userId = req.user.id ?? req.user.sub;
+    if (!userId) throw new BadRequestException('User not authenticated');
+
+    return this.messagesService.deleteMessage(userId, messageId);
   }
 }
