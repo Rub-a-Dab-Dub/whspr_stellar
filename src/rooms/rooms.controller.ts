@@ -19,12 +19,17 @@ import { GetRoomsDto } from './dto/get-rooms.dto';
 import { SearchRoomsDto } from './dto/search-rooms.dto';
 import { DiscoverRoomsDto } from './dto/discover-rooms.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RoomStatsService } from './services/room-stats.service';
+import { GetRoomStatsDto } from './dto/get-room-stats.dto';
 
 @ApiTags('rooms')
 @Controller('rooms')
 @UseGuards(JwtAuthGuard)
 export class RoomsController {
-  constructor(private readonly roomsService: RoomsService) {}
+  constructor(
+    private readonly roomsService: RoomsService,
+    private readonly statsService: RoomStatsService,
+  ) {}
 
   // ─── Discovery endpoints ─────────────────────────────────────────────────────
 
@@ -120,5 +125,34 @@ export class RoomsController {
       userId,
       confirmJoinDto.transactionHash,
     );
+  }
+
+  @Get(':id/stats')
+  async getRoomStats(
+    @Param('id') roomId: string,
+    @Query() dto: GetRoomStatsDto,
+    @Request() req,
+  ) {
+    const room = await this.roomsService.findOne(roomId);
+    const userId = req.user.sub;
+    
+    if (room.creatorId !== userId && req.user.role !== 'ADMIN') {
+      throw new Error('Only creator or admin can view stats');
+    }
+
+    return this.statsService.getRoomStats(roomId, dto.period);
+  }
+
+  @Get('creator/dashboard')
+  async getCreatorDashboard(@Request() req) {
+    const userId = req.user.sub;
+    const rooms = await this.roomsService.findByCreator(userId);
+    const roomIds = rooms.map(r => r.id);
+    
+    const dashboard = await this.statsService.getCreatorDashboard(userId, roomIds);
+    
+    const totalMembers = await this.roomsService.getTotalMemberCount(roomIds);
+    
+    return { ...dashboard, totalMembers };
   }
 }

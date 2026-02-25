@@ -8,6 +8,7 @@ import { IMediaScanService, MEDIA_SCAN_SERVICE } from './services/media-scan.ser
 import { ContractMessageService } from './services/contract-message.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { EventType } from '../analytics/entities/analytics-event.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 const MEDIA_RATE_LIMIT_PER_HOUR = 10;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -33,6 +34,7 @@ export class MessagesService {
     private readonly mediaScanService: IMediaScanService,
     private readonly contractMessageService: ContractMessageService,
     private readonly analyticsService: AnalyticsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async uploadMedia(
@@ -122,6 +124,13 @@ export class MessagesService {
       contentHash,
       tipAmount,
     );
+
+    // Emit event for room stats
+    this.eventEmitter.emit('message.sent', {
+      roomId: roomId.toString(),
+      userId,
+      tipAmount,
+    });
 
     // Track analytics
     await this.analyticsService.track(userId, EventType.MESSAGE_SENT, {
