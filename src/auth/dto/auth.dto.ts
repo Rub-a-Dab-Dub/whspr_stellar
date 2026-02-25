@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, Length, Matches } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  Length,
+  Matches,
+  IsOptional,
+} from 'class-validator';
 
 // ─── POST /auth/nonce ─────────────────────────────────────────────────────────
 
@@ -25,7 +31,7 @@ export class VerifySignatureDto {
 
   @IsString()
   @IsNotEmpty()
-  signature: string; // Hex-encoded EIP-191 signature (0x...)
+  signature: string;
 }
 
 // ─── POST /auth/refresh ──────────────────────────────────────────────────────
@@ -34,4 +40,12 @@ export class RefreshTokenDto {
   @IsString()
   @IsNotEmpty()
   refreshToken: string;
+}
+
+// ─── POST /auth/logout ───────────────────────────────────────────────────────
+
+export class LogoutDto {
+  @IsString()
+  @IsOptional()
+  refreshToken?: string;
 }
