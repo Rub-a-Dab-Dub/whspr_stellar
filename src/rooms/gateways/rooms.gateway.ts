@@ -34,4 +34,14 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: Socket) {
     // Clean up connections if needed
   }
+
+  /**
+   * Broadcast room.expired to every WebSocket client currently in this room channel.
+   */
+  notifyRoomExpired(roomId: string): void {
+    this.server.to(roomId).emit('room.expired', {
+      roomId,
+      expiredAt: new Date().toISOString(),
+    });
+  }
 }
