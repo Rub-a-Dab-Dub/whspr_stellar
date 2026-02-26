@@ -81,7 +81,6 @@ export class MessagesService {
     private readonly analyticsService: AnalyticsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly messagesGateway: MessagesGateway,
-    private readonly xpService: UserXpService,
   ) {}
 
   // ─── Media upload ─────────────────────────────────────────────────────────
