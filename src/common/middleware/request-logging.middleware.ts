@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { randomUUID } from 'crypto';
-import { Logger } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
+import logger from '../../logger/logger';
 
 export const CORRELATION_ID_HEADER = 'x-correlation-id';
 
@@ -15,11 +15,10 @@ declare global {
 
 @Injectable()
 export class RequestLoggingMiddleware {
-  private readonly logger = new Logger('HTTP');
-
   use(req: Request, res: Response, next: NextFunction): void {
     const correlationId =
-      (req.headers[CORRELATION_ID_HEADER] as string) ?? randomUUID();
+      (req.headers[CORRELATION_ID_HEADER] as string) ?? uuidv4();
+    req.headers[CORRELATION_ID_HEADER] = correlationId;
     req.correlationId = correlationId;
 
     res.setHeader(CORRELATION_ID_HEADER, correlationId);
@@ -28,11 +27,14 @@ export class RequestLoggingMiddleware {
     const { method, originalUrl, ip } = req;
 
     res.on('finish', () => {
-      const { statusCode } = res;
-      const duration = Date.now() - start;
-      this.logger.log(
-        `${method} ${originalUrl} ${statusCode} ${duration}ms - ${ip} [${correlationId}]`,
-      );
+      logger.info('HTTP Request', {
+        method,
+        path: originalUrl,
+        statusCode: res.statusCode,
+        duration: `${Date.now() - start}ms`,
+        ip,
+        correlationId,
+      });
     });
 
     next();

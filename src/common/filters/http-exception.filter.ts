@@ -4,9 +4,9 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import logger from '../../logger/logger';
 
 export const CORRELATION_ID_HEADER = 'x-correlation-id';
 
@@ -20,8 +20,6 @@ export interface StructuredErrorResponse {
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalExceptionFilter.name);
-
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -48,10 +46,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       error = exception.name;
     } else if (exception instanceof Error) {
       message = exception.message;
-      this.logger.error(
-        `${exception.name}: ${exception.message}`,
-        exception.stack,
-      );
+      logger.error('Unhandled Error', {
+        name: exception.name,
+        message: exception.message,
+        stack: exception.stack,
+        correlationId,
+      });
     }
 
     const body: StructuredErrorResponse = {
