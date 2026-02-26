@@ -1,151 +1,72 @@
-import { Module, OnModuleInit } from '@nestjs/common';
-import { RedisThrottlerStorage } from '@nestjs-redis/throttler-storage';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import databaseConfig from './config/database.config';
-import jwtConfig from './config/jwt.config';
-import evmConfig from './config/evm.config';
-import redisConfig from './config/redis.config';
-import pinataConfig from './config/pinata.config';
-import adminConfig from './config/admin.config';
-import { validationSchema } from './config/validation.schema';
-import { HealthModule } from './health/health.module';
-import { MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
-import { LoggerMiddleware } from './logger/logger.middleware';
-import { UsersModule } from './user/user.module';
-import { AuthModule } from './auth/auth.module';
-import { RolesModule } from './roles/roles.module';
+import { ConfigModule as AppConfigModule } from './config/config.module';
+import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
-import { MailerModule } from '@nestjs-modules/mailer';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
-
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { RolesSeederService } from './database/seeders/roles.seeder';
-import { SessionModule } from './sessions/sessions.module';
-import { MessageModule } from './message/message.module';
-import { RewardsModule } from './rewards/rewards.module';
-import { ChainModule } from './chain/chain.module';
-import { TransferModule } from './transfer/transfer.module';
-import { RoomModule } from './room/room.module';
-import { NotificationsModule } from './notifications/notifications.module';
-import { SystemConfigModule } from './system-config/system-config.module';
-import { QueueModule } from './queue/queue.module';
+import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './user/user.module';
 import { AdminModule } from './admin/admin.module';
-import { EventEmitterModule } from '@nestjs/event-emitter';
-import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { GatewayModule } from './gateway/gateway.module';
+import { PaymentsModule } from './payments/payments.module';
+import { MessagesModule } from './messages/messages.module';
+import { RoomsModule } from './rooms/rooms.module';
+import { SessionKeysModule } from './session-keys/session-keys.module';
+import { XpModule } from './xp/xp.module';
+import { HealthModule } from './health/health.module';
+import { QueuesModule } from './queues/queues.module';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { SecurityModule } from './security/security.module';
+import { SeedModule } from './database/seeds/seed.module';
+import { CacheModule as CustomCacheModule } from './cache/cache.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [
-        databaseConfig,
-        jwtConfig,
-        evmConfig,
-        redisConfig,
-        pinataConfig,
-        adminConfig,
-      ],
-      validationSchema,
-    }),
-    EventEmitterModule.forRoot(),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        ...configService.get('database'),
-      }),
-      inject: [ConfigService],
-    }),
-    ThrottlerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        throttlers: [
-          {
-            ttl: 60000,
-            limit: 10,
-          },
-        ],
-        storage: new RedisThrottlerStorage({
-          host: config.get('REDIS_HOST'),
-          port: config.get('REDIS_PORT'),
-          password: config.get('REDIS_PASSWORD'),
-          db: parseInt(config.get('REDIS_DB'), 10) || 0,
-        }),
-      }),
-    }),
-    MailerModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        transport: {
-          host: configService.get('MAIL_HOST'),
-          port: configService.get('MAIL_PORT'),
-          secure: false,
-          auth: {
-            user: configService.get('MAIL_USER'),
-            pass: configService.get('MAIL_PASSWORD'),
-          },
-        },
-        defaults: {
-          from: `"No Reply" <${configService.get('MAIL_FROM')}>`,
-        },
-        template: {
-          dir: process.cwd() + '/templates/',
-          adapter: new HandlebarsAdapter(),
-          options: {
-            strict: true,
-          },
-        },
-      }),
-      inject: [ConfigService],
-    }),
-    HealthModule,
+    AppConfigModule,
+
+    DatabaseModule,
     RedisModule,
-    QueueModule,
+
+    // Redis Cache (Nest CacheModule for existing cache.service)
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        host: configService.get<string>('REDIS_HOST', 'localhost'),
+        port: configService.get<number>('REDIS_PORT', 6379),
+        password: configService.get<string>('REDIS_PASSWORD'),
+        ttl: 0,
+      }),
+    }),
+
     AuthModule,
-    UsersModule,
-    RolesModule,
+    UserModule,
     AdminModule,
-    SessionModule,
-    MessageModule,
-    RewardsModule,
-    ChainModule,
-    TransferModule,
-    RoomModule,
-    NotificationsModule,
-    SystemConfigModule,
+    PaymentsModule,
+    MessagesModule,
+    RoomsModule,
+    SessionKeysModule,
+    XpModule,
+    HealthModule,
+    QueuesModule,
+    RateLimitModule,
+    SecurityModule,
+    SeedModule,
+    CustomCacheModule,
+    AnalyticsModule,
     GatewayModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard, // Apply JWT guard globally
-    },
-    {
-      provide: APP_GUARD,
-      useClass: UserThrottlerGuard, // Apply rate limiting globally (User + IP)
-    },
-    {
-      provide: APP_GUARD,
-      useClass: MaintenanceGuard,
-    },
-  ],
+  providers: [AppService],
 })
-export class AppModule implements OnModuleInit {
-  constructor(private readonly rolesSeeder: RolesSeederService) {}
-
-  async onModuleInit() {
-    // Seed roles and permissions on app initialization
-    console.log('Seeding roles and permissions...');
-    await this.rolesSeeder.seed();
-    console.log('Roles and permissions seeded successfully!');
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestLoggingMiddleware).forRoutes('*');
   }
 }

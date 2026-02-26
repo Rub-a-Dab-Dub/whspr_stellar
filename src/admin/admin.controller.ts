@@ -1,413 +1,90 @@
 import {
   Controller,
   Get,
-  Post,
   Patch,
-  Delete,
-  Body,
   Param,
-  Query,
-  UseGuards,
-  Req,
+  Body,
   HttpCode,
   HttpStatus,
-  Res,
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RoleGuard } from '../roles/guards/role.guard';
-import { PermissionGuard } from '../roles/guards/permission.guard';
-import { Roles } from '../roles/decorators/roles.decorator';
-import { RequirePermissions } from '../roles/decorators/permissions.decorator';
-import { RoleType } from '../roles/entities/role.entity';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+} from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AdminService } from './admin.service';
-import { AdminQuestService } from './services/admin-quest.service';
-import { GetUsersDto } from './dto/get-users.dto';
-import { BanUserDto } from './dto/ban-user.dto';
-import { SuspendUserDto } from './dto/suspend-user.dto';
-import { BulkActionDto } from './dto/bulk-action.dto';
-import { ImpersonateUserDto } from './dto/impersonate-user.dto';
-import { GetAuditLogsDto } from './dto/get-audit-logs.dto';
-import { CreateQuestDto } from './dto/create-quest.dto';
-import { UpdateQuestDto } from './dto/update-quest.dto';
-import { UpdateQuestStatusDto } from './dto/update-quest-status.dto';
-import { GetQuestsDto } from './dto/get-quests.dto';
-import { GetQuestCompletionsDto } from './dto/get-quest-completions.dto';
-import { RevokeQuestCompletionDto } from './dto/revoke-quest-completion.dto';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { UserRole } from '../user/entities/user.entity';
+import { UserService } from '../user/user.service';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { SetUserActiveDto } from './dto/set-user-active.dto';
 
+/**
+ * AdminController — all routes on this controller require the ADMIN role.
+ *
+ * The @Roles(UserRole.ADMIN) on the class applies to every handler.
+ * Individual handlers may layer additional @Roles() for finer control.
+ */
+@ApiTags('admin')
+@ApiBearerAuth()
 @Controller('admin')
-@UseGuards(JwtAuthGuard, RoleGuard, PermissionGuard)
-@Roles(RoleType.ADMIN)
-@RequirePermissions('user.manage')
+@Roles(UserRole.ADMIN)
 export class AdminController {
-  constructor(
-    private readonly adminService: AdminService,
-    private readonly adminQuestService: AdminQuestService,
-  ) {}
+  constructor(private readonly usersService: UserService) {}
+
+  // ─── User management ────────────────────────────────────────────────────────
 
   @Get('users')
-  async getUsers(
-    @Query() query: GetUsersDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminService.getUsers(query, currentUser.userId, req);
+  @ApiOperation({ summary: '[ADMIN] List all users' })
+  @ApiResponse({ status: 200, description: 'User list returned' })
+  @ApiForbiddenResponse({ description: 'Requires ADMIN role' })
+  async listUsers(@CurrentUser() admin: JwtPayload) {
+    return this.usersService.findAll();
   }
 
-  @Get('users/:id')
-  async getUserDetail(
-    @Param('id') userId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminService.getUserDetail(
-      userId,
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Post('users/:id/ban')
+  @Patch('users/:id/role')
   @HttpCode(HttpStatus.OK)
-  async banUser(
-    @Param('id') userId: string,
-    @Body() banDto: BanUserDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
+  @ApiOperation({ summary: "[ADMIN] Update a user's role" })
+  @ApiResponse({ status: 200, description: 'Role updated' })
+  @ApiForbiddenResponse({ description: 'Requires ADMIN role' })
+  async updateUserRole(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserRoleDto,
+    @CurrentUser() admin: JwtPayload,
   ) {
-    return await this.adminService.banUser(
-      userId,
-      currentUser.userId,
-      banDto,
-      req,
-    );
+    return this.usersService.updateRole(id, dto.role);
   }
 
-  @Post('users/:id/unban')
+  @Patch('users/:id/active')
   @HttpCode(HttpStatus.OK)
-  async unbanUser(
-    @Param('id') userId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
+  @ApiOperation({ summary: '[ADMIN] Activate or deactivate a user account' })
+  @ApiResponse({ status: 200, description: 'User active status updated' })
+  @ApiForbiddenResponse({ description: 'Requires ADMIN role' })
+  async setUserActive(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetUserActiveDto,
+    @CurrentUser() admin: JwtPayload,
   ) {
-    return await this.adminService.unbanUser(userId, currentUser.userId, req);
+    return this.usersService.setActive(id, dto.isActive);
   }
 
-  @Post('users/:id/suspend')
-  @HttpCode(HttpStatus.OK)
-  async suspendUser(
-    @Param('id') userId: string,
-    @Body() suspendDto: SuspendUserDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminService.suspendUser(
-      userId,
-      currentUser.userId,
-      suspendDto,
-      req,
-    );
-  }
+  // ─── Mixed-role example: ADMIN and MODERATOR can view reports ───────────────
 
-  @Post('users/:id/unsuspend')
-  @HttpCode(HttpStatus.OK)
-  async unsuspendUser(
-    @Param('id') userId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminService.unsuspendUser(
-      userId,
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Post('users/:id/verify')
-  @HttpCode(HttpStatus.OK)
-  async verifyUser(
-    @Param('id') userId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminService.verifyUser(userId, currentUser.userId, req);
-  }
-
-  @Post('users/:id/unverify')
-  @HttpCode(HttpStatus.OK)
-  async unverifyUser(
-    @Param('id') userId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminService.unverifyUser(
-      userId,
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Post('users/bulk-action')
-  @HttpCode(HttpStatus.OK)
-  async bulkAction(
-    @Body() bulkDto: BulkActionDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminService.bulkAction(bulkDto, currentUser.userId, req);
-  }
-
-  @Get('users/:id/activity')
-  async getUserActivity(
-    @Param('id') userId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminService.getUserActivity(
-      userId,
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Get('statistics')
-  async getStatistics(@CurrentUser() currentUser: any, @Req() req: Request) {
-    return await this.adminService.getUserStatistics(currentUser.userId, req);
-  }
-
-  @Get('audit-logs')
-  async getAuditLogs(
-    @Query() query: GetAuditLogsDto,
-    @Query('adminId') adminId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    const actions = query.actions
-      ? query.actions.split(',').map((action) => action.trim())
-      : undefined;
-
-    const actorUserId = query.actorUserId || adminId;
-
-    return await this.adminService.getAuditLogs(
-      {
-        ...query,
-        actorUserId,
-        actions,
-      },
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Get('audit-logs/export')
-  async exportAuditLogs(
-    @Query() query: GetAuditLogsDto,
-    @Query('format') format: 'csv' | 'json' = 'csv',
-    @Query('adminId') adminId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const actions = query.actions
-      ? query.actions.split(',').map((action) => action.trim())
-      : undefined;
-
-    const actorUserId = query.actorUserId || adminId;
-
-    const exportResult = await this.adminService.exportAuditLogs(
-      {
-        ...query,
-        actorUserId,
-        actions,
-      },
-      format,
-      currentUser.userId,
-      req,
-    );
-
-    res.setHeader('Content-Type', exportResult.contentType);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="audit-logs.${format}"`,
-    );
-
-    return exportResult.data;
-  }
-
-  @Get('users/:id/gdpr-export')
-  async exportGdprData(
-    @Param('id') userId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const data = await this.adminService.exportUserData(
-      userId,
-      currentUser.userId,
-      req,
-    );
-
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="gdpr-export-${userId}.json"`,
-    );
-
-    return data;
-  }
-
-  @Post('impersonate')
-  @HttpCode(HttpStatus.OK)
-  @RequirePermissions('user.impersonate')
-  async impersonateUser(
-    @Body() impersonateDto: ImpersonateUserDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    // This would typically generate a special impersonation token
-    // For now, we'll just log the action
-    // In a real implementation, you'd want to create a special JWT token
-    // that includes both the admin ID and the impersonated user ID
-    const targetUser = await this.adminService.getUserDetail(
-      impersonateDto.userId,
-      currentUser.userId,
-      req,
-    );
-
-    await this.adminService.logImpersonationStart(
-      currentUser.userId,
-      targetUser.id,
-      req,
-    );
-
-    // Log impersonation start
-    // In a real implementation, you'd store the impersonation session
-    // and return a special token
-
+  @Get('reports')
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR) // overrides class-level ADMIN-only
+  @ApiOperation({ summary: '[ADMIN | MODERATOR] View moderation reports' })
+  @ApiResponse({ status: 200, description: 'Reports returned' })
+  @ApiForbiddenResponse({ description: 'Requires ADMIN or MODERATOR role' })
+  getReports(@CurrentUser() user: JwtPayload) {
+    // Placeholder — wire to real reporting service when available
     return {
-      message: 'Impersonation started',
-      targetUser: {
-        id: targetUser.id,
-        email: targetUser.email,
-      },
-      // In production, return a special impersonation token here
-      // impersonationToken: await this.generateImpersonationToken(...)
+      requestedBy: user.sub,
+      requestedByRole: user.role,
+      reports: [],
     };
-  }
-
-  // ====== QUEST MANAGEMENT ENDPOINTS ======
-
-  @Get('quests')
-  async getQuests(
-    @Query() query: GetQuestsDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminQuestService.getQuests(
-      query,
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Get('quests/:questId')
-  async getQuestDetail(
-    @Param('questId') questId: string,
-    @CurrentUser() currentUser: any,
-  ) {
-    return await this.adminQuestService.getQuestById(
-      questId,
-      currentUser.userId,
-    );
-  }
-
-  @Post('quests')
-  @HttpCode(HttpStatus.CREATED)
-  async createQuest(
-    @Body() createQuestDto: CreateQuestDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminQuestService.createQuest(
-      createQuestDto,
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Patch('quests/:questId')
-  @HttpCode(HttpStatus.OK)
-  async updateQuest(
-    @Param('questId') questId: string,
-    @Body() updateQuestDto: UpdateQuestDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminQuestService.updateQuest(
-      questId,
-      updateQuestDto,
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Patch('quests/:questId/status')
-  @HttpCode(HttpStatus.OK)
-  async updateQuestStatus(
-    @Param('questId') questId: string,
-    @Body() statusDto: UpdateQuestStatusDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminQuestService.updateQuestStatus(
-      questId,
-      statusDto,
-      currentUser.userId,
-      req,
-    );
-  }
-
-  @Delete('quests/:questId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteQuest(
-    @Param('questId') questId: string,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    await this.adminQuestService.deleteQuest(questId, currentUser.userId, req);
-  }
-
-  @Get('quests/:questId/completions')
-  @HttpCode(HttpStatus.OK)
-  async getQuestCompletions(
-    @Param('questId') questId: string,
-    @Query() query: GetQuestCompletionsDto,
-  ) {
-    return await this.adminQuestService.getQuestCompletions(questId, query);
-  }
-
-  @Get('users/:userId/quests')
-  @HttpCode(HttpStatus.OK)
-  async getUserQuestCompletions(@Param('userId') userId: string) {
-    return await this.adminQuestService.getUserQuestCompletions(userId);
-  }
-
-  @Delete('users/:userId/quests/:questId/completion')
-  @HttpCode(HttpStatus.OK)
-  async revokeUserQuestCompletion(
-    @Param('userId') userId: string,
-    @Param('questId') questId: string,
-    @Body() body: RevokeQuestCompletionDto,
-    @CurrentUser() currentUser: any,
-    @Req() req: Request,
-  ) {
-    return await this.adminQuestService.revokeUserQuestCompletion(
-      userId,
-      questId,
-      body,
-      currentUser.userId,
-      req,
-    );
   }
 }

@@ -1,415 +1,357 @@
-// src/auth/auth.service.ts
 import {
   Injectable,
   UnauthorizedException,
+  Inject,
   Logger,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { ethers } from 'ethers';
+import * as crypto from 'crypto';
 import { UsersService } from '../user/user.service';
-import { RedisService } from '../redis/redis.service';
-import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
-import { MailerService } from '@nestjs-modules/mailer';
-import { SessionService } from '../sessions/services/sessions.service';
-import { StreakService } from '../users/services/streak.service';
-import { UsersService as ProfileUsersService } from '../users/users.service';
-import { AuditLogService } from '../admin/services/audit-log.service';
-import { AdminService } from '../admin/services/admin.service';
-import {
-  AuditAction,
-  AuditEventType,
-  AuditOutcome,
-  AuditSeverity,
-} from '../admin/entities/audit-log.entity';
-import { ADMIN_STREAM_EVENTS } from '../admin/gateways/admin-event-stream.gateway';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Request } from 'express';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { EventType } from '../analytics/entities/analytics-event.entity';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { UserRole } from 'src/user/entities/user.entity';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Redis TTL for nonces: 5 minutes */
+const NONCE_TTL_MS = 5 * 60 * 1000;
+
+/** Redis TTL for refresh token families: 7 days */
+const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Redis TTL for access token revocation: 15 minutes (matches JWT_EXPIRES_IN default) */
+const ACCESS_REVOKE_TTL_MS = 15 * 60 * 1000;
+
+const NONCE_PREFIX = 'auth:nonce:';
+
+/**
+ * Stores the current valid jti for each token family.
+ * Key: auth:family:{familyId}  →  value: current valid jti
+ */
+const FAMILY_PREFIX = 'auth:family:';
+
+/**
+ * Revocation list for both access and refresh tokens.
+ * Key: auth:revoked:{jti}  →  value: '1'
+ */
+const REVOKED_PREFIX = 'auth:revoked:';
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
-    private configService: ConfigService,
-    private redisService: RedisService,
-    private mailerService: MailerService,
-    private readonly sessionService: SessionService,
-    private readonly streakService: StreakService,
-    private readonly profileUsersService: ProfileUsersService,
-    private readonly auditLogService: AuditLogService,
-    private readonly adminService: AdminService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
-  async register(email: string, password: string) {
-    const isRegistrationEnabled =
-      await this.adminService.getConfigValue<boolean>(
-        'registration_enabled',
-        true,
-      );
+  // ─── Nonce ──────────────────────────────────────────────────────────────────
 
-    if (!isRegistrationEnabled) {
-      throw new ServiceUnavailableException(
-        'New user registrations are currently disabled.',
-      );
-    }
+  /**
+   * Generate a cryptographically random one-time nonce for a given wallet
+   * address and store it in Redis with a 5-minute TTL.
+   */
+  async generateNonce(
+    walletAddress: string,
+  ): Promise<{ nonce: string; message: string }> {
+    const normalized = walletAddress.toLowerCase();
+    const nonce = crypto.randomBytes(32).toString('hex');
+    const message = this.buildSignMessage(normalized, nonce);
 
-    const user = await this.usersService.create(email, password);
-
-    // Generate email verification token
-    const verificationToken = randomBytes(32).toString('hex');
-    await this.usersService.setEmailVerificationToken(
-      user.id || '',
-      verificationToken,
+    await this.cacheManager.set(
+      `${NONCE_PREFIX}${normalized}`,
+      nonce,
+      NONCE_TTL_MS,
     );
 
-    // Send verification email
-    await this.sendVerificationEmail(email, verificationToken);
+    this.logger.debug(`Nonce generated for ${normalized}`);
 
-    this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_REGISTERED, {
-      type: 'user.registered',
-      timestamp: new Date().toISOString(),
-      entity: { userId: user.id, email: user.email },
-    });
-
-    return {
-      message:
-        'Registration successful. Please check your email to verify your account.',
-      userId: user.id,
-    };
+    return { nonce, message };
   }
 
-  async login(email: string, password: string, req?: Request) {
-    const user = await this.usersService.findByEmail(email);
+  // ─── Verify ─────────────────────────────────────────────────────────────────
 
-    if (!user) {
-      await this.safeAuditLog({
-        actorUserId: null,
-        targetUserId: null,
-        action: AuditAction.AUTH_LOGIN_FAILED,
-        eventType: AuditEventType.AUTH,
-        outcome: AuditOutcome.FAILURE,
-        severity: AuditSeverity.MEDIUM,
-        details: 'Login failed: user not found',
-        metadata: { email },
-        req,
-      });
-      throw new UnauthorizedException('Invalid credentials');
-    }
+  /**
+   * Verify the EIP-191 signed message against the stored nonce.
+   * On success: consume nonce, upsert user, issue access + refresh tokens.
+   * A new token family is created for every fresh login.
+   */
+  async verifySignature(
+    walletAddress: string,
+    signature: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const normalized = walletAddress.toLowerCase();
+    const key = `${NONCE_PREFIX}${normalized}`;
 
-    if (user.isLocked) {
-      const lockoutRemaining = Math.ceil(
-        (user.lockoutUntil.getTime() - Date.now()) / 1000 / 60,
-      );
-      await this.safeAuditLog({
-        actorUserId: user.id || null,
-        targetUserId: user.id || null,
-        action: AuditAction.AUTH_LOGIN_FAILED,
-        eventType: AuditEventType.AUTH,
-        outcome: AuditOutcome.FAILURE,
-        severity: AuditSeverity.MEDIUM,
-        details: 'Login failed: account locked',
-        metadata: { email },
-        req,
-      });
+    // 1. Retrieve nonce from Redis
+    const storedNonce = await this.cacheManager.get<string>(key);
+    if (!storedNonce) {
       throw new UnauthorizedException(
-        `Account is locked. Try again in ${lockoutRemaining} minutes.`,
+        'Nonce expired or not found. Request a new nonce via POST /auth/nonce.',
       );
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // 2. Reconstruct the exact message that should have been signed
+    const message = this.buildSignMessage(normalized, storedNonce);
 
-    if (!isPasswordValid) {
-      await this.usersService.incrementLoginAttempts(user.id || '');
-      await this.safeAuditLog({
-        actorUserId: user.id || null,
-        targetUserId: user.id || null,
-        action: AuditAction.AUTH_LOGIN_FAILED,
-        eventType: AuditEventType.AUTH,
-        outcome: AuditOutcome.FAILURE,
-        severity: AuditSeverity.MEDIUM,
-        details: 'Login failed: invalid password',
-        metadata: { email },
-        req,
-      });
-      throw new UnauthorizedException('Invalid credentials');
+    // 3. Recover signer address using ethers v6
+    let recoveredAddress: string;
+    try {
+      recoveredAddress = ethers.verifyMessage(message, signature);
+    } catch {
+      throw new UnauthorizedException(
+        'Signature parsing failed. Ensure the signature is a valid EIP-191 hex string.',
+      );
     }
 
-    // Reset login attempts on successful login
-    await this.usersService.resetLoginAttempts(user.id || '');
+    // 4. Compare recovered address (case-insensitive)
+    if (recoveredAddress.toLowerCase() !== normalized) {
+      throw new UnauthorizedException(
+        'Signature does not match the provided wallet address.',
+      );
+    }
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id || '', user.email);
+    // 5. Consume nonce immediately — prevent replay attacks
+    await this.cacheManager.del(key);
 
-    // Save refresh token
-    await this.usersService.updateRefreshToken(
-      user.id || '',
-      tokens.refreshToken,
+    // 6. Upsert user record
+    const user = await this.usersService.findOrCreate(normalized);
+
+    // 7. Issue tokens with a fresh family
+    const familyId = crypto.randomUUID();
+    const tokens = await this.issueTokenPair(
+      user.id,
+      user.walletAddress,
+      user.role,
+      familyId,
     );
 
-    // Track daily login for streak system
-    try {
-      // Try to find user in profile system by email
-      const profileUser = await this.profileUsersService.findByEmail(
-        user.email,
-      );
-      if (profileUser) {
-        await this.streakService.trackDailyLogin(profileUser.id);
-        this.logger.log(`Streak tracked for user ${profileUser.id}`);
-      }
-    } catch (error) {
-      // Log but don't fail login if streak tracking fails
-      this.logger.warn(
-        `Failed to track streak for user ${user.email}: ${error.message}`,
-      );
-    }
+    this.logger.log(
+      `Authenticated: userId=${user.id} wallet=${normalized} family=${familyId}`,
+    );
 
-    await this.safeAuditLog({
-      actorUserId: user.id || null,
-      targetUserId: user.id || null,
-      action: AuditAction.AUTH_LOGIN_SUCCESS,
-      eventType: AuditEventType.AUTH,
-      outcome: AuditOutcome.SUCCESS,
-      severity: AuditSeverity.LOW,
-      details: 'Login successful',
-      metadata: { email },
-      req,
+    // Track login event
+    await this.analyticsService.track(user.id, EventType.USER_LOGIN, {
+      walletAddress: normalized,
+      familyId,
     });
 
-    return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        isEmailVerified: user.isEmailVerified,
-      },
-    };
+    return tokens;
   }
 
-  async refreshTokens(refreshToken: string) {
+  // ─── Refresh ────────────────────────────────────────────────────────────────
+
+  /**
+   * Validate a refresh token and issue a new access + refresh token pair
+   * (rotation). The old refresh token is single-use — each use generates a
+   * new jti and invalidates the old one.
+   *
+   * Reuse detection: if the presented jti does NOT match the current family
+   * head, the entire family is revoked immediately (compromise detected).
+   */
+  async refreshTokens(
+    refreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    // 1. Verify JWT structure and signature
+    let payload: JwtPayload;
     try {
-      const payload = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get('JWT_REFRESH_SECRET'),
+      payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
-
-      const user = await this.usersService.findById(payload.sub);
-
-      if (!user || user.refreshToken !== refreshToken) {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-
-      // Blacklist old access token if jti exists
-      if (payload.jti) {
-        const ttl = Math.floor((payload.exp * 1000 - Date.now()) / 1000);
-        if (ttl > 0) {
-          await this.redisService.set(`blacklist:${payload.jti}`, 'true', ttl);
-        }
-      }
-
-      // Generate new tokens
-      const tokens = await this.generateTokens(user.id || '', user.email);
-      await this.usersService.updateRefreshToken(
-        user.id || '',
-        tokens.refreshToken,
-      );
-
-      const token = await this.sessionService.refreshSession(
-        tokens.refreshToken,
-      );
-
-      return token;
-    } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token.');
     }
+
+    const { sub: userId, familyId, jti } = payload;
+
+    if (!familyId || !jti) {
+      throw new UnauthorizedException('Malformed refresh token.');
+    }
+
+    // 2. Check revocation list — explicit revocations (logout / compromise)
+    const isRevoked = await this.cacheManager.get<string>(
+      `${REVOKED_PREFIX}${jti}`,
+    );
+    if (isRevoked) {
+      throw new UnauthorizedException('Refresh token has been revoked.');
+    }
+
+    // 3. Check family head — detect reuse of an old (already-rotated) token
+    const currentJti = await this.cacheManager.get<string>(
+      `${FAMILY_PREFIX}${familyId}`,
+    );
+
+    if (!currentJti) {
+      // Family has been fully revoked (e.g., after logout or compromise)
+      throw new UnauthorizedException(
+        'Token family is no longer valid. Please re-authenticate.',
+      );
+    }
+
+    if (currentJti !== jti) {
+      // Token reuse detected — revoke entire family immediately
+      this.logger.warn(
+        `Token reuse detected for userId=${userId} family=${familyId}. Revoking family.`,
+      );
+      await this.revokeFamilyAndToken(familyId, jti);
+      throw new UnauthorizedException(
+        'Token reuse detected. All sessions have been invalidated for security.',
+      );
+    }
+
+    // 4. Load user
+    const user = await this.usersService.findById(userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive.');
+    }
+
+    // 5. Rotate — add old jti to revocation list, issue fresh pair in same family
+    await this.revokeJti(jti, REFRESH_TTL_MS);
+
+    const tokens = await this.issueTokenPair(
+      user.id,
+      user.walletAddress,
+      user.role,
+      familyId,
+    );
+
+    this.logger.debug(`Token rotated for userId=${userId} family=${familyId}`);
+
+    return tokens;
   }
 
+  // ─── Logout ─────────────────────────────────────────────────────────────────
+
+  /**
+   * POST /auth/logout
+   * Invalidate the current refresh token family and add the access token jti
+   * to the revocation list so it cannot be used for its remaining TTL.
+   */
   async logout(
     userId: string,
-    jti: string,
-    sessionToken?: string,
-    req?: Request,
-  ) {
-    // Clear refresh token from database
-    await this.usersService.updateRefreshToken(userId, null);
+    accessTokenJti: string,
+    refreshToken?: string,
+  ): Promise<void> {
+    // Revoke access token immediately (short TTL matching JWT_EXPIRES_IN)
+    await this.revokeJti(accessTokenJti, ACCESS_REVOKE_TTL_MS);
 
-    // Blacklist access token
-    const accessExpiration = this.parseTime(
-      this.configService.get('JWT_ACCESS_EXPIRATION'),
+    if (refreshToken) {
+      try {
+        const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        });
+        if (payload.familyId) {
+          await this.revokeFamilyAndToken(payload.familyId, payload.jti);
+        }
+      } catch {
+        // Refresh token already expired or invalid — family may already be gone
+        this.logger.debug(
+          `Could not decode refresh token during logout for userId=${userId}`,
+        );
+      }
+    }
+
+    this.logger.debug(`Logged out userId=${userId}`);
+  }
+
+  // ─── Token Checks ───────────────────────────────────────────────────────────
+
+  /**
+   * Check whether a given jti is on the revocation list.
+   * Used by the JWT guard to reject access tokens after logout.
+   */
+  async isRevoked(jti: string): Promise<boolean> {
+    const value = await this.cacheManager.get<string>(
+      `${REVOKED_PREFIX}${jti}`,
     );
-    await this.redisService.set(`blacklist:${jti}`, 'true', accessExpiration);
-
-    if (sessionToken) {
-      const session = await this.sessionService.validateSession(sessionToken);
-      await this.sessionService.revokeSession(session.id, userId);
-    }
-
-    await this.safeAuditLog({
-      actorUserId: userId,
-      targetUserId: userId,
-      action: AuditAction.AUTH_LOGOUT,
-      eventType: AuditEventType.AUTH,
-      outcome: AuditOutcome.SUCCESS,
-      severity: AuditSeverity.LOW,
-      details: 'Logout successful',
-      req,
-    });
-
-    return { message: 'Logout successful' };
+    return !!value;
   }
 
-  async forgotPassword(email: string, req?: Request) {
-    const user = await this.usersService.findByEmail(email);
+  // ─── Private Helpers ────────────────────────────────────────────────────────
 
-    if (!user) {
-      await this.safeAuditLog({
-        actorUserId: null,
-        targetUserId: null,
-        action: AuditAction.AUTH_PASSWORD_RESET_REQUESTED,
-        eventType: AuditEventType.AUTH,
-        outcome: AuditOutcome.FAILURE,
-        severity: AuditSeverity.LOW,
-        details: 'Password reset requested for unknown email',
-        metadata: { email },
-        req,
-      });
-      // Don't reveal if user exists
-      return { message: 'If the email exists, a reset link has been sent.' };
-    }
-
-    const resetToken = randomBytes(32).toString('hex');
-    await this.usersService.setPasswordResetToken(user.id || '', resetToken);
-
-    await this.sendPasswordResetEmail(email, resetToken);
-
-    await this.safeAuditLog({
-      actorUserId: user.id || null,
-      targetUserId: user.id || null,
-      action: AuditAction.AUTH_PASSWORD_RESET_REQUESTED,
-      eventType: AuditEventType.AUTH,
-      outcome: AuditOutcome.SUCCESS,
-      severity: AuditSeverity.MEDIUM,
-      details: 'Password reset requested',
-      metadata: { email },
-      req,
-    });
-
-    return { message: 'If the email exists, a reset link has been sent.' };
+  private buildSignMessage(walletAddress: string, nonce: string): string {
+    return (
+      `Welcome to Whspr!\n\n` +
+      `Sign this message to authenticate your wallet.\n\n` +
+      `Wallet: ${walletAddress}\n` +
+      `Nonce: ${nonce}\n\n` +
+      `This request will not trigger a blockchain transaction or cost any gas.`
+    );
   }
 
-  async resetPassword(token: string, newPassword: string, req?: Request) {
-    const user = await this.usersService.resetPassword(token, newPassword);
+  private async issueTokenPair(
+    userId: string,
+    walletAddress: string,
+    role: string,
+    familyId: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const accessJti = crypto.randomUUID();
+    const refreshJti = crypto.randomUUID();
 
-    await this.safeAuditLog({
-      actorUserId: user.id || null,
-      targetUserId: user.id || null,
-      action: AuditAction.AUTH_PASSWORD_RESET_COMPLETED,
-      eventType: AuditEventType.AUTH,
-      outcome: AuditOutcome.SUCCESS,
-      severity: AuditSeverity.MEDIUM,
-      details: 'Password reset completed',
-      req,
-    });
-    return { message: 'Password reset successful' };
-  }
+    const basePayload: Omit<JwtPayload, 'jti'> = {
+      sub: userId,
+      walletAddress,
+      role: role as UserRole,
+      familyId,
+    };
 
-  async verifyEmail(token: string, req?: Request) {
-    const user = await this.usersService.verifyEmail(token);
+    const accessToken = this.jwtService.sign(
+      { ...basePayload, jti: accessJti },
+      {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '15m'),
+      },
+    );
 
-    await this.safeAuditLog({
-      actorUserId: user.id || null,
-      targetUserId: user.id || null,
-      action: AuditAction.AUTH_EMAIL_VERIFIED,
-      eventType: AuditEventType.AUTH,
-      outcome: AuditOutcome.SUCCESS,
-      severity: AuditSeverity.LOW,
-      details: 'Email verified',
-      req,
-    });
-    return { message: 'Email verified successfully' };
-  }
+    const refreshToken = this.jwtService.sign(
+      { ...basePayload, jti: refreshJti },
+      {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.get<string>(
+          'JWT_REFRESH_EXPIRES_IN',
+          '7d',
+        ),
+      },
+    );
 
-  private async generateTokens(userId: string, email: string) {
-    const jti = randomBytes(16).toString('hex');
-
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(
-        { sub: userId, email, jti },
-        {
-          secret: this.configService.get('JWT_ACCESS_SECRET'),
-          expiresIn: this.configService.get('JWT_ACCESS_EXPIRATION'),
-        },
-      ),
-      this.jwtService.signAsync(
-        { sub: userId, email, jti },
-        {
-          secret: this.configService.get('JWT_REFRESH_SECRET'),
-          expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION'),
-        },
-      ),
-    ]);
+    // Update family head to the new refresh jti
+    await this.cacheManager.set(
+      `${FAMILY_PREFIX}${familyId}`,
+      refreshJti,
+      REFRESH_TTL_MS,
+    );
 
     return { accessToken, refreshToken };
   }
 
-  private async sendVerificationEmail(email: string, token: string) {
-    const url = `${this.configService.get('APP_URL')}/auth/verify-email?token=${token}`;
-
-    await this.mailerService.sendMail({
-      to: email,
-      subject: 'Verify Your Email',
-      html: `
-        <h1>Email Verification</h1>
-        <p>Click the link below to verify your email:</p>
-        <a href="${url}">Verify Email</a>
-        <p>This link will expire in 24 hours.</p>
-      `,
-    });
+  /**
+   * Add a jti to the revocation list with the given TTL.
+   */
+  private async revokeJti(jti: string, ttlMs: number): Promise<void> {
+    await this.cacheManager.set(`${REVOKED_PREFIX}${jti}`, '1', ttlMs);
   }
 
-  private async sendPasswordResetEmail(email: string, token: string) {
-    const url = `${this.configService.get('APP_URL')}/auth/reset-password?token=${token}`;
-
-    await this.mailerService.sendMail({
-      to: email,
-      subject: 'Password Reset Request',
-      html: `
-        <h1>Password Reset</h1>
-        <p>Click the link below to reset your password:</p>
-        <a href="${url}">Reset Password</a>
-        <p>This link will expire in 1 hour.</p>
-      `,
-    });
-  }
-
-  private async safeAuditLog(
-    input: Parameters<AuditLogService['createAuditLog']>[0],
-  ) {
-    try {
-      await this.auditLogService.createAuditLog(input);
-    } catch (error) {
-      this.logger.warn(`Failed to write audit log: ${error.message}`);
+  /**
+   * Revoke an entire token family (delete the family head) and optionally
+   * add a specific jti to the revocation list.
+   */
+  private async revokeFamilyAndToken(
+    familyId: string,
+    jti?: string,
+  ): Promise<void> {
+    await this.cacheManager.del(`${FAMILY_PREFIX}${familyId}`);
+    if (jti) {
+      await this.revokeJti(jti, REFRESH_TTL_MS);
     }
-  }
-
-  private parseTime(timeString: string): number {
-    const unit = timeString.slice(-1);
-    const value = parseInt(timeString.slice(0, -1));
-
-    const multipliers = { s: 1, m: 60, h: 3600, d: 86400 };
-    return value * (multipliers[unit] || 1);
-  }
-
-  private getClientIp(req: Request): string {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-      (req.headers['x-real-ip'] as string) ||
-      req.socket.remoteAddress ||
-      'unknown'
-    );
   }
 }

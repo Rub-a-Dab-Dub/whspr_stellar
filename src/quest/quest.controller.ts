@@ -1,99 +1,19 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  UseGuards,
-  Request,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import { QuestService } from './quest.service';
-import { CreateQuestDto } from './dto/create-quest.dto';
-import { UpdateProgressDto } from './dto/update-progress.dto';
+import { Router } from "express";
+import { QuestService } from "./quest.service";
 
-// Assuming you have these guards
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-// import { AdminGuard } from '../auth/guards/admin.guard';
+const router = Router();
+const service = new QuestService();
 
-@Controller('quests')
-export class QuestController {
-  constructor(private readonly questService: QuestService) { }
+// GET /quests
+router.get("/quests", async (req, res) => {
+  const userId = req.query.userId as string;
+  res.json(await service.getAllQuests(userId));
+});
 
-  // Admin endpoints
-  @Post('admin/create')
-  // @UseGuards(JwtAuthGuard, AdminGuard)
-  async createQuest(@Body() createQuestDto: CreateQuestDto) {
-    return await this.questService.createQuest(createQuestDto);
-  }
+// GET /quests/active
+router.get("/quests/active", async (req, res) => {
+  const userId = req.query.userId as string;
+  res.json(await service.getActiveQuests(userId));
+});
 
-  @Get('admin/:questId/stats')
-  // @UseGuards(JwtAuthGuard, AdminGuard)
-  async getQuestStats(@Param('questId') questId: string) {
-    return await this.questService.getQuestStats(questId);
-  }
-
-  // User endpoints
-  @Get()
-  @UseGuards(JwtAuthGuard)
-  async getQuests(@Request() req) {
-    const userId = req.user.id || req.user.sub;
-    return await this.questService.getActiveQuests(userId);
-  }
-
-  @Get('active')
-  @UseGuards(JwtAuthGuard)
-  async getMyActiveQuests(@Request() req) {
-    const userId = req.user.id || req.user.sub;
-    return await this.questService.getUserQuestProgress(userId);
-  }
-
-  @Get('my-progress')
-  @UseGuards(JwtAuthGuard)
-  async getMyProgress(@Request() req) {
-    const userId = req.user.id || req.user.sub;
-    return await this.questService.getUserQuestProgress(userId);
-  }
-
-  @Get('my-progress/:questId')
-  @UseGuards(JwtAuthGuard)
-  async getMyQuestProgress(@Request() req, @Param('questId') questId: string) {
-    const userId = req.user.id || req.user.sub;
-    return await this.questService.getUserQuestProgress(userId, questId);
-  }
-
-  @Post('update-progress')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  async updateProgress(
-    @Request() req,
-    @Body() updateProgressDto: UpdateProgressDto,
-  ) {
-    const userId = req.user.id || req.user.sub;
-    return await this.questService.updateQuestProgress(
-      userId,
-      updateProgressDto.questId,
-      updateProgressDto.progressIncrement,
-    );
-  }
-
-  @Get('check-completion/:questId')
-  @UseGuards(JwtAuthGuard)
-  async checkCompletion(@Request() req, @Param('questId') questId: string) {
-    const userId = req.user.id || req.user.sub;
-    const isCompleted = await this.questService.checkQuestCompletion(
-      userId,
-      questId,
-    );
-    return { questId, isCompleted };
-  }
-
-  @Post('claim-reward/:questId')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  async claimReward(@Request() req, @Param('questId') questId: string) {
-    const userId = req.user.id || req.user.sub;
-    return await this.questService.claimQuestReward(userId, questId);
-  }
-}
+export default router;

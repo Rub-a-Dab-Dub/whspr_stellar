@@ -1,22 +1,34 @@
-// src/redis/redis.service.ts
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
+export const REDIS_CLIENT = 'REDIS_CLIENT';
+
 @Injectable()
 export class RedisService implements OnModuleDestroy {
-  private client: Redis;
+  private readonly logger = new Logger(RedisService.name);
+  private readonly client: Redis;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.client = new Redis({
-      host: this.configService.get('REDIS_HOST'),
-      port: this.configService.get('REDIS_PORT'),
-      password: this.configService.get('REDIS_PASSWORD'),
+      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
+      port: this.configService.get<number>('REDIS_PORT', 6379),
+      password: this.configService.get<string>('REDIS_PASSWORD') || undefined,
+      retryStrategy: (times) => (times > 10 ? null : Math.min(times * 100, 3000)),
+      maxRetriesPerRequest: 3,
+      lazyConnect: true,
+    });
+
+    this.client.on('error', (err) => {
+      this.logger.warn(`Redis error: ${err.message}`);
+    });
+    this.client.on('connect', () => {
+      this.logger.log('Redis connected');
     });
   }
 
-  async get(key: string): Promise<string | null> {
-    return await this.client.get(key);
+  getClient(): Redis {
+    return this.client;
   }
 
   async set(key: string, value: string, ttl?: number): Promise<void> {
@@ -89,31 +101,16 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.info();
   }
 
-  async isHealthy(): Promise<boolean> {
+  async ping(): Promise<boolean> {
     try {
-      const pong = await this.ping();
-      return pong === 'PONG';
+      const result = await this.client.ping();
+      return result === 'PONG';
     } catch {
       return false;
     }
   }
 
-  async ttl(key: string): Promise<number> {
-    return await this.client.ttl(key);
-  }
-
-  async keys(pattern: string): Promise<string[]> {
-    return await this.client.keys(pattern);
-  }
-
-  async getInt(key: string): Promise<number> {
-    const val = await this.client.get(key);
-    if (!val) return 0;
-    const n = parseInt(val, 10);
-    return Number.isNaN(n) ? 0 : n;
-  }
-
-  onModuleDestroy() {
-    this.client.disconnect();
+  async onModuleDestroy(): Promise<void> {
+    await this.client.quit();
   }
 }

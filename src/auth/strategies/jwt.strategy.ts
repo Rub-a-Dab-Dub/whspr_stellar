@@ -2,60 +2,41 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtPayload } from '../interfaces/jwt-payload.interface';
 import { UsersService } from '../../user/user.service';
-import { RedisService } from '../../redis/redis.service';
-
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  jti: string;
-}
+import { AuthService } from '../auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    private configService: ConfigService,
-    private usersService: UsersService,
-    private redisService: RedisService,
+    private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
+    private readonly authService: AuthService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get('JWT_ACCESS_SECRET'),
+      secretOrKey: configService.get<string>('JWT_SECRET'),
     });
   }
 
-  async validate(payload: JwtPayload) {
-    // Check if token is blacklisted
-    const isBlacklisted = await this.redisService.exists(
-      `blacklist:${payload.jti}`,
-    );
-    if (isBlacklisted) {
-      throw new UnauthorizedException('Token has been revoked');
+  async validate(payload: JwtPayload): Promise<JwtPayload> {
+    // Check revocation list — catches tokens invalidated via logout
+    if (payload.jti && (await this.authService.isRevoked(payload.jti))) {
+      throw new UnauthorizedException('Access token has been revoked.');
     }
 
     const user = await this.usersService.findById(payload.sub);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    if (user.isLocked) {
-      throw new UnauthorizedException('Account is locked');
-    }
-
-    // Check if user is banned or suspended
-    if (user.isBanned) {
-      throw new UnauthorizedException('Account is banned');
-    }
-
-    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
-      throw new UnauthorizedException('Account is suspended');
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive.');
     }
 
     return {
-      userId: payload.sub,
-      email: payload.email,
-      user, // Include full user object with roles
+      sub: payload.sub,
+      walletAddress: payload.walletAddress,
+      role: payload.role,
+      jti: payload.jti,
+      familyId: payload.familyId,
     };
   }
 }

@@ -1,158 +1,79 @@
 import {
   Entity,
-  Column,
   PrimaryGeneratedColumn,
+  Column,
   CreateDateColumn,
   UpdateDateColumn,
-  DeleteDateColumn,
-  ManyToMany,
-  JoinTable,
   Index,
+  DeleteDateColumn,
 } from 'typeorm';
-import { Exclude } from 'class-transformer';
-import { Role } from '../../roles/entities/role.entity';
-import { UserRole } from '../../roles/entities/user-role.enum';
-import { UserProfile } from './user-profile.entity';
+
+export enum UserRole {
+  USER = 'user',
+  ROOM_CREATOR = 'room_creator',
+  MODERATOR = 'moderator',
+  ADMIN = 'admin',
+}
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string | undefined;
+  id: string;
+
+  @Index({ unique: true })
+  @Column({ name: 'wallet_address', type: 'varchar', length: 42 })
+  walletAddress: string;
 
   @Column({
     type: 'enum',
     enum: UserRole,
     default: UserRole.USER,
   })
-  @Index()
-  role: UserRole = UserRole.USER;
+  role: UserRole;
+
+  @Column({ default: true })
+  isActive: boolean;
 
   @Column({ unique: true, nullable: true })
   @Index()
-  username: string | undefined;
+  username: string | null;
 
   @Column({ unique: true, nullable: true })
   @Index()
-  email: string | undefined;
-
-  @Column({ unique: true, nullable: true })
-  @Index()
-  walletAddress: string | undefined;
+  email: string | null;
 
   @Column({ nullable: true })
-  @Exclude()
-  password: string | undefined;
+  avatarUrl: string | null;
 
-  @Column(() => UserProfile)
-  profile: UserProfile | undefined;
+  @Column({ nullable: true })
+  avatarIpfsHash: string | null;
 
   @Column({ default: false })
-  isEmailVerified: boolean = false;
-
-  @Column({ nullable: true })
-  @Exclude()
-  emailVerificationToken: string | undefined;
-
-  @Column({ nullable: true })
-  @Exclude()
-  emailVerificationExpires: Date | undefined;
-
-  @Column({ nullable: true })
-  @Exclude()
-  passwordResetToken: string | undefined;
-
-  @Column({ nullable: true })
-  @Exclude()
-  passwordResetExpires: Date | undefined;
-
-  // Stats
-  @Column({ default: 0 })
-  @Index()
-  currentXp: number = 0;
-
-  @Column({ default: 1 })
-  level: number = 1;
-
-  @Column({ default: 0 })
-  totalTips: number = 0;
-
-  // Security & Moderation
-  @Column({ default: 0 })
-  @Exclude()
-  loginAttempts: number = 0;
-
-  @Column({ nullable: true })
-  @Exclude()
-  lockoutUntil: Date | undefined;
-
-  @Column({ nullable: true })
-  @Exclude()
-  refreshToken: string | undefined;
+  isOnline: boolean;
 
   @Column({ default: false })
-  isBanned: boolean = false;
-
-  @Column({ type: 'timestamp', nullable: true })
-  bannedAt: Date | undefined;
-
-  @Column({ type: 'uuid', nullable: true })
-  bannedBy: string | undefined;
-
-  @Column({ type: 'text', nullable: true })
-  banReason: string | undefined;
-
-  @Column({ type: 'timestamp', nullable: true })
-  banExpiresAt: Date | undefined;
-
-  @Column({ type: 'timestamp', nullable: true })
-  suspendedAt: Date | null;
-
-  @Column({ type: 'uuid', nullable: true })
-  suspendedBy: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  suspensionReason: string | null;
-
-  @Column({ type: 'timestamp', nullable: true })
-  suspendedUntil: Date | undefined;
+  isBanned: boolean;
 
   @Column({ default: false })
-  isVerified: boolean;
+  isAdmin: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
-  verifiedAt: Date | null;
+  suspendedUntil: Date | null;
 
-  @Column({ type: 'uuid', nullable: true })
-  verifiedBy: string | null;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
 
-  // Timestamps
-  @CreateDateColumn()
-  createdAt: Date | undefined;
-
-  @UpdateDateColumn()
-  updatedAt: Date | undefined;
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 
   @DeleteDateColumn()
-  deletedAt: Date | undefined;
+  deletedAt: Date | null;
 
-  // Relations
-  @ManyToMany(() => Role, (role) => role.users, {
-    eager: true,
-    cascade: true,
-  })
-  @JoinTable({
-    name: 'user_roles',
-    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'role_id', referencedColumnName: 'id' },
-  })
-  roles: Role[] | undefined;
+  // ── XP / Gamification ─────────────────────────────────────────────────────
 
-  // Helpers
-  get isLocked(): boolean {
-    return !!(this.lockoutUntil && this.lockoutUntil > new Date());
-  }
+  @Column({ name: 'xp_total', type: 'int', default: 0 })
+  xpTotal: number;
 
-  get isSuspended(): boolean {
-    return !!(this.suspendedUntil && this.suspendedUntil > new Date());
-  }
+  @Column({ name: 'level', type: 'int', default: 1 })
+  level: number;
 }

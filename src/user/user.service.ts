@@ -1,158 +1,95 @@
-// src/users/users.service.ts
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
-import * as bcrypt from 'bcrypt';
+import { User, UserRole } from './entities/user.entity';
+import { UserSearchResultDto } from './dto/search-user.dto';
 
 @Injectable()
-export class UsersService {
+export class UserService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
-  ) { }
+    private readonly userRepository: Repository<User>,
+  ) {}
 
-  async create(email: string, password: string): Promise<User> {
-    const existingUser = await this.usersRepository.findOne({
-      where: { email },
-    });
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = this.usersRepository.create({
-      email,
-      password: hashedPassword,
-    });
-
-    return await this.usersRepository.save(user);
+  async findAll(): Promise<User[]> {
+    return this.userRepository.find();
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return await this.usersRepository.findOne({ where: { email } });
+  async findOne(id: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    return user;
   }
 
-  async findById(id: string): Promise<User | null> {
-    return await this.usersRepository.findOne({
-      where: { id },
-      relations: ['roles', 'roles.permissions'],
+  async findOneByWalletAddress(walletAddress: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { walletAddress },
     });
-  }
-
-  async updateRefreshToken(
-    userId: string,
-    refreshToken: string | null,
-  ): Promise<void> {
-    await this.usersRepository.update(userId, {
-      refreshToken: refreshToken || '',
-    });
-  }
-
-  async incrementLoginAttempts(userId: string): Promise<void> {
-    const user = await this.findById(userId);
-    if (!user) return;
-
-    const attempts = user.loginAttempts || 0 + 1;
-    const updates: Partial<User> = { loginAttempts: attempts };
-
-    const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5');
-    if (attempts >= maxAttempts) {
-      const lockoutDuration = parseInt(
-        process.env.LOCKOUT_DURATION || '900000',
+    if (!user)
+      throw new NotFoundException(
+        `User with wallet ${walletAddress} not found`,
       );
-      updates.lockoutUntil = new Date(Date.now() + lockoutDuration);
-    }
-
-    await this.usersRepository.update(userId, updates);
+    return user;
   }
 
-  async resetLoginAttempts(userId: string): Promise<void> {
-    await this.usersRepository.update(userId, {
-      loginAttempts: 0,
-      lockoutUntil: '',
-    });
+  async updateRole(id: string, role: UserRole): Promise<User> {
+    const user = await this.findOne(id);
+    user.role = role;
+    return this.userRepository.save(user);
   }
 
-  async setEmailVerificationToken(
-    userId: string,
-    token: string,
-  ): Promise<void> {
-    await this.usersRepository.update(userId, {
-      emailVerificationToken: token,
-      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-    });
+  async setActive(id: string, isActive: boolean): Promise<User> {
+    const user = await this.findOne(id);
+    user.isActive = isActive;
+    return this.userRepository.save(user);
   }
 
-  async verifyEmail(token: string): Promise<User> {
-    const user = await this.usersRepository.findOne({
-      where: { emailVerificationToken: token },
-    });
+  async searchUsers(query: string): Promise<UserSearchResultDto[]> {
+    const trimmedQuery = query.trim();
+    const results = await this.userRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.username',
+        'user.avatarUrl',
+        'user.level',
+        'user.isOnline',
+        'user.walletAddress',
+      ])
+      .where('user.deletedAt IS NULL')
+      .andWhere('user.isBanned = false')
+      .andWhere('user.suspendedUntil IS NULL OR user.suspendedUntil < NOW()')
+      .andWhere(
+        '(user.username ILIKE :query OR user.walletAddress ILIKE :walletQuery OR similarity(user.username, :rawQuery) > 0.3)',
+        {
+          query: `%${trimmedQuery}%`,
+          walletQuery: `${trimmedQuery}%`,
+          rawQuery: trimmedQuery,
+        },
+      )
+      .orderBy(
+        'CASE WHEN user.username ILIKE :exactQuery THEN 1 WHEN user.walletAddress ILIKE :exactWalletQuery THEN 2 ELSE 3 END',
+        'ASC',
+      )
+      .addOrderBy('similarity(user.username, :rawQuery)', 'DESC')
+      .addOrderBy('user.level', 'DESC')
+      .addOrderBy('user.isOnline', 'DESC')
+      .setParameter('exactQuery', trimmedQuery)
+      .setParameter('exactWalletQuery', `${trimmedQuery}%`)
+      .setParameter('rawQuery', trimmedQuery)
+      .limit(20)
+      .getMany();
 
-    if (
-      !user ||
-      !user.emailVerificationExpires ||
-      user.emailVerificationExpires < new Date()
-    ) {
-      throw new NotFoundException('Invalid or expired verification token');
-    }
-
-    user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
-
-    return await this.usersRepository.save(user);
+    return results.map((user) => ({
+      id: user.id,
+      username: user.username ?? '',
+      avatarUrl: user.avatarUrl,
+      level: user.level,
+      isOnline: user.isOnline,
+    }));
   }
 
-  async setPasswordResetToken(userId: string, token: string): Promise<void> {
-    await this.usersRepository.update(userId, {
-      passwordResetToken: token,
-      passwordResetExpires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-    });
-  }
-
-  async resetPassword(token: string, newPassword: string): Promise<User> {
-    const user = await this.usersRepository.findOne({
-      where: { passwordResetToken: token },
-    });
-
-    if (
-      !user ||
-      !user.passwordResetExpires ||
-      user.passwordResetExpires < new Date()
-    ) {
-      throw new NotFoundException('Invalid or expired reset token');
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    user.passwordResetToken = undefined;
-    user.passwordResetExpires = undefined;
-
-    return await this.usersRepository.save(user);
-  }
-
-  async addXp(userId: string, xp: number): Promise<void> {
-    const user = await this.findById(userId);
-    if (!user) return;
-
-    user.currentXp = (user.currentXp || 0) + xp;
-
-    // Basic level up logic: 1000 XP per level
-    const newLevel = Math.floor(user.currentXp / 1000) + 1;
-    if (newLevel > (user.level || 1)) {
-      user.level = newLevel;
-    }
-
-    await this.usersRepository.save(user);
-  }
-
-  getSystemUserId(): string {
-    // This should ideally come from config, but using a placeholder for now
-    return '00000000-0000-0000-0000-000000000000';
+  async addXP(userId: string, amount: number): Promise<void> {
+    await this.userRepository.increment({ id: userId }, 'xp', amount);
   }
 }
