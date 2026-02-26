@@ -23,7 +23,7 @@
     "migration:run": "typeorm migration:run -d src/config/data-source.ts",
     "migration:revert": "typeorm migration:revert -d src/config/data-source.ts",
     "seed": "ts-node src/database/seeds/run-seed.ts",
-    "build:gateway": "tsc --noEmit --target es2021 --module commonjs --moduleResolution node --experimentalDecorators --emitDecoratorMetadata --esModuleInterop src/gateway/app.gateway.ts src/gateway/gateway.controller.ts src/gateway/gateway.module.ts src/redis/redis.service.ts"
+    "build:gateway": "tsc --noEmit --target es2021 --module commonjs --moduleResolution node --experimentalDecorators --emitDecoratorMetadata --esModuleInterop src/gateway/app.gateway.ts src/gateway/gateway.controller.ts src/redis/redis.service.ts"
   },
   "dependencies": {
     "@bull-board/api": "^6.20.2",

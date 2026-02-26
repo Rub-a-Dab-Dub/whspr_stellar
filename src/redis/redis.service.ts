@@ -90,7 +90,7 @@ export class RedisService implements OnModuleDestroy {
     return result === 1;
   }
 
-  async ping(): Promise<string> {
+  async pingRaw(): Promise<string> {
     return await this.client.ping();
   }
 
@@ -103,7 +103,7 @@ export class RedisService implements OnModuleDestroy {
 
   async ping(): Promise<boolean> {
     try {
-      const result = await this.client.ping();
+      const result = await this.pingRaw();
       return result === 'PONG';
     } catch {
       return false;
