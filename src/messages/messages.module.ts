@@ -6,6 +6,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MessageMedia } from './entities/message-media.entity';
 import { Message } from './entities/message.entity';
 import { MessageEdit } from './entities/message-edit.entity';
+import { MessageReaction } from './entities/message-reaction.entity';
 import { RoomMember } from '../rooms/entities/room-member.entity';
 import { User } from '../user/entities/user.entity';
 import { MessagesController } from './messages.controller';
@@ -36,6 +37,7 @@ import { XpModule } from '../xp/xp.module';
       User,
       Message,
       MessageEdit,
+      MessageReaction,
       RoomMember,
     ]),
     JwtModule.registerAsync({
@@ -61,7 +63,7 @@ import { XpModule } from '../xp/xp.module';
       useClass: NoOpMediaScanService,
     },
   ],
-  exports: [MessagesService],
+  exports: [MessagesService, ReactionsService],
 })
 export class MessagesModule implements OnModuleInit {
   constructor(

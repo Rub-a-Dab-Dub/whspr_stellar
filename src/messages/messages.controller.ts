@@ -14,7 +14,6 @@ import {
   BadRequestException,
   Get,
   Query,
-  Param,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -24,6 +23,7 @@ import { SessionKeyGuard } from '../session-keys/guards/session-key.guard';
 import { RequiresSessionKeyScope } from '../session-keys/decorators/requires-session-key-scope.decorator';
 import { SessionKeyScope } from '../session-keys/entities/session-key.entity';
 import { MessagesService } from './messages.service';
+import { ReactionsService } from './reactions.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { IMAGE_MAX_BYTES, VIDEO_MAX_BYTES } from './services/ipfs.service';
@@ -34,7 +34,10 @@ const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'];
 @Controller('messages')
 @UseGuards(JwtAuthGuard)
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(
+    private readonly messagesService: MessagesService,
+    private readonly reactionsService: ReactionsService,
+  ) {}
 
   @Post('upload')
   @HttpCode(HttpStatus.CREATED)
@@ -146,5 +149,46 @@ export class MessagesController {
     if (!userId) throw new BadRequestException('User not authenticated');
 
     return this.messagesService.deleteMessage(userId, messageId);
+  }
+
+  // ─── Reactions ─────────────────────────────────────────────────────────────
+
+  @Post(':id/reactions')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Add an emoji reaction to a message' })
+  async addReaction(
+    @Request() req: { user: { id?: string; sub?: string } },
+    @Param('id') messageId: string,
+    @Body('emoji') emoji: string,
+  ) {
+    const userId = req.user.id ?? req.user.sub;
+    if (!userId) throw new BadRequestException('User not authenticated');
+    if (!emoji) throw new BadRequestException('emoji is required');
+
+    const reactions = await this.reactionsService.addReaction(
+      messageId,
+      userId,
+      emoji,
+    );
+    return { success: true, reactions };
+  }
+
+  @Delete(':id/reactions/:emoji')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove an emoji reaction from a message' })
+  async removeReaction(
+    @Request() req: { user: { id?: string; sub?: string } },
+    @Param('id') messageId: string,
+    @Param('emoji') emoji: string,
+  ) {
+    const userId = req.user.id ?? req.user.sub;
+    if (!userId) throw new BadRequestException('User not authenticated');
+
+    const reactions = await this.reactionsService.removeReaction(
+      messageId,
+      userId,
+      decodeURIComponent(emoji),
+    );
+    return { success: true, reactions };
   }
 }
