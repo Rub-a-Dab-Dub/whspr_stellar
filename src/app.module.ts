@@ -38,6 +38,7 @@ import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './admin/admin.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
+import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
   imports: [
@@ -119,6 +120,7 @@ import { MaintenanceGuard } from './common/guards/maintenance.guard';
     RoomModule,
     NotificationsModule,
     SystemConfigModule,
+    GatewayModule,
   ],
   controllers: [AppController],
   providers: [
@@ -147,5 +149,3 @@ export class AppModule implements OnModuleInit {
     console.log('Roles and permissions seeded successfully!');
   }
 }
-    StellarModule,
-    WalletsModule,

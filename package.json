@@ -14,6 +14,7 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
+    "test:gateway": "jest src/gateway/app.gateway.spec.ts src/gateway/gateway.controller.spec.ts --runInBand",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
@@ -27,7 +28,8 @@
     "migration:run": "npm run typeorm migration:run -- -d ./src/config/data-source.ts",
     "migration:generate": "npm run typeorm -- -d ./src/config/data-source.ts migration:generate",
     "migration:create": "npm run typeorm -- migration:create",
-    "migration:revert": "npm run typeorm -- -d ./src/config/data-source.ts migration:revert"
+    "migration:revert": "npm run typeorm -- -d ./src/config/data-source.ts migration:revert",
+    "build:gateway": "tsc --noEmit --target es2021 --module commonjs --moduleResolution node --experimentalDecorators --emitDecoratorMetadata --esModuleInterop src/gateway/app.gateway.ts src/gateway/gateway.controller.ts src/gateway/gateway.module.ts src/redis/redis.service.ts"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^1.8.1",

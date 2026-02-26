@@ -1831,26 +1831,6 @@ export class AdminService {
     return response;
   }
 
-  async getRooms(
-    query: GetRoomsDto,
-  ): Promise<{
-      `Viewed room details for ${roomId}`,
-      { roomId, page, limit },
-      req,
-      AuditSeverity.LOW,
-      'room',
-      roomId,
-    );
-
-    return {
-      ...room,
-      payments,
-      totalPayments,
-      page,
-      limit,
-    };
-  }
-
   async getRooms(query: GetRoomsDto): Promise<{
     rooms: Array<{
       id: string;

@@ -31,6 +31,42 @@ export class RedisService implements OnModuleDestroy {
     await this.client.del(key);
   }
 
+  async hset(
+    key: string,
+    values: Record<string, string | number>,
+  ): Promise<void> {
+    const payload = Object.entries(values).reduce<Record<string, string>>(
+      (acc, [field, value]) => {
+        acc[field] = String(value);
+        return acc;
+      },
+      {},
+    );
+    await this.client.hset(key, payload);
+  }
+
+  async hgetall(key: string): Promise<Record<string, string>> {
+    return await this.client.hgetall(key);
+  }
+
+  async sadd(key: string, ...members: string[]): Promise<void> {
+    if (!members.length) {
+      return;
+    }
+    await this.client.sadd(key, ...members);
+  }
+
+  async srem(key: string, ...members: string[]): Promise<void> {
+    if (!members.length) {
+      return;
+    }
+    await this.client.srem(key, ...members);
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return await this.client.smembers(key);
+  }
+
   // Backward-compatible alias.
   async delete(key: string): Promise<boolean> {
     await this.del(key);
