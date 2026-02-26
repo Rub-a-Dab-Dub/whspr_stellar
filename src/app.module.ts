@@ -11,6 +11,7 @@ import { RequestLoggingMiddleware } from './common/middleware/request-logging.mi
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { AdminModule } from './admin/admin.module';
+import { GatewayModule } from './gateway/gateway.module';
 import { PaymentsModule } from './payments/payments.module';
 import { MessagesModule } from './messages/messages.module';
 import { RoomsModule } from './rooms/rooms.module';
@@ -59,6 +60,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     SeedModule,
     CustomCacheModule,
     AnalyticsModule,
+    GatewayModule,
   ],
   controllers: [AppController],
   providers: [AppService],

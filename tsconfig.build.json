@@ -1,4 +1,15 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*spec.ts",
+    "src/AdminGuard and Role-based Access Control decorators/**/*",
+    "src/Implement Admin Audit Log entity and service/**/*",
+    "src/Security alerts and anomaly detection/**/*",
+    "src/View, approve, and reject user withdrawal requests/**/*",
+    "src/Event-listener.ts"
+  ]
 }
