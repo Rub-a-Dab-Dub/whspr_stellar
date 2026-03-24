@@ -3,6 +3,7 @@
 use gasless_common::clients;
 use gasless_common::migration;
 use gasless_common::registry;
+use gasless_common::access_control;
 use gasless_common::types::{SharedAddress, TokenAmount};
 use gasless_common::upgrade;
 use gasless_common::{CommonError as ContractError, CROSS_CONTRACT_API_VERSION};
@@ -130,6 +131,9 @@ impl WhsprToken {
         env.storage().instance().set(&DataKey::Admin, &admin);
         set_reentrancy_lock(&env, false);
 
+        // Initialize access control with admin as SUPER_ADMIN
+        access_control::init_access_control(&env, admin.clone())?;
+
         TokenUtils::new(&env)
             .metadata()
             .set_metadata(&TokenMetadata {
@@ -205,8 +209,93 @@ impl WhsprToken {
     ) -> Result<(), ContractError> {
         let admin = get_admin(&env)?;
         admin.require_auth();
+        
+        // Check if caller has SUPER_ADMIN or CONTRACT_ADMIN role
+        let super_admin_role = Symbol::new(&env, "SUPER_ADMIN");
+        let contract_admin_role = Symbol::new(&env, "CONTRACT_ADMIN");
+        
+        let has_permission = access_control::has_role(&env, super_admin_role.clone(), admin.clone())
+            || access_control::has_role(&env, contract_admin_role, admin.clone());
+        
+        if !has_permission {
+            return Err(ContractError::Unauthorized);
+        }
+        
         registry::set_contract(&env, contract_name, address, version);
         Ok(())
+    }
+
+    // ──────────────────────────────────────────────
+    // Access Control Functions
+    // ──────────────────────────────────────────────
+
+    pub fn grant_role(
+        env: Env,
+        role: Symbol,
+        address: SharedAddress,
+        caller: SharedAddress,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::grant_role(&env, role, address, caller)
+    }
+
+    pub fn revoke_role(
+        env: Env,
+        role: Symbol,
+        address: SharedAddress,
+        caller: SharedAddress,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::revoke_role(&env, role, address, caller)
+    }
+
+    pub fn has_role(env: Env, role: Symbol, address: SharedAddress) -> bool {
+        access_control::has_role(&env, role, address)
+    }
+
+    pub fn initiate_role_transfer(
+        env: Env,
+        role: Symbol,
+        from: SharedAddress,
+        to: SharedAddress,
+        caller: SharedAddress,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::initiate_role_transfer(&env, role, from, to, caller)
+    }
+
+    pub fn accept_role_transfer(
+        env: Env,
+        role: Symbol,
+        from: SharedAddress,
+        caller: SharedAddress,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::accept_role_transfer(&env, role, from, caller)
+    }
+
+    pub fn reject_role_transfer(
+        env: Env,
+        role: Symbol,
+        from: SharedAddress,
+        caller: SharedAddress,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::reject_role_transfer(&env, role, from, caller)
+    }
+
+    pub fn activate_emergency_pause(env: Env, caller: SharedAddress) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::activate_emergency_pause(&env, caller)
+    }
+
+    pub fn deactivate_emergency_pause(env: Env, caller: SharedAddress) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::deactivate_emergency_pause(&env, caller)
+    }
+
+    pub fn is_emergency_paused(env: Env) -> bool {
+        access_control::is_emergency_paused(&env)
     }
 
     pub fn hello_from_registry(env: Env, to: Symbol) -> Result<Vec<Symbol>, ContractError> {
