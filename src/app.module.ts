@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -10,6 +10,8 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { StellarEventsModule } from './stellar-events/stellar-events.module';
+import { RedisCacheModule } from './cache/redis-cache.module';
+import { CacheMiddleware } from './middleware/cache.middleware';
 
 @Module({
   imports: [
@@ -17,19 +19,11 @@ import { StellarEventsModule } from './stellar-events/stellar-events.module';
       isGlobal: true,
       envFilePath: '.env',
       validationSchema: envValidationSchema,
-      validationOptions: {
-        abortEarly: true,
-      },
+      validationOptions: { abortEarly: true },
     }),
-    TypeOrmModule.forRootAsync({
-      useFactory: typeOrmConfig,
-    }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 10,
-      },
-    ]),
+    TypeOrmModule.forRootAsync({ useFactory: typeOrmConfig }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
+    RedisCacheModule,
     HealthModule,
     UsersModule,
     AuthModule,
@@ -38,4 +32,8 @@ import { StellarEventsModule } from './stellar-events/stellar-events.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CacheMiddleware).forRoutes('users', 'health');
+  }
+}
