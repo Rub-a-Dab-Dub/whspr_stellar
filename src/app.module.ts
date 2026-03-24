@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { typeOrmConfig } from './config/typeorm.config';
@@ -11,6 +12,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { LoggingModule } from './common/logging/logging.module';
+import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 
 @Module({
   imports: [
@@ -32,10 +34,12 @@ import { LoggingModule } from './common/logging/logging.module';
       },
     ]),
     LoggingModule,
+    ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
     AuthModule,
     WalletsModule,
+    ScheduledJobsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
