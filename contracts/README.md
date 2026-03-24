@@ -231,3 +231,6 @@ cargo install --locked stellar-cli
 
 - Runbook: `docs/deployment-runbook.md`
 - Rollback: `docs/rollback-procedure.md`
+- Threat model: `docs/threat-model.md`
+- Internal review: `docs/internal-security-review.md`
+- Audit package: `docs/audit-package.md`
