@@ -45,4 +45,17 @@ export const envValidationSchema = Joi.object({
   STELLAR_HORIZON_TESTNET_URL: Joi.string()
     .uri()
     .default('https://horizon-testnet.stellar.org'),
+
+  // Scheduled Jobs
+  JOB_BLOCKCHAIN_EVENT_POLLING_MS: Joi.number().default(5000),
+  JOB_TRANSACTION_STATUS_SYNC_MS: Joi.number().default(30000),
+  JOB_TOKEN_PRICE_REFRESH_MS: Joi.number().default(60000),
+  JOB_NFT_SYNC_MS: Joi.number().default(600000),
+  JOB_REFERRAL_REWARD_PROCESSING_MS: Joi.number().default(3600000),
+  JOB_WEBHOOK_DELIVERY_RETRY_MS: Joi.number().default(300000),
+  JOB_SESSION_CLEANUP_CRON: Joi.string().default('0 0 * * *'),
+  JOB_TIER_EXPIRY_CHECK_CRON: Joi.string().default('0 0 * * *'),
+  JOB_ANALYTICS_AGGREGATION_CRON: Joi.string().default('0 0 * * *'),
+  JOB_AUDIT_LOG_CLEANUP_CRON: Joi.string().default('0 0 * * 0'),
+  JOB_LOCK_TTL_MS: Joi.number().default(15000),
 });
