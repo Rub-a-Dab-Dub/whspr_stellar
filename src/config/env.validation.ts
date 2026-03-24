@@ -41,6 +41,22 @@ export const envValidationSchema = Joi.object({
   // CORS
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
 
+  // Attachments / Storage
+  STORAGE_PROVIDER: Joi.string().valid('s3', 'r2').default('s3'),
+  STORAGE_BUCKET: Joi.string().required(),
+  STORAGE_REGION: Joi.string().default('auto'),
+  STORAGE_ENDPOINT: Joi.string().uri().optional(),
+  STORAGE_ACCESS_KEY_ID: Joi.string().required(),
+  STORAGE_SECRET_ACCESS_KEY: Joi.string().required(),
+  STORAGE_PUBLIC_BASE_URL: Joi.string().uri().optional(),
+  ATTACHMENT_PRESIGN_EXPIRY_SECONDS: Joi.number().default(300),
+  ATTACHMENT_MAX_SIZE_FREE_BYTES: Joi.number().default(10485760),
+  ATTACHMENT_MAX_SIZE_PREMIUM_BYTES: Joi.number().default(26214400),
+  ATTACHMENT_MAX_SIZE_VIP_BYTES: Joi.number().default(52428800),
+  ATTACHMENT_ALLOWED_MIME_TYPES: Joi.string().default(
+    'image/jpeg,image/png,image/webp,image/gif,video/mp4,audio/mpeg,audio/wav,application/pdf',
+  ),
+
   // Stellar / Horizon
   STELLAR_HORIZON_MAINNET_URL: Joi.string()
     .uri()
