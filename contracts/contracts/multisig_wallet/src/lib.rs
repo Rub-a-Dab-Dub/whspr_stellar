@@ -550,7 +550,10 @@ impl MultisigWalletContract {
         let mut seed = Bytes::new(env);
         for i in 0..signers.len() {
             let addr = signers.get(i).unwrap();
-            seed.append(&Bytes::from_array(env, &addr.to_string().len().to_be_bytes()));
+            seed.append(&Bytes::from_array(
+                env,
+                &addr.to_string().len().to_be_bytes(),
+            ));
         }
         seed.append(&Bytes::from_array(env, &threshold.to_be_bytes()));
         seed.append(&Bytes::from_array(
