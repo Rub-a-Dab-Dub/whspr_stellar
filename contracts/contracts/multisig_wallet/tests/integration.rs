@@ -62,6 +62,7 @@ fn test_full_multisig_flow() {
 
     // Verify execution
     let tx = client.get_pending_tx(&tx_id);
+    assert!(tx.executed);
 }
 
 #[test]
