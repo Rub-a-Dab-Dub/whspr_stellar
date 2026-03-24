@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { ObservabilityModule } from './observability/observability.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     WalletsModule,
     ScheduledJobsModule,
     WebhooksModule,
+    ObservabilityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

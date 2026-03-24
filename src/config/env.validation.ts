@@ -54,4 +54,11 @@ export const envValidationSchema = Joi.object({
   JOB_ANALYTICS_AGGREGATION_CRON: Joi.string().default('0 0 * * *'),
   JOB_AUDIT_LOG_CLEANUP_CRON: Joi.string().default('0 0 * * 0'),
   JOB_LOCK_TTL_MS: Joi.number().default(15000),
+
+  // Observability
+  OTEL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+  OTEL_SERVICE_NAME: Joi.string().default('gasless-gossip-api'),
+  OTEL_EXPORTER_OTLP_ENDPOINT: Joi.string()
+    .uri()
+    .default('http://localhost:4318/v1/traces'),
 });
