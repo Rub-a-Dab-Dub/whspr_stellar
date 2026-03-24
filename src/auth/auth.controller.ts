@@ -1,20 +1,5 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-  Ip,
-  Headers,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiHeader,
-} from '@nestjs/swagger';
+import { Controller, Post, Body, HttpCode, HttpStatus, Ip, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './services/auth.service';
 import { ChallengeRequestDto } from './dto/challenge-request.dto';
 import { ChallengeResponseDto } from './dto/challenge-response.dto';

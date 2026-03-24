@@ -78,9 +78,7 @@ describe('UsersService', () => {
       expect(result).toBeDefined();
       expect(result.id).toBe(mockUser.id);
       expect(result.username).toBe(mockUser.username);
-      expect(repository.findByWalletAddress).toHaveBeenCalledWith(
-        createUserDto.walletAddress,
-      );
+      expect(repository.findByWalletAddress).toHaveBeenCalledWith(createUserDto.walletAddress);
       expect(repository.findByUsername).toHaveBeenCalledWith(createUserDto.username);
       expect(repository.findByEmail).toHaveBeenCalledWith(createUserDto.email);
       expect(repository.save).toHaveBeenCalled();
@@ -180,9 +178,7 @@ describe('UsersService', () => {
     it('should throw NotFoundException if user not found', async () => {
       repository.findByWalletAddress.mockResolvedValue(null);
 
-      await expect(service.findByWalletAddress('0xinvalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findByWalletAddress('0xinvalid')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -252,10 +248,7 @@ describe('UsersService', () => {
 
       await service.updateProfile(mockUser.id, updateWithEmail);
 
-      expect(repository.isEmailAvailable).toHaveBeenCalledWith(
-        'newemail@example.com',
-        mockUser.id,
-      );
+      expect(repository.isEmailAvailable).toHaveBeenCalledWith('newemail@example.com', mockUser.id);
     });
 
     it('should throw ConflictException if email is taken', async () => {
@@ -280,9 +273,7 @@ describe('UsersService', () => {
 
       await service.deactivate(mockUser.id);
 
-      expect(repository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ isActive: false }),
-      );
+      expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
     });
 
     it('should throw NotFoundException if user not found', async () => {

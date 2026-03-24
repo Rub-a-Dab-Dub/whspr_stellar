@@ -109,11 +109,7 @@ export class AuthService {
 
     // Verify signature
     const message = this.cryptoService.createSignMessage(challenge.nonce);
-    const isValid = this.cryptoService.verifyStellarSignature(
-      walletAddress,
-      message,
-      signature,
-    );
+    const isValid = this.cryptoService.verifyStellarSignature(walletAddress, message, signature);
 
     if (!isValid) {
       await this.recordFailedAttempt(walletAddress, ipAddress);
@@ -226,6 +222,7 @@ export class AuthService {
   /**
    * Logout user by revoking refresh token
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async logout(userId: string, refreshTokenString: string): Promise<void> {
     const token = await this.refreshTokenRepository.findOne({
       where: {
@@ -312,9 +309,7 @@ export class AuthService {
     });
 
     if (recentAttempts >= this.MAX_FAILED_ATTEMPTS) {
-      this.logger.warn(
-        `Brute force detected for wallet ${walletAddress} from IP ${ipAddress}`,
-      );
+      this.logger.warn(`Brute force detected for wallet ${walletAddress} from IP ${ipAddress}`);
       throw new HttpException(
         'Too many failed attempts. Please try again later.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -337,10 +332,7 @@ export class AuthService {
   /**
    * Record successful authentication attempt
    */
-  private async recordSuccessfulAttempt(
-    walletAddress: string,
-    ipAddress: string,
-  ): Promise<void> {
+  private async recordSuccessfulAttempt(walletAddress: string, ipAddress: string): Promise<void> {
     const attempt = this.attemptRepository.create({
       walletAddress,
       ipAddress,
