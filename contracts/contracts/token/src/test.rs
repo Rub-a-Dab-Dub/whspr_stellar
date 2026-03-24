@@ -1,5 +1,22 @@
 use super::*;
-use soroban_sdk::{testutils::Address as _, Address, Env, String};
+use gasless_common::CROSS_CONTRACT_API_VERSION;
+use soroban_sdk::{
+    contract, contractimpl, symbol_short, testutils::Address as _, vec, Address, Env, String,
+};
+
+#[contract]
+pub struct MockHello;
+
+#[contractimpl]
+impl MockHello {
+    pub fn version(_env: Env) -> u32 {
+        CROSS_CONTRACT_API_VERSION
+    }
+
+    pub fn hello(env: Env, to: soroban_sdk::Symbol) -> soroban_sdk::Vec<soroban_sdk::Symbol> {
+        vec![&env, symbol_short!("Hello"), to]
+    }
+}
 
 fn setup_token(env: &Env) -> (WhsprTokenClient<'_>, Address, Address, Address) {
     let contract_id = env.register(WhsprToken, ());
@@ -27,6 +44,7 @@ fn test_initialize_and_mint() {
 
     client.mint(&user, &1_000_000_000);
     assert_eq!(client.balance(&user), 1_000_000_000);
+    assert_eq!(client.version(), CROSS_CONTRACT_API_VERSION);
 }
 
 #[test]
@@ -113,4 +131,35 @@ fn test_transfer_rate_limited_within_same_window_panics() {
     client.mint(&user_a, &10);
     client.transfer(&user_a, &user_b, &1);
     client.transfer(&user_a, &user_b, &1);
+}
+
+#[test]
+fn test_cross_contract_hello_from_registry() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _, _, _) = setup_token(&env);
+    let hello_id = env.register(MockHello, ());
+
+    client.set_contract_registry_entry(&symbol_short!("hello"), &hello_id, &1);
+    let response = client.hello_from_registry(&symbol_short!("Gasless"));
+    assert_eq!(
+        response,
+        vec![&env, symbol_short!("Hello"), symbol_short!("Gasless")]
+    );
+
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #14)")]
+fn test_cross_contract_version_mismatch_panics() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _, _, _) = setup_token(&env);
+    let hello_id = env.register(MockHello, ());
+    client.set_contract_registry_entry(&symbol_short!("hello"), &hello_id, &99);
+
+    // Expects fixed compatibility at version 1 in hello_from_registry.
+    client.hello_from_registry(&symbol_short!("Gasless"));
 }

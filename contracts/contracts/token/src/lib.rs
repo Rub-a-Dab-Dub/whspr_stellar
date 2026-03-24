@@ -1,6 +1,10 @@
 #![no_std]
 
-use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env, String};
+use gasless_common::clients;
+use gasless_common::registry;
+use gasless_common::types::{SharedAddress, TokenAmount};
+use gasless_common::{CommonError as ContractError, CROSS_CONTRACT_API_VERSION};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Env, String, Symbol, Vec};
 use soroban_token_sdk::metadata::TokenMetadata;
 use soroban_token_sdk::TokenUtils;
 
@@ -10,48 +14,30 @@ const MIN_DECIMALS: u32 = 1;
 const MAX_DECIMALS: u32 = 18;
 const RATE_LIMIT_WINDOW_SECS: u64 = 1;
 
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[repr(u32)]
-pub enum ContractError {
-    AlreadyInitialized = 1,
-    NotInitialized = 2,
-    Unauthorized = 3,
-    InvalidAmount = 4,
-    InsufficientBalance = 5,
-    Overflow = 6,
-    Underflow = 7,
-    InvalidDecimals = 8,
-    InvalidName = 9,
-    InvalidSymbol = 10,
-    Reentrancy = 11,
-    RateLimited = 12,
-}
-
 #[contracttype]
 pub enum DataKey {
     Admin,
-    Balance(Address),
-    LastMintAt(Address),
-    LastTransferAt(Address),
+    Balance(SharedAddress),
+    LastMintAt(SharedAddress),
+    LastTransferAt(SharedAddress),
     ReentrancyLock,
 }
 
-fn get_admin(env: &Env) -> Result<Address, ContractError> {
+fn get_admin(env: &Env) -> Result<SharedAddress, ContractError> {
     env.storage()
         .instance()
         .get(&DataKey::Admin)
         .ok_or(ContractError::NotInitialized)
 }
 
-fn get_balance(env: &Env, addr: &Address) -> i128 {
+fn get_balance(env: &Env, addr: &SharedAddress) -> i128 {
     env.storage()
         .persistent()
         .get(&DataKey::Balance(addr.clone()))
         .unwrap_or(0)
 }
 
-fn set_balance(env: &Env, addr: &Address, amount: i128) {
+fn set_balance(env: &Env, addr: &SharedAddress, amount: i128) {
     env.storage()
         .persistent()
         .set(&DataKey::Balance(addr.clone()), &amount);
@@ -112,10 +98,7 @@ fn validate_token_metadata(
 }
 
 fn require_positive_amount(amount: i128) -> Result<(), ContractError> {
-    if amount <= 0 {
-        return Err(ContractError::InvalidAmount);
-    }
-    Ok(())
+    TokenAmount::new(amount).map(|_| ())
 }
 
 #[contract]
@@ -123,9 +106,13 @@ pub struct WhsprToken;
 
 #[contractimpl]
 impl WhsprToken {
+    pub fn version(_env: Env) -> u32 {
+        CROSS_CONTRACT_API_VERSION
+    }
+
     pub fn initialize(
         env: Env,
-        admin: Address,
+        admin: SharedAddress,
         decimal: u32,
         name: String,
         symbol: String,
@@ -149,7 +136,7 @@ impl WhsprToken {
         Ok(())
     }
 
-    pub fn mint(env: Env, to: Address, amount: i128) -> Result<(), ContractError> {
+    pub fn mint(env: Env, to: SharedAddress, amount: i128) -> Result<(), ContractError> {
         require_positive_amount(amount)?;
         let admin = get_admin(&env)?;
         admin.require_auth();
@@ -168,14 +155,14 @@ impl WhsprToken {
         Ok(())
     }
 
-    pub fn balance(env: Env, addr: Address) -> i128 {
+    pub fn balance(env: Env, addr: SharedAddress) -> i128 {
         get_balance(&env, &addr)
     }
 
     pub fn transfer(
         env: Env,
-        from: Address,
-        to: Address,
+        from: SharedAddress,
+        to: SharedAddress,
         amount: i128,
     ) -> Result<(), ContractError> {
         require_positive_amount(amount)?;
@@ -204,6 +191,28 @@ impl WhsprToken {
             Ok(())
         })?;
         Ok(())
+    }
+
+    pub fn set_contract_registry_entry(
+        env: Env,
+        contract_name: Symbol,
+        address: SharedAddress,
+        version: u32,
+    ) -> Result<(), ContractError> {
+        let admin = get_admin(&env)?;
+        admin.require_auth();
+        registry::set_contract(&env, contract_name, address, version);
+        Ok(())
+    }
+
+    pub fn hello_from_registry(env: Env, to: Symbol) -> Result<Vec<Symbol>, ContractError> {
+        clients::hello_via_registry(
+            &env,
+            symbol_short!("hello"),
+            to,
+            CROSS_CONTRACT_API_VERSION,
+            CROSS_CONTRACT_API_VERSION,
+        )
     }
 }
 
