@@ -2472,3 +2472,167 @@ fn test_reputation_reset() {
     let history = client.get_reputation_history(&user);
     assert_eq!(history.get(history.len() - 1).unwrap().event_type, Symbol::new(&env, "reset"));
 }
+
+// ==================== ISSUE 366: TOKEN TRANSFER TESTS ====================
+
+#[test]
+fn test_transfer_in_chat_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let from = Address::generate(&env);
+    let to = Address::generate(&env);
+    let conversation_id = BytesN::from_array(&env, &[1u8; 32]);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Setup Token
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token = token::Client::new(&env, &token_id);
+    let token_asset = token::StellarAssetClient::new(&env, &token_id);
+    
+    // Set as platform fee token
+    client.init_platform_settings(&0, &token_id);
+
+    // Mint and Approve
+    let amount = 20_000_000; // 2 XLM
+    token_asset.mint(&from, &amount);
+    token.approve(&from, &contract_id, &amount, &1000);
+
+    // Execute transfer
+    client.transfer_in_chat(&from, &to, &amount, &conversation_id);
+
+    // Verify balances
+    assert_eq!(token.balance(&from), 0);
+    assert_eq!(token.balance(&to), amount);
+
+    // Verify storage association
+    let record = env.storage().instance().get::<_, ChatTransfer>(&DataKey::ChatTransfer(conversation_id)).unwrap();
+    assert_eq!(record.from, from);
+    assert_eq!(record.to, to);
+    assert_eq!(record.amount, amount);
+}
+
+#[test]
+fn test_transfer_in_chat_insufficient_allowance() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let from = Address::generate(&env);
+    let to = Address::generate(&env);
+    let conversation_id = BytesN::from_array(&env, &[2u8; 32]);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_asset = token::StellarAssetClient::new(&env, &token_id);
+    
+    client.init_platform_settings(&0, &token_id);
+
+    let amount = 20_000_000;
+    token_asset.mint(&from, &amount);
+    // No approval!
+
+    let res = client.try_transfer_in_chat(&from, &to, &amount, &conversation_id);
+    assert!(matches!(res, Err(Ok(ContractError::InsufficientAllowance))));
+}
+
+#[test]
+fn test_tip_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let from = Address::generate(&env);
+    let to = Address::generate(&env);
+    let message_id = BytesN::from_array(&env, &[3u8; 32]);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token = token::Client::new(&env, &token_id);
+    let token_asset = token::StellarAssetClient::new(&env, &token_id);
+    
+    client.init_platform_settings(&0, &token_id);
+
+    let amount = 15_000_000;
+    token_asset.mint(&from, &amount);
+    token.approve(&from, &contract_id, &amount, &1000);
+
+    client.tip(&from, &to, &amount, &message_id);
+
+    assert_eq!(token.balance(&to), amount);
+    let record = env.storage().instance().get::<_, TipRecord>(&DataKey::MessageTip(message_id)).unwrap();
+    assert_eq!(record.amount, amount);
+}
+
+#[test]
+fn test_split_bill_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let from = Address::generate(&env);
+    let to1 = Address::generate(&env);
+    let to2 = Address::generate(&env);
+    let conversation_id = BytesN::from_array(&env, &[4u8; 32]);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token = token::Client::new(&env, &token_id);
+    let token_asset = token::StellarAssetClient::new(&env, &token_id);
+    
+    client.init_platform_settings(&0, &token_id);
+
+    let recipients = Vec::from_array(&env, [to1.clone(), to2.clone()]);
+    let amounts = Vec::from_array(&env, [10_000_000, 15_000_000]);
+    let total = 25_000_000;
+
+    token_asset.mint(&from, &total);
+    token.approve(&from, &contract_id, &total, &1000);
+
+    client.split_bill(&from, &recipients, &amounts, &conversation_id);
+
+    assert_eq!(token.balance(&to1), 10_000_000);
+    assert_eq!(token.balance(&to2), 15_000_000);
+    assert_eq!(token.balance(&from), 0);
+}
+
+#[test]
+fn test_minimum_threshold_validation() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let from = Address::generate(&env);
+    let to = Address::generate(&env);
+    let conversation_id = BytesN::from_array(&env, &[5u8; 32]);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    
+    client.init_platform_settings(&0, &token_id);
+
+    let amount = 1_000; // Too low (min is 10M)
+    let res = client.try_transfer_in_chat(&from, &to, &amount, &conversation_id);
+    assert!(matches!(res, Err(Ok(ContractError::MinimumThresholdNotMet))));
+}
