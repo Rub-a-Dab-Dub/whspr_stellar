@@ -105,7 +105,7 @@ fn test_propose_and_sign_transaction() {
     let pending_tx = client.get_pending_tx(&tx_id);
     assert_eq!(pending_tx.amount, 1000);
     assert_eq!(pending_tx.signature_count, 0);
-    assert_eq!(pending_tx.executed, false);
+    assert!(!pending_tx.executed);
 
     // Sign by first signer
     client.sign_transaction(&tx_id, &signer1);

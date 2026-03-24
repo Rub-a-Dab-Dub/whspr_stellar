@@ -361,7 +361,7 @@ impl MultisigWalletContract {
         let mut wallet = Self::get_wallet(&env, wallet_id.clone())?;
 
         // Verify quorum of existing signers
-        if (approvers.len() as u32) < wallet.threshold {
+        if approvers.len() < wallet.threshold {
             return Err(ContractError::ThresholdNotMet);
         }
 
@@ -403,7 +403,7 @@ impl MultisigWalletContract {
         let mut wallet = Self::get_wallet(&env, wallet_id.clone())?;
 
         // Verify quorum of existing signers
-        if (approvers.len() as u32) < wallet.threshold {
+        if approvers.len() < wallet.threshold {
             return Err(ContractError::ThresholdNotMet);
         }
 
@@ -466,7 +466,7 @@ impl MultisigWalletContract {
         let mut wallet = Self::get_wallet(&env, wallet_id.clone())?;
 
         // Verify quorum of existing signers
-        if (approvers.len() as u32) < wallet.threshold {
+        if approvers.len() < wallet.threshold {
             return Err(ContractError::ThresholdNotMet);
         }
 

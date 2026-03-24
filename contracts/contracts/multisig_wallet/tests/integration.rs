@@ -302,8 +302,10 @@ fn test_audit_trail_via_events() {
 
     client.execute_transaction(&tx_id, &signer1);
 
-    // All events emitted successfully (test passes without panic)
-    assert!(true);
+    // Verify all operations completed successfully (events emitted)
+    let tx = client.get_pending_tx(&tx_id);
+    assert!(tx.executed);
+    assert_eq!(tx.signature_count, 2);
 }
 
 #[test]
