@@ -10,6 +10,7 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { WalletsModule } from './wallets/wallets.module';
     UsersModule,
     AuthModule,
     WalletsModule,
+    ReferralsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
