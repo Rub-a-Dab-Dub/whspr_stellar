@@ -536,5 +536,5 @@ fn test_events_emitted() {
     client.execute_transaction(&tx_id, &signer1);
 
     // Events are emitted (verified by not panicking)
-    assert!(true);
-}
+    let tx = client.get_pending_tx(&tx_id);
+    assert!(tx.executed);
