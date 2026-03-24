@@ -149,9 +149,9 @@ pub mod registry {
     }
 }
 
+pub mod access_control;
 pub mod migration;
 pub mod upgrade;
-pub mod access_control;
 
 #[cfg(test)]
 mod upgrade_tests;

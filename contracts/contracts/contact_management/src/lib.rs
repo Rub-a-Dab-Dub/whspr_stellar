@@ -1,10 +1,11 @@
 #![no_std]
 
+use gasless_common::access_control;
 use gasless_common::migration;
 use gasless_common::upgrade;
-use gasless_common::access_control;
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, Address, BytesN, Env, Symbol, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, BytesN, Env,
+    Symbol, Vec,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -1,9 +1,9 @@
 #![no_std]
 
+use gasless_common::access_control;
 use gasless_common::clients;
 use gasless_common::migration;
 use gasless_common::registry;
-use gasless_common::access_control;
 use gasless_common::types::{SharedAddress, TokenAmount};
 use gasless_common::upgrade;
 use gasless_common::{CommonError as ContractError, CROSS_CONTRACT_API_VERSION};
@@ -209,18 +209,19 @@ impl WhsprToken {
     ) -> Result<(), ContractError> {
         let admin = get_admin(&env)?;
         admin.require_auth();
-        
+
         // Check if caller has SUPER_ADMIN or CONTRACT_ADMIN role
         let super_admin_role = Symbol::new(&env, "SUPER_ADMIN");
         let contract_admin_role = Symbol::new(&env, "CONTRACT_ADMIN");
-        
-        let has_permission = access_control::has_role(&env, super_admin_role.clone(), admin.clone())
-            || access_control::has_role(&env, contract_admin_role, admin.clone());
-        
+
+        let has_permission =
+            access_control::has_role(&env, super_admin_role.clone(), admin.clone())
+                || access_control::has_role(&env, contract_admin_role, admin.clone());
+
         if !has_permission {
             return Err(ContractError::Unauthorized);
         }
-        
+
         registry::set_contract(&env, contract_name, address, version);
         Ok(())
     }
@@ -289,7 +290,10 @@ impl WhsprToken {
         access_control::activate_emergency_pause(&env, caller)
     }
 
-    pub fn deactivate_emergency_pause(env: Env, caller: SharedAddress) -> Result<(), ContractError> {
+    pub fn deactivate_emergency_pause(
+        env: Env,
+        caller: SharedAddress,
+    ) -> Result<(), ContractError> {
         caller.require_auth();
         access_control::deactivate_emergency_pause(&env, caller)
     }

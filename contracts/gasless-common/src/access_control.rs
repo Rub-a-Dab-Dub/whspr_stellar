@@ -236,10 +236,7 @@ pub fn reject_role_transfer(
 }
 
 /// Activate emergency pause
-pub fn activate_emergency_pause(
-    env: &Env,
-    caller: Address,
-) -> Result<(), CommonError> {
+pub fn activate_emergency_pause(env: &Env, caller: Address) -> Result<(), CommonError> {
     // Only SUPER_ADMIN can activate emergency pause
     require_role(env, Symbol::new(env, "SUPER_ADMIN"), caller.clone())?;
 
@@ -251,19 +248,14 @@ pub fn activate_emergency_pause(
         .set(&AccessControlKey::PauseInitiator, &caller.clone());
 
     // Emit event
-    env.events().publish(
-        (Symbol::new(env, "emergency_pause_activated"),),
-        caller,
-    );
+    env.events()
+        .publish((Symbol::new(env, "emergency_pause_activated"),), caller);
 
     Ok(())
 }
 
 /// Deactivate emergency pause
-pub fn deactivate_emergency_pause(
-    env: &Env,
-    caller: Address,
-) -> Result<(), CommonError> {
+pub fn deactivate_emergency_pause(env: &Env, caller: Address) -> Result<(), CommonError> {
     // Only SUPER_ADMIN can deactivate emergency pause
     require_role(env, Symbol::new(env, "SUPER_ADMIN"), caller.clone())?;
 
@@ -272,10 +264,8 @@ pub fn deactivate_emergency_pause(
         .set(&AccessControlKey::EmergencyPaused, &false);
 
     // Emit event
-    env.events().publish(
-        (Symbol::new(env, "emergency_pause_deactivated"),),
-        caller,
-    );
+    env.events()
+        .publish((Symbol::new(env, "emergency_pause_deactivated"),), caller);
 
     Ok(())
 }
@@ -326,7 +316,13 @@ mod tests {
             require_role(&env, role, caller).unwrap();
         }
 
-        pub fn initiate_transfer(env: Env, role: Symbol, from: Address, to: Address, caller: Address) {
+        pub fn initiate_transfer(
+            env: Env,
+            role: Symbol,
+            from: Address,
+            to: Address,
+            caller: Address,
+        ) {
             initiate_role_transfer(&env, role, from, to, caller).unwrap();
         }
 
@@ -363,10 +359,22 @@ mod tests {
         let contract_admin = Symbol::new(&env, "CONTRACT_ADMIN");
         let moderator = Symbol::new(&env, "MODERATOR");
 
-        assert_eq!(Role::from_symbol(&env, &super_admin).unwrap(), Role::SuperAdmin);
-        assert_eq!(Role::from_symbol(&env, &platform_admin).unwrap(), Role::PlatformAdmin);
-        assert_eq!(Role::from_symbol(&env, &contract_admin).unwrap(), Role::ContractAdmin);
-        assert_eq!(Role::from_symbol(&env, &moderator).unwrap(), Role::Moderator);
+        assert_eq!(
+            Role::from_symbol(&env, &super_admin).unwrap(),
+            Role::SuperAdmin
+        );
+        assert_eq!(
+            Role::from_symbol(&env, &platform_admin).unwrap(),
+            Role::PlatformAdmin
+        );
+        assert_eq!(
+            Role::from_symbol(&env, &contract_admin).unwrap(),
+            Role::ContractAdmin
+        );
+        assert_eq!(
+            Role::from_symbol(&env, &moderator).unwrap(),
+            Role::Moderator
+        );
     }
 
     #[test]
@@ -478,7 +486,7 @@ mod tests {
 
         let super_admin_role = Symbol::new(&env, "SUPER_ADMIN");
         test.initiate_transfer(&super_admin_role, &admin, &new_admin, &admin);
-        
+
         assert!(test.check_role(&super_admin_role, &admin));
         test.accept_transfer(&super_admin_role, &admin, &new_admin);
         assert!(!test.check_role(&super_admin_role, &admin));
@@ -497,7 +505,7 @@ mod tests {
 
         let super_admin_role = Symbol::new(&env, "SUPER_ADMIN");
         test.initiate_transfer(&super_admin_role, &admin, &new_admin, &admin);
-        
+
         test.reject_transfer(&super_admin_role, &admin, &new_admin);
         assert!(test.check_role(&super_admin_role, &admin));
     }
