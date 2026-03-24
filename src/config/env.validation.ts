@@ -37,4 +37,12 @@ export const envValidationSchema = Joi.object({
 
   // CORS
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+
+  // Stellar / Horizon
+  STELLAR_HORIZON_MAINNET_URL: Joi.string()
+    .uri()
+    .default('https://horizon.stellar.org'),
+  STELLAR_HORIZON_TESTNET_URL: Joi.string()
+    .uri()
+    .default('https://horizon-testnet.stellar.org'),
 });
