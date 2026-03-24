@@ -121,7 +121,7 @@ export class ScheduledJobsService implements OnModuleInit {
         type: 'cron',
         name: 'session-cleanup',
         envKey: 'JOB_SESSION_CLEANUP_CRON',
-        defaultValue: '0 0 * * *',
+        defaultValue: '0 2 * * *',
         handler: () => this.handlers.cleanupSessions(),
       },
       {
