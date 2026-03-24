@@ -62,7 +62,6 @@ fn test_full_multisig_flow() {
 
     // Verify execution
     let tx = client.get_pending_tx(&tx_id);
-   
 }
 
 #[test]
@@ -304,7 +303,7 @@ fn test_audit_trail_via_events() {
 
     // Verify all operations completed successfully (events emitted)
     let tx = client.get_pending_tx(&tx_id);
-   
+
     assert_eq!(tx.signature_count, 2);
 }
 

@@ -538,3 +538,4 @@ fn test_events_emitted() {
     // Events are emitted (verified by not panicking)
     let tx = client.get_pending_tx(&tx_id);
     assert!(tx.executed);
+}
