@@ -52,7 +52,7 @@ export class UsersController {
   @ApiResponse({ status: 200, type: UserResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMe(@CurrentUser('id') userId: string): Promise<UserResponseDto> {
-    return this.usersService.findById(userId);
+    return this.usersService.findById(userId, userId);
   }
 
   @Patch('me')
