@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::upgrade::*;
-    use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, Vec};
+    use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
     #[test]
     fn test_is_compatible_upgrade() {
