@@ -61,6 +61,7 @@
     "socket.io": "^4.8.3",
     "stellar-sdk": "^11.3.0",
     "typeorm": "^0.3.19",
+    "uuid": "^9.0.1",
     "winston": "^3.11.0"
   },
   "devDependencies": {
@@ -75,6 +76,7 @@
     "@types/node": "^20.10.6",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
+    "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.56.0",
