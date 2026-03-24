@@ -30,18 +30,28 @@ fn test_execute_requires_quorum_and_majority() {
     let recipient = Address::generate(&env);
 
     client.deposit(&group_id, &1_000);
-    let proposal_id = client.create_proposal(&group_id, &recipient, &300, &Symbol::new(&env, "payout"));
+    let proposal_id =
+        client.create_proposal(&group_id, &recipient, &300, &Symbol::new(&env, "payout"));
 
     let early_execute = client.try_execute_proposal(&proposal_id);
-    assert!(matches!(early_execute, Err(Ok(ContractError::QuorumNotMet))));
+    assert!(matches!(
+        early_execute,
+        Err(Ok(ContractError::QuorumNotMet))
+    ));
 
     client.vote(&proposal_id, &true);
     let still_quorum_fail = client.try_execute_proposal(&proposal_id);
-    assert!(matches!(still_quorum_fail, Err(Ok(ContractError::QuorumNotMet))));
+    assert!(matches!(
+        still_quorum_fail,
+        Err(Ok(ContractError::QuorumNotMet))
+    ));
 
     client.vote(&proposal_id, &false);
     let majority_fail = client.try_execute_proposal(&proposal_id);
-    assert!(matches!(majority_fail, Err(Ok(ContractError::MajorityNotMet))));
+    assert!(matches!(
+        majority_fail,
+        Err(Ok(ContractError::MajorityNotMet))
+    ));
 
     client.vote(&proposal_id, &true);
     client.execute_proposal(&proposal_id);
@@ -56,7 +66,8 @@ fn test_expired_proposal_cannot_be_executed() {
     let recipient = Address::generate(&env);
 
     client.deposit(&group_id, &1_000);
-    let proposal_id = client.create_proposal(&group_id, &recipient, &200, &Symbol::new(&env, "expire"));
+    let proposal_id =
+        client.create_proposal(&group_id, &recipient, &200, &Symbol::new(&env, "expire"));
 
     env.ledger().with_mut(|li| {
         li.sequence_number += DEFAULT_PROPOSAL_TTL_LEDGERS + 1;
@@ -73,7 +84,8 @@ fn test_treasury_balance_after_operations() {
     let recipient = Address::generate(&env);
 
     client.deposit(&group_id, &900);
-    let proposal_id = client.create_proposal(&group_id, &recipient, &250, &Symbol::new(&env, "fund"));
+    let proposal_id =
+        client.create_proposal(&group_id, &recipient, &250, &Symbol::new(&env, "fund"));
 
     client.vote(&proposal_id, &true);
     client.vote(&proposal_id, &true);
@@ -91,7 +103,8 @@ fn test_full_audit_trail_events_emitted() {
     let before = env.events().all().len();
 
     client.deposit(&group_id, &1_000);
-    let proposal_id = client.create_proposal(&group_id, &recipient, &100, &Symbol::new(&env, "audit"));
+    let proposal_id =
+        client.create_proposal(&group_id, &recipient, &100, &Symbol::new(&env, "audit"));
     client.vote(&proposal_id, &true);
     client.vote(&proposal_id, &true);
     client.execute_proposal(&proposal_id);

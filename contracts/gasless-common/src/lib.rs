@@ -149,6 +149,9 @@ pub mod registry {
     }
 }
 
+pub mod migration;
+pub mod upgrade;
+
 pub mod clients {
     use super::{registry, versioning, Address, CommonError, Env, Symbol};
     use soroban_sdk::{contractclient, Vec};

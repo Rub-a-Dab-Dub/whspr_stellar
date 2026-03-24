@@ -96,7 +96,9 @@ impl ContactManagementContract {
             }
         }
 
-        env.storage().persistent().set(&key, &ContactStatus::Blocked);
+        env.storage()
+            .persistent()
+            .set(&key, &ContactStatus::Blocked);
 
         // Hide both directions in contact views once a block is active.
         Self::remove_contact_from_list(&env, owner.clone(), user.clone());
@@ -165,7 +167,11 @@ impl ContactManagementContract {
 
     fn append_unique_contact(env: &Env, owner: Address, contact: Address) {
         let key = DataKey::ContactList(owner);
-        let mut contacts: Vec<Address> = env.storage().persistent().get(&key).unwrap_or(Vec::new(env));
+        let mut contacts: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or(Vec::new(env));
 
         if !contacts.contains(&contact) {
             contacts.push_back(contact);
@@ -175,7 +181,11 @@ impl ContactManagementContract {
 
     fn remove_contact_from_list(env: &Env, owner: Address, contact: Address) {
         let key = DataKey::ContactList(owner);
-        let contacts: Vec<Address> = env.storage().persistent().get(&key).unwrap_or(Vec::new(env));
+        let contacts: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or(Vec::new(env));
 
         let mut filtered = Vec::new(env);
         for current in contacts.iter() {

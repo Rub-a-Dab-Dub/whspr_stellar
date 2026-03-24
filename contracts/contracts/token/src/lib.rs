@@ -1,10 +1,14 @@
 #![no_std]
 
 use gasless_common::clients;
+use gasless_common::migration;
 use gasless_common::registry;
 use gasless_common::types::{SharedAddress, TokenAmount};
+use gasless_common::upgrade;
 use gasless_common::{CommonError as ContractError, CROSS_CONTRACT_API_VERSION};
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Env, String, Symbol, Vec};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short, BytesN, Env, String, Symbol, Vec,
+};
 use soroban_token_sdk::metadata::TokenMetadata;
 use soroban_token_sdk::TokenUtils;
 
@@ -213,6 +217,122 @@ impl WhsprToken {
             CROSS_CONTRACT_API_VERSION,
             CROSS_CONTRACT_API_VERSION,
         )
+    }
+
+    // ──────────────────────────────────────────────
+    // Upgrade & Migration Functions
+    // ──────────────────────────────────────────────
+
+    pub fn init_upgrade(env: Env) -> Result<(), ContractError> {
+        let admin = get_admin(&env)?;
+        admin.require_auth();
+
+        let current_version = 1u32;
+        // Use a placeholder wasm hash - in production this would be obtained from deployment
+        let wasm_hash_bytes: BytesN<32> = BytesN::from_array(&env, &[0u8; 32]);
+
+        upgrade::init_upgrade(&env, admin, current_version, wasm_hash_bytes)
+    }
+
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), ContractError> {
+        let admin = get_admin(&env)?;
+        admin.require_auth();
+
+        // Validate multi-sig approval
+        upgrade::require_multi_sig_signer(&env, &admin)?;
+
+        // Pre-upgrade validation
+        migration::validate_pre_upgrade(&env)?;
+
+        // Get current state
+        let current_version = upgrade::get_version(&env)?;
+        let current_wasm_hash = upgrade::get_current_wasm_hash(&env)?;
+
+        // Update wasm hash
+        env.storage()
+            .instance()
+            .set(&upgrade::UpgradeKey::PreviousWasmHash, &current_wasm_hash);
+        env.storage()
+            .instance()
+            .set(&upgrade::UpgradeKey::CurrentWasmHash, &new_wasm_hash);
+
+        // Record upgrade
+        upgrade::record_upgrade(&env, current_version, new_wasm_hash.clone(), admin.clone())?;
+
+        // Emit upgrade event
+        env.events().publish(
+            (symbol_short!("upgrade"), admin.clone()),
+            (current_version, new_wasm_hash),
+        );
+
+        Ok(())
+    }
+
+    pub fn migrate_state(
+        env: Env,
+        from_version: u32,
+        to_version: u32,
+    ) -> Result<(), ContractError> {
+        let admin = get_admin(&env)?;
+        admin.require_auth();
+
+        // Validate migration path
+        upgrade::is_compatible_upgrade(from_version, to_version)?;
+
+        // Pre-migration validation
+        migration::validate_pre_upgrade(&env)?;
+
+        // Execute migration (contract-specific logic would go here)
+        // For token contract, state structure is stable, so minimal migration needed
+
+        // Update version
+        env.storage()
+            .instance()
+            .set(&upgrade::UpgradeKey::ContractVersion, &to_version);
+
+        // Record migration
+        upgrade::record_migration(&env, from_version, to_version, true)?;
+
+        // Post-migration verification
+        migration::verify_post_upgrade(&env)?;
+
+        // Emit migration event
+        env.events().publish(
+            (symbol_short!("migrate"), admin.clone()),
+            (from_version, to_version),
+        );
+
+        Ok(())
+    }
+
+    pub fn set_multi_sig(
+        env: Env,
+        signers: Vec<SharedAddress>,
+        threshold: u32,
+    ) -> Result<(), ContractError> {
+        let admin = get_admin(&env)?;
+        admin.require_auth();
+
+        upgrade::set_multi_sig(&env, signers, threshold)
+    }
+
+    pub fn get_upgrade_info(env: Env) -> Result<(u32, BytesN<32>), ContractError> {
+        let version = upgrade::get_version(&env)?;
+        let wasm_hash = upgrade::get_current_wasm_hash(&env)?;
+        Ok((version, wasm_hash))
+    }
+
+    pub fn verify_upgrade(env: Env) -> Result<bool, ContractError> {
+        // Post-upgrade verification checks
+        migration::verify_post_upgrade(&env)?;
+
+        // Verify contract is still functional
+        let admin = get_admin(&env)?;
+        if admin.clone() == admin {
+            Ok(true)
+        } else {
+            Err(ContractError::NotInitialized)
+        }
     }
 }
 

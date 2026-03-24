@@ -261,14 +261,20 @@ impl DaoTreasuryContract {
             .unwrap_or(0)
     }
 
-    pub fn get_proposal(env: Env, proposal_id: BytesN<32>) -> Result<ProposalRecord, ContractError> {
+    pub fn get_proposal(
+        env: Env,
+        proposal_id: BytesN<32>,
+    ) -> Result<ProposalRecord, ContractError> {
         env.storage()
             .persistent()
             .get(&DataKey::Proposal(proposal_id))
             .ok_or(ContractError::ProposalNotFound)
     }
 
-    fn get_or_create_treasury(env: &Env, group_id: BytesN<32>) -> Result<TreasuryRecord, ContractError> {
+    fn get_or_create_treasury(
+        env: &Env,
+        group_id: BytesN<32>,
+    ) -> Result<TreasuryRecord, ContractError> {
         if let Some(record) = env
             .storage()
             .persistent()
