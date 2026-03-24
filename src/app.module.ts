@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
         limit: 10,
       },
     ]),
+    LoggingModule,
     ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
@@ -42,4 +44,4 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
