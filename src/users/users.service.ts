@@ -3,7 +3,12 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Inject,
+  Logger,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -14,7 +19,14 @@ import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    @Optional()
+    @Inject(forwardRef(() => AnalyticsService))
+    private readonly analyticsService?: AnalyticsService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const { walletAddress, username, email } = createUserDto;
@@ -48,6 +60,20 @@ export class UsersService {
     });
 
     const savedUser = await this.usersRepository.save(user);
+
+    if (this.analyticsService) {
+      try {
+        await this.analyticsService.trackEvent('new_users', savedUser.id, {
+          source: 'users_service.create',
+          idempotencyKey: `new_users:${savedUser.id}`,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to track new user analytics for ${savedUser.id}: ${String(error)}`,
+        );
+      }
+    }
+
     return this.toResponseDto(savedUser);
   }
 

@@ -4,9 +4,7 @@ export const envValidationSchema = Joi.object({
   // Server
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().default(3001),
-  LOG_LEVEL: Joi.string()
-    .valid('error', 'warn', 'info', 'debug', 'verbose')
-    .default('info'),
+  LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug', 'verbose').default('info'),
 
   // Database
   DATABASE_HOST: Joi.string().required(),
@@ -33,6 +31,8 @@ export const envValidationSchema = Joi.object({
   REDIS_PORT: Joi.number().default(6379),
   REDIS_PASSWORD: Joi.string().allow('').optional(),
   REDIS_DB: Joi.number().default(0),
+  ADMIN_USER_IDS: Joi.string().allow('').optional(),
+  ADMIN_WALLET_ADDRESSES: Joi.string().allow('').optional(),
 
   // Rate Limiting
   THROTTLE_TTL: Joi.number().default(60),
@@ -42,12 +42,8 @@ export const envValidationSchema = Joi.object({
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
 
   // Stellar / Horizon
-  STELLAR_HORIZON_MAINNET_URL: Joi.string()
-    .uri()
-    .default('https://horizon.stellar.org'),
-  STELLAR_HORIZON_TESTNET_URL: Joi.string()
-    .uri()
-    .default('https://horizon-testnet.stellar.org'),
+  STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
+  STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
 
   // Scheduled Jobs
   JOB_BLOCKCHAIN_EVENT_POLLING_MS: Joi.number().default(5000),
