@@ -41,6 +41,7 @@ make deploy ENV=local
 ```
 contracts/
 ├── Cargo.toml                  # Workspace root (dependency versions here)
+├── gasless-common/             # Shared cross-contract library crate
 ├── Makefile                    # Build, test, deploy, ABI targets
 ├── rust-toolchain.toml         # Pins Rust 1.88.0 + wasm target
 ├── .env.local                  # Local testnet environment
@@ -110,6 +111,16 @@ soroban-sdk = { workspace = true, features = ["testutils"] }
 ```
 
 3. Add `src/lib.rs` with your contract logic. The workspace `Cargo.toml` glob pattern (`contracts/*`) picks up new contracts automatically.
+
+## Shared Library Conventions
+
+All contracts should import shared primitives and cross-contract behavior from `gasless-common`:
+
+- shared data structures in `gasless_common::types`
+- shared error hierarchy in `gasless_common::CommonError`
+- address/version registry via `gasless_common::registry`
+- cross-contract invocation traits/helpers via `gasless_common::clients`
+- compatibility checks via `gasless_common::versioning`
 
 ## Make Targets
 
@@ -231,3 +242,7 @@ cargo install --locked stellar-cli
 
 - Runbook: `docs/deployment-runbook.md`
 - Rollback: `docs/rollback-procedure.md`
+- Threat model: `docs/threat-model.md`
+- Internal review: `docs/internal-security-review.md`
+- Audit package: `docs/audit-package.md`
+- Cross-contract calls: `docs/cross-contract-call-patterns.md`

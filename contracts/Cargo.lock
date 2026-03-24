@@ -576,6 +576,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "gasless-common"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -635,6 +642,7 @@ checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 name = "hello-world"
 version = "0.1.0"
 dependencies = [
+ "gasless-common",
  "soroban-sdk",
 ]
 
@@ -1599,6 +1607,7 @@ dependencies = [
 name = "whspr-token"
 version = "0.1.0"
 dependencies = [
+ "gasless-common",
  "soroban-sdk",
  "soroban-token-sdk",
 ]

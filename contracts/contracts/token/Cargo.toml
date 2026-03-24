@@ -11,6 +11,7 @@ doctest = false
 [dependencies]
 soroban-sdk = { workspace = true }
 soroban-token-sdk = { workspace = true }
+gasless-common = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
