@@ -1,7 +1,5 @@
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Bytes, Env,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Bytes, Env};
 
 /// Platform fee in basis points (200 = 2%)
 const FEE_BPS: i128 = 200;
@@ -81,10 +79,8 @@ impl PaymentsContract {
         let client = token::Client::new(&env, &token_id);
         client.transfer(&from, &to, &amount);
 
-        env.events().publish(
-            (symbol_short!("xfer_sent"), from, to),
-            (amount, token_id),
-        );
+        env.events()
+            .publish((symbol_short!("xfer_sent"), from, to), (amount, token_id));
     }
 }
 

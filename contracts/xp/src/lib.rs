@@ -40,8 +40,10 @@ impl XpContract {
         let new_total = prev + amount;
         env.storage().persistent().set(&key, &new_total);
 
-        env.events()
-            .publish((symbol_short!("xp_award"), user.clone()), (amount, reason, new_total));
+        env.events().publish(
+            (symbol_short!("xp_award"), user.clone()),
+            (amount, reason, new_total),
+        );
 
         let prev_level = (prev / XP_PER_LEVEL) as u32;
         let new_level = (new_total / XP_PER_LEVEL) as u32;

@@ -1,7 +1,5 @@
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Bytes, Env,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Bytes, Env};
 
 const FEE_BPS: i128 = 200;
 const BPS_DENOM: i128 = 10_000;
@@ -46,7 +44,11 @@ impl RoomsContract {
     ) -> i128 {
         creator.require_auth();
 
-        if env.storage().persistent().has(&DataKey::Room(room_id.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Room(room_id.clone()))
+        {
             panic!("room exists");
         }
         if entry_fee < 0 {
@@ -118,10 +120,8 @@ impl RoomsContract {
 
         env.storage().persistent().set(&mem_key, &true);
 
-        env.events().publish(
-            (symbol_short!("room_jnd"), room_id, member),
-            room.entry_fee,
-        );
+        env.events()
+            .publish((symbol_short!("room_jnd"), room_id, member), room.entry_fee);
     }
 
     /// Expire a timed room (callable by anyone once past expiry).
@@ -149,9 +149,7 @@ impl RoomsContract {
     }
 
     pub fn get_room(env: Env, room_id: Bytes) -> Option<Room> {
-        env.storage()
-            .persistent()
-            .get(&DataKey::Room(room_id))
+        env.storage().persistent().get(&DataKey::Room(room_id))
     }
 
     pub fn is_member(env: Env, room_id: Bytes, member: Address) -> bool {

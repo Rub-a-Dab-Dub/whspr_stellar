@@ -1,6 +1,8 @@
 #![allow(deprecated)]
-#![cfg(test)]
-use soroban_sdk::{testutils::{Address as _, Ledger}, token, Address, Bytes, Env};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    token, Address, Bytes, Env,
+};
 
 use crate::{RoomsContract, RoomsContractClient};
 
@@ -20,7 +22,9 @@ fn b(env: &Env, s: &str) -> Bytes {
 }
 
 fn create_token(env: &Env, admin: &Address) -> Address {
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     token::StellarAssetClient::new(env, &token_id).mint(admin, &1_000_000_000);
     token_id
 }
@@ -57,7 +61,13 @@ fn join_paid_room_splits_fee() {
     let (env, platform, creator, client) = setup();
     let member = Address::generate(&env);
     let token_id = create_token(&env, &member);
-    client.create_room(&creator, &b(&env, "r1"), &1000, &Some(token_id.clone()), &None);
+    client.create_room(
+        &creator,
+        &b(&env, "r1"),
+        &1000,
+        &Some(token_id.clone()),
+        &None,
+    );
     client.join_room(&member, &b(&env, "r1"));
 
     let tc = token::Client::new(&env, &token_id);

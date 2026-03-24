@@ -77,10 +77,8 @@ impl MessagingContract {
 
         env.storage().persistent().remove(&key);
 
-        env.events().publish(
-            (symbol_short!("msg_del"), msg.room_id, caller),
-            message_id,
-        );
+        env.events()
+            .publish((symbol_short!("msg_del"), msg.room_id, caller), message_id);
     }
 
     /// Fetch a stored message.

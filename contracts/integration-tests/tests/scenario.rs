@@ -14,7 +14,9 @@ fn b(env: &Env, s: &str) -> Bytes {
 }
 
 fn mint_token(env: &Env, admin: &Address, amount: i128) -> Address {
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     token::StellarAssetClient::new(env, &token_id).mint(admin, &amount);
     token_id
 }
@@ -51,7 +53,7 @@ fn scenario_register_chat_transfer_xp() {
     let room = b(&env, "room_general");
     let xp_earned = room_client.create_room(&alice, &room, &0, &None, &None);
     assert_eq!(xp_earned, 50);
-    xp_client.award_xp(&alice, &xp_earned.into(), &symbol_short!("room_crt"));
+    xp_client.award_xp(&alice, &xp_earned, &symbol_short!("room_crt"));
     assert_eq!(xp_client.get_xp(&alice), 50);
 
     // ── Step 2: Bob joins the room ────────────────────────────────────────
@@ -59,14 +61,10 @@ fn scenario_register_chat_transfer_xp() {
     assert!(room_client.is_member(&room, &bob));
 
     // ── Step 3: Alice sends a message (+10 XP) ───────────────────────────
-    let xp_msg = msg_client.send_message(
-        &alice,
-        &b(&env, "msg1"),
-        &room,
-        &b(&env, "ipfs://QmHash"),
-    );
+    let xp_msg =
+        msg_client.send_message(&alice, &b(&env, "msg1"), &room, &b(&env, "ipfs://QmHash"));
     assert_eq!(xp_msg, 10);
-    xp_client.award_xp(&alice, &xp_msg.into(), &symbol_short!("message"));
+    xp_client.award_xp(&alice, &xp_msg, &symbol_short!("message"));
     assert_eq!(xp_client.get_xp(&alice), 60);
 
     // ── Step 4: Bob tips Alice 1000 tokens (+20 XP to Bob) ───────────────
@@ -74,7 +72,7 @@ fn scenario_register_chat_transfer_xp() {
     token::StellarAssetClient::new(&env, &token).mint(&bob, &5_000_000);
     let xp_tip = pay_client.tip(&bob, &alice, &token, &1000, &room);
     assert_eq!(xp_tip, 20);
-    xp_client.award_xp(&bob, &xp_tip.into(), &symbol_short!("tip"));
+    xp_client.award_xp(&bob, &xp_tip, &symbol_short!("tip"));
 
     let tc = token::Client::new(&env, &token);
     // Alice: started with 10M, received 980 net from Bob's tip, sent 500 P2P (done later)
@@ -88,8 +86,8 @@ fn scenario_register_chat_transfer_xp() {
     assert_eq!(tc.balance(&bob), 5_000_000 - 1000 + 500); // paid tip + received transfer
 
     // ── Step 6: Verify XP state ───────────────────────────────────────────
-    assert_eq!(xp_client.get_xp(&alice), 60);  // 50 + 10
-    assert_eq!(xp_client.get_xp(&bob), 20);    // tip XP
+    assert_eq!(xp_client.get_xp(&alice), 60); // 50 + 10
+    assert_eq!(xp_client.get_xp(&bob), 20); // tip XP
     assert_eq!(xp_client.get_level(&alice), 0); // < 1000 XP
     assert_eq!(xp_client.get_level(&bob), 0);
 }
@@ -117,7 +115,7 @@ fn scenario_level_up_after_many_messages() {
             &Bytes::from_slice(&env, b"room"),
             &Bytes::from_slice(&env, b"hash"),
         );
-        xp_client.award_xp(&alice, &xp.into(), &symbol_short!("message"));
+        xp_client.award_xp(&alice, &xp, &symbol_short!("message"));
     }
 
     assert_eq!(xp_client.get_xp(&alice), 1000);

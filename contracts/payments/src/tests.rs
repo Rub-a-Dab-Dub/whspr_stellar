@@ -1,17 +1,24 @@
 #![allow(deprecated)]
-#![cfg(test)]
 use soroban_sdk::{testutils::Address as _, token, Address, Bytes, Env};
 
 use crate::{PaymentsContract, PaymentsContractClient};
 
 /// Deploy a minimal SAC-compatible token and mint `amount` to `to`.
 fn create_token(env: &Env, admin: &Address) -> Address {
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     token::StellarAssetClient::new(env, &token_id).mint(admin, &1_000_000_000);
     token_id
 }
 
-fn setup() -> (Env, Address, Address, Address, PaymentsContractClient<'static>) {
+fn setup() -> (
+    Env,
+    Address,
+    Address,
+    Address,
+    PaymentsContractClient<'static>,
+) {
     let env = Env::default();
     env.mock_all_auths();
     let contract_id = env.register_contract(None, PaymentsContract);
@@ -28,7 +35,13 @@ fn tip_splits_fee_correctly() {
     let (env, platform, alice, bob, client) = setup();
     let token_id = create_token(&env, &alice);
     // alice has 1_000_000_000; tip 1000
-    let xp = client.tip(&alice, &bob, &token_id, &1000, &Bytes::from_slice(&env, b"room1"));
+    let xp = client.tip(
+        &alice,
+        &bob,
+        &token_id,
+        &1000,
+        &Bytes::from_slice(&env, b"room1"),
+    );
     assert_eq!(xp, 20);
 
     let tc = token::Client::new(&env, &token_id);
@@ -89,7 +102,13 @@ fn tip_negative_amount_panics() {
 fn tip_self_panics() {
     let (env, _, alice, _, client) = setup();
     let token_id = create_token(&env, &alice);
-    client.tip(&alice, &alice, &token_id, &100, &Bytes::from_slice(&env, b"r"));
+    client.tip(
+        &alice,
+        &alice,
+        &token_id,
+        &100,
+        &Bytes::from_slice(&env, b"r"),
+    );
 }
 
 #[test]
@@ -124,7 +143,13 @@ fn fuzz_tip_amounts() {
         client.initialize(&platform);
         let token_id = create_token(&env, &alice);
 
-        client.tip(&alice, &bob, &token_id, &amount, &Bytes::from_slice(&env, b"r"));
+        client.tip(
+            &alice,
+            &bob,
+            &token_id,
+            &amount,
+            &Bytes::from_slice(&env, b"r"),
+        );
 
         let tc = token::Client::new(&env, &token_id);
         let fee = amount * 200 / 10_000;

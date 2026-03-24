@@ -1,5 +1,4 @@
 #![allow(deprecated)]
-#![cfg(test)]
 use soroban_sdk::{testutils::Address as _, Address, Bytes, Env};
 
 use crate::{MessagingContract, MessagingContractClient};
@@ -70,15 +69,30 @@ fn get_message_returns_none_for_unknown() {
 #[should_panic(expected = "duplicate message_id")]
 fn send_message_duplicate_id_panics() {
     let (env, sender, client) = setup();
-    client.send_message(&sender, &bytes(&env, "msg1"), &bytes(&env, "r"), &bytes(&env, "h"));
-    client.send_message(&sender, &bytes(&env, "msg1"), &bytes(&env, "r"), &bytes(&env, "h"));
+    client.send_message(
+        &sender,
+        &bytes(&env, "msg1"),
+        &bytes(&env, "r"),
+        &bytes(&env, "h"),
+    );
+    client.send_message(
+        &sender,
+        &bytes(&env, "msg1"),
+        &bytes(&env, "r"),
+        &bytes(&env, "h"),
+    );
 }
 
 #[test]
 #[should_panic(expected = "invalid args")]
 fn send_message_empty_id_panics() {
     let (env, sender, client) = setup();
-    client.send_message(&sender, &bytes(&env, ""), &bytes(&env, "r"), &bytes(&env, "h"));
+    client.send_message(
+        &sender,
+        &bytes(&env, ""),
+        &bytes(&env, "r"),
+        &bytes(&env, "h"),
+    );
 }
 
 #[test]
@@ -93,6 +107,11 @@ fn delete_nonexistent_message_panics() {
 fn delete_message_by_non_sender_panics() {
     let (env, sender, client) = setup();
     let other = Address::generate(&env);
-    client.send_message(&sender, &bytes(&env, "msg1"), &bytes(&env, "r"), &bytes(&env, "h"));
+    client.send_message(
+        &sender,
+        &bytes(&env, "msg1"),
+        &bytes(&env, "r"),
+        &bytes(&env, "h"),
+    );
     client.delete_message(&other, &bytes(&env, "msg1"));
 }
