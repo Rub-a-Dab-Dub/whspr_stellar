@@ -147,7 +147,6 @@ fn test_cross_contract_hello_from_registry() {
         response,
         vec![&env, symbol_short!("Hello"), symbol_short!("Gasless")]
     );
-
 }
 
 #[test]
