@@ -4,154 +4,153 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, ILike } from 'typeorm';
-import { User, UserStatus } from './entities/user.entity';
+import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { SearchUsersDto } from './dto/search-users.dto';
-import { PinataService } from './services/pinata.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UserResponseDto } from './dto/user-response.dto';
+import { User } from './entities/user.entity';
+import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    private readonly pinataService: PinataService,
-  ) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const existingUser = await this.userRepository.findOne({
-      where: [
-        { username: createUserDto.username },
-        { email: createUserDto.email },
-      ],
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    const { walletAddress, username, email } = createUserDto;
+
+    // Check wallet address uniqueness
+    const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
+    if (existingWallet) {
+      throw new ConflictException('Wallet address already registered');
+    }
+
+    // Check username uniqueness if provided
+    if (username) {
+      const existingUsername = await this.usersRepository.findByUsername(username);
+      if (existingUsername) {
+        throw new ConflictException('Username already taken');
+      }
+    }
+
+    // Check email uniqueness if provided
+    if (email) {
+      const existingEmail = await this.usersRepository.findByEmail(email);
+      if (existingEmail) {
+        throw new ConflictException('Email already registered');
+      }
+    }
+
+    const user = this.usersRepository.create({
+      ...createUserDto,
+      walletAddress: walletAddress.toLowerCase(),
+      email: email?.toLowerCase(),
     });
 
-    if (existingUser) {
-      if (existingUser.username === createUserDto.username) {
-        throw new ConflictException('Username already exists');
-      }
-      if (existingUser.email === createUserDto.email) {
-        throw new ConflictException('Email already exists');
-      }
-    }
-
-    const user = this.userRepository.create(createUserDto);
-    return await this.userRepository.save(user);
+    const savedUser = await this.usersRepository.save(user);
+    return this.toResponseDto(savedUser);
   }
 
-  async findAll(
-    searchDto: SearchUsersDto,
-  ): Promise<{ users: User[]; total: number; page: number; limit: number }> {
-    const { search, page = 1, limit = 10 } = searchDto;
-    const skip = (page - 1) * limit;
-
-    const queryBuilder = this.userRepository
-      .createQueryBuilder('user')
-      .where('user.status = :status', { status: UserStatus.ACTIVE });
-
-    if (search) {
-      queryBuilder.andWhere(
-        '(user.username ILIKE :search OR user.displayName ILIKE :search)',
-        { search: `%${search}%` },
-      );
-    }
-
-    const [users, total] = await queryBuilder
-      .skip(skip)
-      .take(limit)
-      .orderBy('user.createdAt', 'DESC')
-      .getManyAndCount();
-
-    return {
-      users,
-      total,
-      page,
-      limit,
-    };
-  }
-
-  async findOne(id: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id } });
+  async findById(id: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    return user;
+    return this.toResponseDto(user);
   }
 
-  async findByUsername(username: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { username } });
+  async findByUsername(username: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findByUsername(username);
 
     if (!user) {
       throw new NotFoundException(`User with username ${username} not found`);
     }
 
-    return user;
+    return this.toResponseDto(user);
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return await this.userRepository.findOne({ where: { email } });
+  async findByWalletAddress(walletAddress: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findByWalletAddress(walletAddress);
+
+    if (!user) {
+      throw new NotFoundException(`User with wallet address ${walletAddress} not found`);
+    }
+
+    return this.toResponseDto(user);
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
+  async updateProfile(id: string, updateProfileDto: UpdateProfileDto): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findOne({ where: { id } });
 
-    if (updateUserDto.username && updateUserDto.username !== user.username) {
-      const existingUser = await this.userRepository.findOne({
-        where: { username: updateUserDto.username },
-      });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
 
-      if (existingUser) {
-        throw new ConflictException('Username already exists');
+    // Validate username uniqueness if being updated
+    if (updateProfileDto.username && updateProfileDto.username !== user.username) {
+      const isAvailable = await this.usersRepository.isUsernameAvailable(
+        updateProfileDto.username,
+        id,
+      );
+      if (!isAvailable) {
+        throw new ConflictException('Username already taken');
       }
     }
 
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.userRepository.findOne({
-        where: { email: updateUserDto.email },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('Email already exists');
+    // Validate email uniqueness if being updated
+    if (updateProfileDto.email && updateProfileDto.email !== user.email) {
+      const isAvailable = await this.usersRepository.isEmailAvailable(updateProfileDto.email, id);
+      if (!isAvailable) {
+        throw new ConflictException('Email already registered');
       }
     }
 
-    Object.assign(user, updateUserDto);
-    user.updatedAt = new Date();
+    // Update user fields
+    Object.assign(user, {
+      ...updateProfileDto,
+      email: updateProfileDto.email?.toLowerCase(),
+    });
 
-    return await this.userRepository.save(user);
+    const updatedUser = await this.usersRepository.save(user);
+    return this.toResponseDto(updatedUser);
   }
 
-  async uploadAvatar(id: string, file: Express.Multer.File): Promise<User> {
-    const user = await this.findOne(id);
+  async deactivate(id: string): Promise<void> {
+    const user = await this.usersRepository.findOne({ where: { id } });
 
-    const { cid, url } = await this.pinataService.uploadAvatar(file);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
 
-    user.avatarCid = cid;
-    user.avatarUrl = url;
-    user.updatedAt = new Date();
+    if (!user.isActive) {
+      throw new BadRequestException('User is already deactivated');
+    }
 
-    return await this.userRepository.save(user);
+    user.isActive = false;
+    await this.usersRepository.save(user);
   }
 
-  async deactivate(id: string): Promise<User> {
-    const user = await this.findOne(id);
+  async paginate(pagination: PaginationDto): Promise<PaginatedResponse<UserResponseDto>> {
+    const { page = 1, limit = 10 } = pagination;
 
-    user.status = UserStatus.INACTIVE;
-    user.updatedAt = new Date();
+    const [users, total] = await this.usersRepository.findActiveUsers(pagination);
 
-    return await this.userRepository.save(user);
+    return {
+      data: users.map((user) => this.toResponseDto(user)),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  async updateLastActive(id: string): Promise<void> {
-    await this.userRepository.update(id, { lastActiveAt: new Date() });
-  }
-
-  async remove(id: string): Promise<void> {
-    const user = await this.findOne(id);
-    await this.userRepository.remove(user);
+  private toResponseDto(user: User): UserResponseDto {
+    return plainToInstance(UserResponseDto, user, {
+      excludeExtraneousValues: true,
+    });
   }
 }

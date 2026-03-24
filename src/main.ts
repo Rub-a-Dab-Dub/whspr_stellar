@@ -1,68 +1,69 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
+import compression from 'compression';
 import { AppModule } from './app.module';
-import { AdminModule } from './admin/admin.module';
-import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
-import { LoggingInterceptor } from './logger/logging.interceptor';
-import { ValidationExceptionFilter } from './common/exceptions/filters/validation-exception.filter';
-import { HttpExceptionFilter } from './common/exceptions/filters/http-exception.filter';
-import { DatabaseExceptionFilter } from './common/exceptions/filters/database-exception.filter';
-import { AllExceptionsFilter } from './common/exceptions/filters/all-exceptions.filter';
+import { WinstonModule } from 'nest-winston';
+import { winstonConfig } from './config/winston.config';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  // ✅ Global Validation Pipe
+  const app = await NestFactory.create(AppModule, {
+    logger: WinstonModule.createLogger(winstonConfig),
+  });
+
+  const configService = app.get(ConfigService);
+
+  // Global prefix
+  app.setGlobalPrefix('api');
+
+  // Security
+  app.use(helmet());
+  app.use(compression());
+
+  // CORS
+  app.enableCors({
+    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
+    credentials: true,
+  });
+
+  // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      transform: true,
       forbidNonWhitelisted: true,
-
-      // 👇 IMPORTANT: makes validation errors structured
-      exceptionFactory: (errors) => {
-        return errors;
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
       },
     }),
   );
 
-  // ✅ Global Exception Filters
-  app.useGlobalFilters(
-    new ValidationExceptionFilter(), // handles class-validator errors
-    new HttpExceptionFilter(), // handles HttpException
-    new DatabaseExceptionFilter(), // handles DB errors
-    new AllExceptionsFilter(), // fallback for everything else
-  );
+  // Global exception filter
+  app.useGlobalFilters(new HttpExceptionFilter());
 
-  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
-  app.useGlobalInterceptors(new LoggingInterceptor());
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  app.use(require('helmet')());
+  // Swagger documentation
+  const config = new DocumentBuilder()
+    .setTitle('Gasless Gossip API')
+    .setDescription('API documentation for Gasless Gossip backend')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addTag('auth', 'Authentication endpoints')
+    .addTag('users', 'User management')
+    .addTag('rooms', 'Chat rooms')
+    .addTag('health', 'Health check endpoints')
+    .build();
 
-  // CORS
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-  });
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
-  if (process.env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Admin API')
-      .setDescription(
-        'Admin dashboard API for user management, audit logs, and platform configuration',
-      )
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-    const document = SwaggerModule.createDocument(app, config, {
-      include: [AdminModule],
-    });
-    SwaggerModule.setup('admin/docs', app, document, {
-      jsonDocumentUrl: 'admin/docs-json',
-    });
-  }
+  const port = configService.get<number>('PORT', 3001);
+  await app.listen(port);
 
-  await app.listen(process.env.PORT ?? 3000);
+  console.log(`🚀 Application is running on: http://localhost:${port}`);
+  console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`);
 }
+
 bootstrap();

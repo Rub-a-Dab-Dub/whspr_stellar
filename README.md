@@ -34,65 +34,10 @@ Chat, tip friends, join exclusive rooms, and level up—all with near-zero gas f
 
 **Fastest way to get started!** Docker handles PostgreSQL and Redis automatically.
 
-```bash
-# 1. Clone & navigate
-git clone https://github.com/Rub-a-Dab-Dub/gasless_gossip.git
-cd gasless_gossip
 
-# 2. Install dependencies and setup environment files
-npm run setup
 
-# 3. Update environment variables
-# Edit api/.env with your chain credentials
-# - EVM_RPC_URL
-# - EVM_ACCOUNT_ADDRESS
-# - EVM_PRIVATE_KEY
-# - EVM_CONTRACT_ADDRESS
-# - JWT_SECRET (generate a secure random string)
 
-# 4. Start Docker services (PostgreSQL + Redis)
-npm run docker:start
 
-# 5. Start development servers (API + Web)
-npm run dev
-```
-
-**Done!** 🎉
-- API runs on `http://localhost:3001`
-- Web runs on `http://localhost:3000`
-- PostgreSQL on `localhost:5432`
-- Redis on `localhost:6379`
-
-**See [DOCKER_SETUP.md](./DOCKER_SETUP.md) for detailed Docker documentation.**
-
----
-
-### Option B: Manual Setup
-
-If you prefer installing PostgreSQL manually:
-
-#### 1️⃣ Clone & Install
-
-```bash
-git clone https://github.com/Rub-a-Dab-Dub/gasless_gossip.git
-cd gasless_gossip
-```
-
-### 2️⃣ Setup Database
-
-```bash
-# Install PostgreSQL (macOS)
-brew install postgresql@14
-brew services start postgresql@14
-
-# Create database
-psql -U postgres << EOF
-CREATE DATABASE gasless;
-CREATE USER gasless_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE gasless TO gasless_user;
-\q
-EOF
-```
 
 ### 3️⃣ Backend Setup (NestJS)
 

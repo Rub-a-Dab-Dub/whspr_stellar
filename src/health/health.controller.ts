@@ -1,36 +1,49 @@
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
-  Controller,
-  Get,
-  Param,
-  Post,
-  Body,
-  Put,
-  Delete,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import { DataSource } from 'typeorm';
+  HealthCheck,
+  HealthCheckService,
+  TypeOrmHealthIndicator,
+  MemoryHealthIndicator,
+  DiskHealthIndicator,
+} from '@nestjs/terminus';
 
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
-  constructor(private dataSource: DataSource) {}
+  constructor(
+    private health: HealthCheckService,
+    private db: TypeOrmHealthIndicator,
+    private memory: MemoryHealthIndicator,
+    private disk: DiskHealthIndicator,
+  ) {}
 
   @Get()
-  async check() {
-    try {
-      if (this.dataSource.isInitialized) {
-        // You can also run a simple query to ensure the DB is responsive
-        // await this.dataSource.query('SELECT 1');
-        return { status: 'ok', database: 'connected' };
-      } else {
-        return { status: 'error', database: 'disconnected' };
-      }
-    } catch (error) {
-      return {
-        status: 'error',
-        database: 'disconnected',
-        message: (error as any).message,
-      };
-    }
+  @HealthCheck()
+  @ApiOperation({ summary: 'Check application health' })
+  @ApiResponse({ status: 200, description: 'Application is healthy' })
+  @ApiResponse({ status: 503, description: 'Application is unhealthy' })
+  check() {
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
+      () => this.memory.checkRSS('memory_rss', 150 * 1024 * 1024),
+      () => this.disk.checkStorage('storage', { path: '/', thresholdPercent: 0.9 }),
+    ]);
+  }
+
+  @Get('ready')
+  @HealthCheck()
+  @ApiOperation({ summary: 'Check if application is ready' })
+  @ApiResponse({ status: 200, description: 'Application is ready' })
+  ready() {
+    return this.health.check([() => this.db.pingCheck('database')]);
+  }
+
+  @Get('live')
+  @ApiOperation({ summary: 'Check if application is alive' })
+  @ApiResponse({ status: 200, description: 'Application is alive' })
+  live() {
+    return { status: 'ok', timestamp: new Date().toISOString() };
   }
 }

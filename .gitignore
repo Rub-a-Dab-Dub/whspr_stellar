@@ -2,34 +2,41 @@
 /dist
 /node_modules
 
-# Rust contract artifacts
-/contracts/whsper_stellar/target
-/contracts/whsper_stellar/test_snapshots
-
-# logs
+# Logs
+logs
+*.log
 npm-debug.log*
+pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
 # OS
 .DS_Store
-Thumbs.db
 
-# env
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Environment
 .env
-.env.*
-!.env.example
-
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+.env.local
+.env.*.local
 
 package-lock.json
-requirements.md
-PR_DESCRIPTION.md
