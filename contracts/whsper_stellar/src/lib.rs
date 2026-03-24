@@ -2290,6 +2290,149 @@ impl BaseContract {
     pub fn get_dashboard(env: Env) -> Analytics {
         env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default()
     }
+
+    pub fn transfer_in_chat(
+        env: Env,
+        from: Address,
+        to: Address,
+        amount: i128,
+        conversation_id: BytesN<32>,
+    ) -> Result<(), ContractError> {
+        from.require_auth();
+        Self::validate_transfer_amount(&env, amount)?;
+
+        let settings = Self::get_platform_settings(env.clone());
+        let token_client = token::Client::new(&env, &settings.fee_token);
+
+        // Implementation of allowance check before transfer execution
+        let allowance = token_client.allowance(&from, &env.current_contract_address());
+        if allowance < amount {
+            return Err(ContractError::InsufficientAllowance);
+        }
+
+        // Execute transfer using allowance
+        token_client.transfer_from(&env.current_contract_address(), &from, &to, &amount);
+
+        // Store transfer-to-message association on-chain
+        let record = ChatTransfer {
+            from: from.clone(),
+            to: to.clone(),
+            amount,
+            conversation_id: conversation_id.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+        env.storage().instance().set(&DataKey::ChatTransfer(conversation_id.clone()), &record);
+
+        // Emit TransferSent event
+        env.events().publish(
+            (Symbol::new(&env, "TransferSent"), from, to),
+            (amount, conversation_id),
+        );
+
+        Ok(())
+    }
+
+    pub fn tip(
+        env: Env,
+        from: Address,
+        to: Address,
+        amount: i128,
+        message_id: BytesN<32>,
+    ) -> Result<(), ContractError> {
+        from.require_auth();
+        Self::validate_transfer_amount(&env, amount)?;
+
+        let settings = Self::get_platform_settings(env.clone());
+        let token_client = token::Client::new(&env, &settings.fee_token);
+
+        let allowance = token_client.allowance(&from, &env.current_contract_address());
+        if allowance < amount {
+            return Err(ContractError::InsufficientAllowance);
+        }
+
+        token_client.transfer_from(&env.current_contract_address(), &from, &to, &amount);
+
+        let record = TipRecord {
+            from: from.clone(),
+            to: to.clone(),
+            amount,
+            message_id: message_id.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+        env.storage().instance().set(&DataKey::MessageTip(message_id.clone()), &record);
+
+        // Emit TipSent event
+        env.events().publish(
+            (Symbol::new(&env, "TipSent"), from, to),
+            (amount, message_id),
+        );
+
+        Ok(())
+    }
+
+    pub fn split_bill(
+        env: Env,
+        from: Address,
+        recipients: Vec<Address>,
+        amounts: Vec<i128>,
+        conversation_id: BytesN<32>,
+    ) -> Result<(), ContractError> {
+        from.require_auth();
+
+        if recipients.len() != amounts.len() {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        let mut total_amount: i128 = 0;
+        for amt in amounts.iter() {
+            if amt <= 0 {
+                return Err(ContractError::InvalidAmount);
+            }
+            total_amount += amt;
+        }
+
+        Self::validate_transfer_amount(&env, total_amount)?;
+
+        let settings = Self::get_platform_settings(env.clone());
+        let token_client = token::Client::new(&env, &settings.fee_token);
+
+        let allowance = token_client.allowance(&from, &env.current_contract_address());
+        if allowance < total_amount {
+            return Err(ContractError::InsufficientAllowance);
+        }
+
+        // Atomically transfer: if any fails, Soroban rolls back the entire call
+        for i in 0..recipients.len() {
+            let recipient = recipients.get(i).unwrap();
+            let amount = amounts.get(i).unwrap();
+            token_client.transfer_from(&env.current_contract_address(), &from, &recipient, &amount);
+        }
+
+        let record = BillSplit {
+            from: from.clone(),
+            recipients: recipients.clone(),
+            amounts: amounts.clone(),
+            conversation_id: conversation_id.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+        env.storage().instance().set(&DataKey::SplitBill(conversation_id.clone()), &record);
+
+        // Emit BillSplit event
+        env.events().publish(
+            (Symbol::new(&env, "BillSplit"), from),
+            (recipients, amounts, conversation_id),
+        );
+
+        Ok(())
+    }
+
+    fn validate_transfer_amount(env: &Env, amount: i128) -> Result<(), ContractError> {
+        let min_threshold: i128 = 10_000_000; // Example: 1 XLM (10^7 stroops)
+        if amount < min_threshold {
+            return Err(ContractError::MinimumThresholdNotMet);
+        }
+        Ok(())
+    }
 }
 
 fn verify_content_hash(hash: &BytesN<32>) -> Result<(), ContractError> {
