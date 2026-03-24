@@ -2,6 +2,7 @@
 
 use gasless_common::migration;
 use gasless_common::upgrade;
+use gasless_common::access_control;
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, Address, Bytes, BytesN, Env,
     Symbol,
@@ -323,6 +324,10 @@ impl DaoTreasuryContract {
 
         env.storage().instance().set(&DataKey::Admin, &admin);
 
+        // Initialize access control with admin as SUPER_ADMIN
+        access_control::init_access_control(&env, admin.clone())
+            .map_err(|_| ContractError::InvalidThreshold)?;
+
         let wasm_hash_bytes: BytesN<32> = BytesN::from_array(&env, &[0u8; 32]);
         upgrade::init_upgrade(&env, admin, 1u32, wasm_hash_bytes)
             .map_err(|_| ContractError::InvalidThreshold)
@@ -412,6 +417,86 @@ impl DaoTreasuryContract {
         } else {
             Err(ContractError::InvalidThreshold)
         }
+    }
+
+    // ──────────────────────────────────────────────
+    // Access Control Functions
+    // ──────────────────────────────────────────────
+
+    pub fn grant_role(
+        env: Env,
+        role: Symbol,
+        address: Address,
+        caller: Address,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::grant_role(&env, role, address, caller)
+            .map_err(|_| ContractError::InvalidThreshold)
+    }
+
+    pub fn revoke_role(
+        env: Env,
+        role: Symbol,
+        address: Address,
+        caller: Address,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::revoke_role(&env, role, address, caller)
+            .map_err(|_| ContractError::InvalidThreshold)
+    }
+
+    pub fn has_role(env: Env, role: Symbol, address: Address) -> bool {
+        access_control::has_role(&env, role, address)
+    }
+
+    pub fn initiate_role_transfer(
+        env: Env,
+        role: Symbol,
+        from: Address,
+        to: Address,
+        caller: Address,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::initiate_role_transfer(&env, role, from, to, caller)
+            .map_err(|_| ContractError::InvalidThreshold)
+    }
+
+    pub fn accept_role_transfer(
+        env: Env,
+        role: Symbol,
+        from: Address,
+        caller: Address,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::accept_role_transfer(&env, role, from, caller)
+            .map_err(|_| ContractError::InvalidThreshold)
+    }
+
+    pub fn reject_role_transfer(
+        env: Env,
+        role: Symbol,
+        from: Address,
+        caller: Address,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::reject_role_transfer(&env, role, from, caller)
+            .map_err(|_| ContractError::InvalidThreshold)
+    }
+
+    pub fn activate_emergency_pause(env: Env, caller: Address) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::activate_emergency_pause(&env, caller)
+            .map_err(|_| ContractError::InvalidThreshold)
+    }
+
+    pub fn deactivate_emergency_pause(env: Env, caller: Address) -> Result<(), ContractError> {
+        caller.require_auth();
+        access_control::deactivate_emergency_pause(&env, caller)
+            .map_err(|_| ContractError::InvalidThreshold)
+    }
+
+    pub fn is_emergency_paused(env: Env) -> bool {
+        access_control::is_emergency_paused(&env)
     }
 }
 
