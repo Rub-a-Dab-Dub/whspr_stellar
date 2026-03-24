@@ -2344,3 +2344,131 @@ fn test_claim_expiry_at_boundary() {
     assert!(res.is_err());
     assert_eq!(res.unwrap_err(), ContractError::ClaimExpired);
 }
+
+// ==================== REPUTATION SYSTEM TESTS ====================
+
+#[test]
+fn test_reputation_rate_user() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let rater1 = Address::generate(&env);
+    let rater2 = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    // Rate once (score 100)
+    let context_room1 = Symbol::new(&env, "room1");
+    client.rate_user(&rater1, &user, &100, &context_room1);
+
+    let mut record = client.get_reputation(&user);
+    assert_eq!(record.score, 100);
+    assert_eq!(record.total_ratings, 1);
+
+    // Rate again by another user (score 50)
+    let context_room2 = Symbol::new(&env, "room2");
+    client.rate_user(&rater2, &user, &50, &context_room2);
+
+    record = client.get_reputation(&user);
+    // Average: (100 + 50) / 2 = 75
+    assert_eq!(record.score, 75);
+    assert_eq!(record.total_ratings, 2);
+
+    let history = client.get_reputation_history(&user);
+    assert_eq!(history.len(), 2);
+    assert_eq!(history.get(0).unwrap().event_type, Symbol::new(&env, "rating"));
+}
+
+#[test]
+fn test_reputation_rate_limit_same_context() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let rater = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let context = Symbol::new(&env, "room1");
+    client.rate_user(&rater, &user, &100, &context);
+
+    // Rate second time with same context should fail
+    let res = client.try_rate_user(&rater, &user, &80, &context);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ContractError::RatingAlreadySubmitted);
+}
+
+#[test]
+fn test_reputation_flag_user() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let flagger1 = Address::generate(&env);
+    let flagger2 = Address::generate(&env);
+    let flagger3 = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let _ = client.try_flag_user(&flagger1, &user, &Symbol::new(&env, "spam"));
+    let mut record = client.get_reputation(&user);
+    assert_eq!(record.flags, 1);
+    assert_eq!(record.is_restricted, false);
+
+    let _ = client.try_flag_user(&flagger2, &user, &Symbol::new(&env, "abuse"));
+    let _ = client.try_flag_user(&flagger3, &user, &Symbol::new(&env, "scam"));
+
+    record = client.get_reputation(&user);
+    assert_eq!(record.flags, 3);
+    assert_eq!(record.is_restricted, true);
+    
+    let config = RateLimitConfig {
+        message_cooldown: 0, tip_cooldown: 0, transfer_cooldown: 0,
+        daily_message_limit: 100, daily_tip_limit: 100, daily_transfer_limit: 100,
+    };
+    client.set_config(&config);
+    
+    // User is restricted, should panic inside rate limiter
+    let res = client.try_reward_message(&user);
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_reputation_reset() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let rater = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let contract_id = env.register_contract(None, BaseContract);
+    let client = BaseContractClient::new(&env, &contract_id);
+    client.init(&admin, &Symbol::new(&env, "Test"), &1);
+
+    let context = Symbol::new(&env, "room1");
+    client.rate_user(&rater, &user, &100, &context);
+
+    let record_before = client.get_reputation(&user);
+    assert_eq!(record_before.score, 100);
+
+    // Reset reputation
+    client.reset_reputation(&user, &Symbol::new(&env, "appeal"));
+
+    let record_after = client.get_reputation(&user);
+    assert_eq!(record_after.score, 0);
+    assert_eq!(record_after.total_ratings, 0);
+
+    let history = client.get_reputation_history(&user);
+    assert_eq!(history.get(history.len() - 1).unwrap().event_type, Symbol::new(&env, "reset"));
+}

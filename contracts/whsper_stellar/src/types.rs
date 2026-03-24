@@ -94,6 +94,7 @@ pub enum ContractError {
     ClaimAlreadyCancelled = 29,
     ClaimWindowDisabled = 30,
     ClaimExpired = 31,
+    RatingAlreadySubmitted = 32,
 }
 
 #[derive(Clone)]
@@ -276,5 +277,25 @@ pub enum InvitationStatus {
     Accepted = 1,
     Expired = 2,
     Revoked = 3,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReputationRecord {
+    pub score: u32,
+    pub total_ratings: u32,
+    pub total_score_sum: i128,
+    pub flags: u32,
+    pub is_restricted: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReputationEvent {
+    pub event_type: Symbol,
+    pub actor: Option<Address>,
+    pub score: Option<i32>,
+    pub context_or_reason: Symbol,
+    pub timestamp: u64,
 }
 

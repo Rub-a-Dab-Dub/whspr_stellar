@@ -41,6 +41,8 @@ pub enum DataKey {
     ClaimsByRecipient(Address),
     NextClaimId,
     ClaimConfig,
+    UserRatingContext(Address, Address, Symbol),
+    ReputationHistory(Address),
 }
 
 #[contracttype]

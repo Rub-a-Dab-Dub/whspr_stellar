@@ -89,12 +89,138 @@ impl BaseContract {
             .set(&DataKey::RateLimitConfig, &config);
     }
 
-    pub fn set_reputation(env: Env, user: Address, reputation: u32) {
+    pub fn reset_reputation(env: Env, user: Address, justification: Symbol) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
+        
+        let record = ReputationRecord {
+            score: 0,
+            total_ratings: 0,
+            total_score_sum: 0,
+            flags: 0,
+            is_restricted: false,
+        };
         env.storage()
             .instance()
-            .set(&DataKey::UserReputation(user), &reputation);
+            .set(&DataKey::UserReputation(user.clone()), &record);
+            
+        Self::append_reputation_event(&env, user.clone(), ReputationEvent {
+            event_type: Symbol::new(&env, "reset"),
+            actor: Some(admin),
+            score: None,
+            context_or_reason: justification.clone(),
+            timestamp: env.ledger().timestamp(),
+        });
+        
+        env.events().publish((Symbol::new(&env, "reputation_reset"), user), justification);
+    }
+
+    pub fn rate_user(env: Env, rater: Address, user: Address, score: i32, context: Symbol) -> Result<(), ContractError> {
+        rater.require_auth();
+
+        let context_key = DataKey::UserRatingContext(rater.clone(), user.clone(), context.clone());
+        if env.storage().instance().has(&context_key) {
+            return Err(ContractError::RatingAlreadySubmitted);
+        }
+        env.storage().instance().set(&context_key, &true);
+
+        let mut record: ReputationRecord = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserReputation(user.clone()))
+            .unwrap_or(ReputationRecord {
+                score: 0,
+                total_ratings: 0,
+                total_score_sum: 0,
+                flags: 0,
+                is_restricted: false,
+            });
+
+        record.total_ratings += 1;
+        record.total_score_sum += score as i128;
+        
+        // Simple unweighted average logic mapped to score. Assume score maps to 0-100 logic directly
+        let avg = record.total_score_sum / record.total_ratings as i128;
+        record.score = if avg > 100 { 100 } else if avg < 0 { 0 } else { avg as u32 };
+
+        env.storage().instance().set(&DataKey::UserReputation(user.clone()), &record);
+
+        Self::append_reputation_event(&env, user.clone(), ReputationEvent {
+            event_type: Symbol::new(&env, "rating"),
+            actor: Some(rater.clone()),
+            score: Some(score),
+            context_or_reason: context.clone(),
+            timestamp: env.ledger().timestamp(),
+        });
+
+        env.events().publish(
+            (Symbol::new(&env, "user_rated"), rater, user),
+            (score, context),
+        );
+
+        Ok(())
+    }
+
+    pub fn get_reputation(env: Env, address: Address) -> ReputationRecord {
+        env.storage()
+            .instance()
+            .get(&DataKey::UserReputation(address))
+            .unwrap_or(ReputationRecord {
+                score: 0,
+                total_ratings: 0,
+                total_score_sum: 0,
+                flags: 0,
+                is_restricted: false,
+            })
+    }
+
+    pub fn flag_user(env: Env, flagger: Address, user: Address, reason: Symbol) -> Result<(), ContractError> {
+        flagger.require_auth();
+
+        let mut record: ReputationRecord = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserReputation(user.clone()))
+            .unwrap_or(ReputationRecord {
+                score: 0,
+                total_ratings: 0,
+                total_score_sum: 0,
+                flags: 0,
+                is_restricted: false,
+            });
+
+        record.flags += 1;
+        if record.flags >= 3 {
+            record.is_restricted = true;
+        }
+
+        env.storage().instance().set(&DataKey::UserReputation(user.clone()), &record);
+
+        Self::append_reputation_event(&env, user.clone(), ReputationEvent {
+            event_type: Symbol::new(&env, "flag"),
+            actor: Some(flagger.clone()),
+            score: None,
+            context_or_reason: reason.clone(),
+            timestamp: env.ledger().timestamp(),
+        });
+
+        env.events().publish((Symbol::new(&env, "user_flagged"), flagger, user), reason);
+
+        Ok(())
+    }
+
+    pub fn get_reputation_history(env: Env, address: Address) -> Vec<ReputationEvent> {
+        env.storage()
+            .instance()
+            .get(&DataKey::ReputationHistory(address))
+            .unwrap_or(Vec::new(&env))
+    }
+
+    fn append_reputation_event(env: &Env, user: Address, event: ReputationEvent) {
+        let key = DataKey::ReputationHistory(user);
+        let mut history: Vec<ReputationEvent> = env.storage().instance().get(&key).unwrap_or(Vec::new(env));
+        history.push_back(event);
+        env.storage().instance().set(&key, &history);
     }
 
     pub fn set_override(env: Env, user: Address, is_exempt: bool) {
