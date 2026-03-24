@@ -10,6 +10,7 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { LoggingModule } from './common/logging/logging.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WalletsModule } from './wallets/wallets.module';
         limit: 10,
       },
     ]),
+    LoggingModule,
     HealthModule,
     UsersModule,
     AuthModule,
@@ -38,4 +40,4 @@ import { WalletsModule } from './wallets/wallets.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
