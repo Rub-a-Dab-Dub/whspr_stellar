@@ -37,4 +37,8 @@ export const envValidationSchema = Joi.object({
 
   // CORS
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+
+  // Soroban RPC
+  SOROBAN_RPC_URL: Joi.string().uri().required(),
+  SOROBAN_CONTRACT_IDS: Joi.string().default(''), // comma-separated contract addresses
 });

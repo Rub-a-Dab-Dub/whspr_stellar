@@ -38,6 +38,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.3.0",
     "@nestjs/platform-socket.io": "^11.1.17",
+    "@nestjs/schedule": "^6.1.1",
     "@nestjs/swagger": "^7.1.17",
     "@nestjs/terminus": "^10.2.0",
     "@nestjs/throttler": "^5.1.1",
