@@ -1,7 +1,10 @@
 #![no_std]
 
+use gasless_common::migration;
+use gasless_common::upgrade;
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, Address, Bytes, BytesN, Env, Symbol,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Bytes, BytesN, Env,
+    Symbol,
 };
 
 const DEFAULT_QUORUM_VOTES: u32 = 2;
@@ -50,6 +53,7 @@ pub enum DataKey {
     Treasury(BytesN<32>),
     Proposal(BytesN<32>),
     ProposalVote(BytesN<32>, u32),
+    Admin,
 }
 
 #[contracterror]
@@ -261,14 +265,20 @@ impl DaoTreasuryContract {
             .unwrap_or(0)
     }
 
-    pub fn get_proposal(env: Env, proposal_id: BytesN<32>) -> Result<ProposalRecord, ContractError> {
+    pub fn get_proposal(
+        env: Env,
+        proposal_id: BytesN<32>,
+    ) -> Result<ProposalRecord, ContractError> {
         env.storage()
             .persistent()
             .get(&DataKey::Proposal(proposal_id))
             .ok_or(ContractError::ProposalNotFound)
     }
 
-    fn get_or_create_treasury(env: &Env, group_id: BytesN<32>) -> Result<TreasuryRecord, ContractError> {
+    fn get_or_create_treasury(
+        env: &Env,
+        group_id: BytesN<32>,
+    ) -> Result<TreasuryRecord, ContractError> {
         if let Some(record) = env
             .storage()
             .persistent()
@@ -299,6 +309,109 @@ impl DaoTreasuryContract {
 
     fn is_expired(env: &Env, proposal: &ProposalRecord) -> bool {
         env.ledger().sequence() > proposal.expires_ledger
+    }
+
+    // ──────────────────────────────────────────────
+    // Upgrade & Migration Functions
+    // ──────────────────────────────────────────────
+
+    pub fn init(env: Env, admin: Address) -> Result<(), ContractError> {
+        if env.storage().instance().has(&DataKey::Admin) {
+            return Err(ContractError::InvalidThreshold);
+        }
+        admin.require_auth();
+
+        env.storage().instance().set(&DataKey::Admin, &admin);
+
+        let wasm_hash_bytes: BytesN<32> = BytesN::from_array(&env, &[0u8; 32]);
+        upgrade::init_upgrade(&env, admin, 1u32, wasm_hash_bytes)
+            .map_err(|_| ContractError::InvalidThreshold)
+    }
+
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), ContractError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::InvalidThreshold)?;
+        admin.require_auth();
+
+        upgrade::require_multi_sig_signer(&env, &admin)
+            .map_err(|_| ContractError::InvalidThreshold)?;
+
+        migration::validate_pre_upgrade(&env).map_err(|_| ContractError::InvalidThreshold)?;
+
+        let current_version =
+            upgrade::get_version(&env).map_err(|_| ContractError::InvalidThreshold)?;
+        let current_wasm_hash =
+            upgrade::get_current_wasm_hash(&env).map_err(|_| ContractError::InvalidThreshold)?;
+
+        env.storage()
+            .instance()
+            .set(&upgrade::UpgradeKey::PreviousWasmHash, &current_wasm_hash);
+        env.storage()
+            .instance()
+            .set(&upgrade::UpgradeKey::CurrentWasmHash, &new_wasm_hash);
+
+        upgrade::record_upgrade(&env, current_version, new_wasm_hash.clone(), admin.clone())
+            .map_err(|_| ContractError::InvalidThreshold)?;
+
+        env.events().publish(
+            (symbol_short!("upgrade"), admin.clone()),
+            (current_version, new_wasm_hash),
+        );
+
+        Ok(())
+    }
+
+    pub fn migrate_state(
+        env: Env,
+        from_version: u32,
+        to_version: u32,
+    ) -> Result<(), ContractError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::InvalidThreshold)?;
+        admin.require_auth();
+
+        upgrade::is_compatible_upgrade(from_version, to_version)
+            .map_err(|_| ContractError::InvalidThreshold)?;
+
+        migration::validate_pre_upgrade(&env).map_err(|_| ContractError::InvalidThreshold)?;
+
+        env.storage()
+            .instance()
+            .set(&upgrade::UpgradeKey::ContractVersion, &to_version);
+
+        upgrade::record_migration(&env, from_version, to_version, true)
+            .map_err(|_| ContractError::InvalidThreshold)?;
+
+        migration::verify_post_upgrade(&env).map_err(|_| ContractError::InvalidThreshold)?;
+
+        env.events().publish(
+            (symbol_short!("migrate"), admin.clone()),
+            (from_version, to_version),
+        );
+
+        Ok(())
+    }
+
+    pub fn verify_upgrade(env: Env) -> Result<bool, ContractError> {
+        migration::verify_post_upgrade(&env).map_err(|_| ContractError::InvalidThreshold)?;
+
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(ContractError::InvalidThreshold)?;
+
+        if admin.clone() == admin {
+            Ok(true)
+        } else {
+            Err(ContractError::InvalidThreshold)
+        }
     }
 }
 

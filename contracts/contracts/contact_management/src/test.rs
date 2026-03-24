@@ -1,9 +1,5 @@
 use super::*;
-use soroban_sdk::{
-    contract, contractimpl,
-    testutils::Events,
-    Address, Env,
-};
+use soroban_sdk::{contract, contractimpl, testutils::Events, Address, Env};
 
 #[contract]
 struct DummyInvoker;
