@@ -6,7 +6,7 @@ Soroban smart contract workspace for the Whspr Stellar project. Contains multi-c
 
 | Tool | Version | Install |
 |------|---------|---------|
-| **Rust** | 1.84.0+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| **Rust** | 1.88.0+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 | **Stellar CLI** | 25.x | `cargo install --locked stellar-cli` |
 | **Docker** | 20.x+ | [docker.com](https://www.docker.com/products/docker-desktop/) |
 | **Make** | any | Pre-installed on macOS/Linux. Windows: install via `choco install make` |
@@ -42,7 +42,7 @@ make deploy ENV=local
 contracts/
 ├── Cargo.toml                  # Workspace root (dependency versions here)
 ├── Makefile                    # Build, test, deploy, ABI targets
-├── rust-toolchain.toml         # Pins Rust 1.84.0 + wasm target
+├── rust-toolchain.toml         # Pins Rust 1.88.0 + wasm target
 ├── .env.local                  # Local testnet environment
 ├── .env.testnet                # Stellar public testnet environment
 ├── .env.mainnet                # Stellar mainnet environment
@@ -64,6 +64,22 @@ contracts/
     ├── abi/                    # Exported contract ABIs
     └── bindings/               # Generated TypeScript bindings
 ```
+
+## CI/CD Deployment Automation
+
+The contracts pipeline is split into separate GitHub Actions workflows:
+
+- `.github/workflows/contracts-build.yml`
+- `.github/workflows/contracts-test.yml`
+- `.github/workflows/contracts-deploy-testnet.yml`
+- `.github/workflows/contracts-deploy-mainnet.yml`
+
+Behavior:
+
+- Merge to `develop` -> auto deploy to testnet
+- Mainnet deploy -> manual `workflow_dispatch` + environment approval gate
+- Post-deploy health checks validate contract entrypoints
+- `deployments/registry.json` is updated automatically with versioned addresses
 
 ## Adding a New Contract
 
@@ -112,6 +128,11 @@ soroban-sdk = { workspace = true, features = ["testutils"] }
 | `make local-net-stop` | Stop the local testnet container |
 | `make network-setup` | Register network aliases in Stellar CLI |
 | `make clean` | Remove `target/` and `out/` |
+| `make deploy-testnet SOURCE_ACCOUNT=<alias>` | Deploy all contracts and update registry on testnet |
+| `make deploy-mainnet SOURCE_ACCOUNT=<alias>` | Deploy all contracts and update registry on mainnet |
+| `make verify SOURCE_ACCOUNT=<alias> ENV=<network>` | Verify latest deployment via health checks |
+| `make upgrade CONTRACT_ID=<id> WASM_PATH=<path> SOURCE_ACCOUNT=<alias>` | Upgrade a deployed contract |
+| `make rollback CONTRACT_ID=<id> PREVIOUS_WASM_HASH=<hash> SOURCE_ACCOUNT=<alias>` | Roll back to a previous wasm hash |
 
 ## Local Testnet
 
@@ -205,3 +226,8 @@ curl "http://localhost:8000/friendbot?addr=$(stellar keys address default)"
 ```bash
 cargo install --locked stellar-cli
 ```
+
+## Deployment Operations Docs
+
+- Runbook: `docs/deployment-runbook.md`
+- Rollback: `docs/rollback-procedure.md`
