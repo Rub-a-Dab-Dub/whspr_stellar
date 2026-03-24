@@ -4,6 +4,7 @@ OUT_DIR := out
 
 # Default network env (override with: make deploy ENV=testnet)
 ENV ?= local
+SOURCE_ACCOUNT ?= default
 
 # Load environment variables from the selected .env file
 ifneq (,$(wildcard .env.$(ENV)))
@@ -13,8 +14,9 @@ endif
 
 CONTRACTS := $(notdir $(wildcard $(CONTRACTS_DIR)/*))
 WASM_FILES := $(foreach c,$(CONTRACTS),$(OUT_DIR)/$(subst _,-,$(c)).wasm)
+MIGRATION_ARG := $(if $(MIGRATION_FUNCTION),--migration-function $(MIGRATION_FUNCTION),)
 
-.PHONY: all build test clean deploy fmt check setup abi
+.PHONY: all build test clean deploy fmt check setup abi deploy-testnet deploy-mainnet verify upgrade rollback
 
 all: build
 
@@ -122,6 +124,44 @@ deploy-one: build
 		--network $(SOROBAN_NETWORK) \
 		--source-account default
 
+deploy-testnet:
+	@echo "==> Deploying contracts to testnet"
+	bash scripts/deploy-all.sh \
+		--network testnet \
+		--source-account $(SOURCE_ACCOUNT) \
+		--registry deployments/registry.json
+
+deploy-mainnet:
+	@echo "==> Deploying contracts to mainnet"
+	bash scripts/deploy-all.sh \
+		--network mainnet \
+		--source-account $(SOURCE_ACCOUNT) \
+		--registry deployments/registry.json
+
+verify:
+	@echo "==> Verifying latest deployment"
+	bash scripts/verify-deployment.sh \
+		--network $(SOROBAN_NETWORK) \
+		--source-account $(SOURCE_ACCOUNT) \
+		--registry deployments/registry.json
+
+upgrade:
+	@echo "==> Upgrading contract $(CONTRACT_ID)"
+	bash scripts/upgrade-contract.sh \
+		--network $(SOROBAN_NETWORK) \
+		--source-account $(SOURCE_ACCOUNT) \
+		--contract-id $(CONTRACT_ID) \
+		--wasm $(WASM_PATH) \
+		$(MIGRATION_ARG)
+
+rollback:
+	@echo "==> Rolling back contract $(CONTRACT_ID)"
+	bash scripts/rollback-contract.sh \
+		--network $(SOROBAN_NETWORK) \
+		--source-account $(SOURCE_ACCOUNT) \
+		--contract-id $(CONTRACT_ID) \
+		--previous-wasm-hash $(PREVIOUS_WASM_HASH)
+
 # ──────────────────────────────────────────────
 # Docker / Local Testnet
 # ──────────────────────────────────────────────
@@ -180,6 +220,11 @@ help:
 	@echo "  abi             Export ABIs and generate TS bindings"
 	@echo "  deploy          Deploy all contracts (set ENV=)"
 	@echo "  deploy-one      Deploy single contract (CONTRACT=name)"
+	@echo "  deploy-testnet  Deploy all contracts to testnet (SOURCE_ACCOUNT=alias)"
+	@echo "  deploy-mainnet  Deploy all contracts to mainnet (SOURCE_ACCOUNT=alias)"
+	@echo "  verify          Run post-deploy health checks"
+	@echo "  upgrade         Upgrade contract wasm + optional migration"
+	@echo "  rollback        Rollback contract to previous wasm hash"
 	@echo "  local-net       Start Stellar Quickstart local testnet"
 	@echo "  local-net-stop  Stop the local testnet"
 	@echo "  network-setup   Configure CLI network aliases + keys"
