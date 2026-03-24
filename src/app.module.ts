@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
+import { UserSettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
     ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
+    UserSettingsModule,
     AuthModule,
     WalletsModule,
     ScheduledJobsModule,

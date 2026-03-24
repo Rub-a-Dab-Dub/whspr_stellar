@@ -11,10 +11,14 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
 import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
 import { plainToInstance } from 'class-transformer';
+import { UserSettingsService } from '../settings/services/user-settings.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly settingsService: UserSettingsService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const { walletAddress, username, email } = createUserDto;
@@ -48,6 +52,10 @@ export class UsersService {
     });
 
     const savedUser = await this.usersRepository.save(user);
+
+    // Auto-create default settings
+    await this.settingsService.getSettings(savedUser.id);
+
     return this.toResponseDto(savedUser);
   }
 
