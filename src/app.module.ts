@@ -38,6 +38,7 @@ import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './admin/admin.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
+import { NFTsModule } from './nfts/nfts.module';
 
 @Module({
   imports: [
@@ -110,6 +111,7 @@ import { MaintenanceGuard } from './common/guards/maintenance.guard';
     ChainModule,
     TransferModule,
     RoomModule,
+    NFTsModule,
     NotificationsModule,
     SystemConfigModule,
   ],
