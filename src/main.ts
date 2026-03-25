@@ -67,6 +67,7 @@ async function bootstrap() {
     .addBearerAuth()
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User management')
+    .addTag('attachments', 'Message attachment upload and metadata')
     .addTag('rooms', 'Chat rooms')
     .addTag('health', 'Health check endpoints')
     .build();
