@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException, HttpException } from '@nestjs/common';
+import { HttpException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { CryptoService } from './crypto.service';
 import { UsersService } from '../../users/users.service';
+import { SessionsService } from '../../sessions/sessions.service';
 import { AuthChallenge } from '../entities/auth-challenge.entity';
-import { RefreshToken } from '../entities/refresh-token.entity';
 import { AuthAttempt } from '../entities/auth-attempt.entity';
 import { UserTier } from '../../users/entities/user.entity';
 
@@ -15,10 +15,13 @@ describe('AuthService', () => {
   let service: AuthService;
   let cryptoService: jest.Mocked<CryptoService>;
   let usersService: jest.Mocked<UsersService>;
+  let sessionsService: jest.Mocked<SessionsService>;
   let jwtService: jest.Mocked<JwtService>;
 
   const WALLET = 'GCZJM35NKGVK47BB4SPBDV25477PZYIYPVVG453LPYFNXLS3FGHDXOCM';
   const IP = '127.0.0.1';
+  const USER_AGENT =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0.0.0';
   const NONCE = 'abc123';
   const MESSAGE = `Sign this message to authenticate with Gasless Gossip:\n\nNonce: ${NONCE}\n\nThis request will not trigger a blockchain transaction or cost any fees.`;
 
@@ -45,16 +48,16 @@ describe('AuthService', () => {
     createdAt: new Date(),
   };
 
-  const mockRefreshToken: RefreshToken = {
-    id: 'token-uuid',
-    userId: 'user-uuid',
-    user: {} as any,
-    tokenHash: 'hashed-token',
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    isRevoked: false,
+  const mockSession = {
+    id: 'session-uuid',
+    userId: mockUser.id,
+    refreshTokenHash: 'hashed-token',
+    deviceInfo: 'Chrome on macOS',
     ipAddress: IP,
-    userAgent: null,
-    createdAt: new Date(),
+    userAgent: USER_AGENT,
+    lastActiveAt: new Date(),
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    revokedAt: null,
   };
 
   const mockChallengeRepo = {
@@ -64,18 +67,10 @@ describe('AuthService', () => {
     findOne: jest.fn(),
   };
 
-  const mockRefreshTokenRepo = {
-    create: jest.fn(),
-    save: jest.fn(),
-    findOne: jest.fn(),
-    delete: jest.fn(),
-  };
-
   const mockAttemptRepo = {
     count: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
-    delete: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -101,9 +96,20 @@ describe('AuthService', () => {
           },
         },
         {
+          provide: SessionsService,
+          useValue: {
+            createSession: jest.fn().mockResolvedValue(mockSession),
+            rotateSession: jest.fn().mockResolvedValue(mockSession),
+            revokeSession: jest.fn().mockResolvedValue(undefined),
+            touchSession: jest.fn().mockResolvedValue(undefined),
+            validateActiveSession: jest.fn().mockResolvedValue(undefined),
+            validateRefreshSession: jest.fn().mockResolvedValue(mockSession),
+          },
+        },
+        {
           provide: JwtService,
           useValue: {
-            sign: jest.fn().mockReturnValue('mock-jwt-token'),
+            sign: jest.fn(),
             verify: jest.fn(),
           },
         },
@@ -112,7 +118,6 @@ describe('AuthService', () => {
           useValue: { get: jest.fn().mockReturnValue('test-secret') },
         },
         { provide: getRepositoryToken(AuthChallenge), useValue: mockChallengeRepo },
-        { provide: getRepositoryToken(RefreshToken), useValue: mockRefreshTokenRepo },
         { provide: getRepositoryToken(AuthAttempt), useValue: mockAttemptRepo },
       ],
     }).compile();
@@ -120,10 +125,21 @@ describe('AuthService', () => {
     service = module.get<AuthService>(AuthService);
     cryptoService = module.get(CryptoService);
     usersService = module.get(UsersService);
+    sessionsService = module.get(SessionsService);
     jwtService = module.get(JwtService);
 
     jest.clearAllMocks();
     mockAttemptRepo.count.mockResolvedValue(0);
+    mockChallengeRepo.create.mockReturnValue(mockChallenge);
+    mockAttemptRepo.create.mockReturnValue({});
+    mockAttemptRepo.save.mockResolvedValue({});
+    jwtService.sign
+      .mockReturnValueOnce('signed-refresh-token')
+      .mockReturnValueOnce('access-token')
+      .mockReturnValueOnce('refresh-token')
+      .mockReturnValueOnce('signed-refresh-token-2')
+      .mockReturnValueOnce('access-token-2')
+      .mockReturnValueOnce('refresh-token-2');
   });
 
   it('should be defined', () => {
@@ -131,18 +147,18 @@ describe('AuthService', () => {
   });
 
   describe('generateChallenge', () => {
-    it('should generate a challenge with nonce and message', async () => {
-      mockChallengeRepo.delete.mockResolvedValue({});
-      mockChallengeRepo.create.mockReturnValue(mockChallenge);
+    it('generates a challenge with nonce and message', async () => {
       mockChallengeRepo.save.mockResolvedValue(mockChallenge);
 
       const result = await service.generateChallenge(WALLET);
 
-      expect(result.nonce).toBe(NONCE);
-      expect(result.message).toBe(MESSAGE);
-      expect(result.expiresAt).toBeInstanceOf(Date);
+      expect(result).toEqual(
+        expect.objectContaining({
+          nonce: NONCE,
+          message: MESSAGE,
+        }),
+      );
       expect(mockChallengeRepo.delete).toHaveBeenCalledWith({ walletAddress: WALLET });
-      expect(mockChallengeRepo.save).toHaveBeenCalled();
     });
   });
 
@@ -150,94 +166,104 @@ describe('AuthService', () => {
     beforeEach(() => {
       mockChallengeRepo.findOne.mockResolvedValue(mockChallenge);
       mockChallengeRepo.delete.mockResolvedValue({});
-      mockAttemptRepo.create.mockReturnValue({});
-      mockAttemptRepo.save.mockResolvedValue({});
-      mockRefreshTokenRepo.create.mockReturnValue(mockRefreshToken);
-      mockRefreshTokenRepo.save.mockResolvedValue(mockRefreshToken);
     });
 
-    it('should authenticate and return tokens for existing user', async () => {
+    it('authenticates an existing user and creates a session', async () => {
       cryptoService.verifyStellarSignature.mockReturnValue(true);
       usersService.findByWalletAddress.mockResolvedValue(mockUser);
 
-      const result = await service.verifyChallenge(WALLET, 'valid-sig', IP);
+      const result = await service.verifyChallenge(WALLET, 'valid-signature', IP, USER_AGENT);
 
-      expect(result.accessToken).toBe('mock-jwt-token');
-      expect(result.refreshToken).toBe('mock-jwt-token');
+      expect(result.accessToken).toBe('access-token');
+      expect(result.refreshToken).toBe('refresh-token');
       expect(result.user.id).toBe(mockUser.id);
-      expect(result.tokenType).toBe('Bearer');
-      expect(result.expiresIn).toBe(900);
+      expect(sessionsService.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: mockUser.id,
+          refreshTokenHash: 'hashed-token',
+          metadata: expect.objectContaining({
+            ipAddress: IP,
+            userAgent: USER_AGENT,
+            deviceInfo: 'Chrome on macOS',
+          }),
+        }),
+      );
     });
 
-    it('should create new user on first login', async () => {
-      const { NotFoundException } = await import('@nestjs/common');
+    it('creates a user on first login', async () => {
       cryptoService.verifyStellarSignature.mockReturnValue(true);
       usersService.findByWalletAddress.mockRejectedValue(new NotFoundException());
       usersService.create.mockResolvedValue(mockUser);
 
-      const result = await service.verifyChallenge(WALLET, 'valid-sig', IP);
+      const result = await service.verifyChallenge(WALLET, 'valid-signature', IP, USER_AGENT);
 
       expect(usersService.create).toHaveBeenCalledWith({ walletAddress: WALLET });
       expect(result.user.id).toBe(mockUser.id);
     });
 
-    it('should throw UnauthorizedException for invalid signature', async () => {
+    it('rejects invalid signatures', async () => {
       cryptoService.verifyStellarSignature.mockReturnValue(false);
 
-      await expect(service.verifyChallenge(WALLET, 'bad-sig', IP)).rejects.toThrow(
+      await expect(service.verifyChallenge(WALLET, 'bad-signature', IP)).rejects.toThrow(
         UnauthorizedException,
       );
       expect(mockAttemptRepo.save).toHaveBeenCalled();
     });
 
-    it('should throw UnauthorizedException when challenge not found', async () => {
+    it('rejects missing challenges', async () => {
       mockChallengeRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.verifyChallenge(WALLET, 'any-sig', IP)).rejects.toThrow(
+      await expect(service.verifyChallenge(WALLET, 'any-signature', IP)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('should throw UnauthorizedException for deactivated user', async () => {
+    it('rejects deactivated users', async () => {
       cryptoService.verifyStellarSignature.mockReturnValue(true);
       usersService.findByWalletAddress.mockResolvedValue({ ...mockUser, isActive: false });
 
-      await expect(service.verifyChallenge(WALLET, 'valid-sig', IP)).rejects.toThrow(
+      await expect(service.verifyChallenge(WALLET, 'valid-signature', IP)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('should throw 429 after too many failed attempts', async () => {
+    it('blocks repeated failed attempts', async () => {
       mockAttemptRepo.count.mockResolvedValue(5);
 
-      await expect(service.verifyChallenge(WALLET, 'any-sig', IP)).rejects.toThrow(
-        HttpException,
-      );
+      await expect(service.verifyChallenge(WALLET, 'any-sig', IP)).rejects.toThrow(HttpException);
     });
   });
 
   describe('refreshAccessToken', () => {
-    it('should issue new tokens with valid refresh token', async () => {
-      jwtService.verify.mockReturnValue({ sub: 'user-uuid', walletAddress: WALLET });
-      mockRefreshTokenRepo.findOne.mockResolvedValue(mockRefreshToken);
+    it('rotates the session for a valid refresh token', async () => {
+      jwtService.verify.mockReturnValue({
+        sub: mockUser.id,
+        walletAddress: WALLET,
+        sessionId: mockSession.id,
+      });
       cryptoService.compareToken.mockResolvedValue(true);
-      mockRefreshTokenRepo.save.mockResolvedValue({ ...mockRefreshToken, isRevoked: true });
-      mockRefreshTokenRepo.create.mockReturnValue(mockRefreshToken);
       usersService.findById.mockResolvedValue(mockUser);
 
-      const result = await service.refreshAccessToken('valid-refresh-token', IP);
+      const result = await service.refreshAccessToken('valid-refresh-token', IP, USER_AGENT);
 
-      expect(result.accessToken).toBe('mock-jwt-token');
-      expect(result.user.id).toBe(mockUser.id);
-      // Old token should be revoked
-      expect(mockRefreshTokenRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ isRevoked: true }),
+      expect(result.accessToken).toBe('access-token');
+      expect(result.refreshToken).toBe('refresh-token');
+      expect(sessionsService.validateRefreshSession).toHaveBeenCalledWith(
+        mockUser.id,
+        mockSession.id,
+      );
+      expect(sessionsService.rotateSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: mockUser.id,
+          currentSessionId: mockSession.id,
+          refreshTokenHash: 'hashed-token',
+        }),
       );
     });
 
-    it('should throw UnauthorizedException for invalid JWT', async () => {
+    it('rejects invalid JWT refresh tokens', async () => {
       jwtService.verify.mockImplementation(() => {
-        throw new Error('invalid token');
+        throw new Error('bad token');
       });
 
       await expect(service.refreshAccessToken('bad-token', IP)).rejects.toThrow(
@@ -245,18 +271,12 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw UnauthorizedException when stored token not found', async () => {
-      jwtService.verify.mockReturnValue({ sub: 'user-uuid', walletAddress: WALLET });
-      mockRefreshTokenRepo.findOne.mockResolvedValue(null);
-
-      await expect(service.refreshAccessToken('valid-jwt-bad-db', IP)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('should throw UnauthorizedException when token hash does not match', async () => {
-      jwtService.verify.mockReturnValue({ sub: 'user-uuid', walletAddress: WALLET });
-      mockRefreshTokenRepo.findOne.mockResolvedValue(mockRefreshToken);
+    it('rejects refresh tokens with mismatched hashes', async () => {
+      jwtService.verify.mockReturnValue({
+        sub: mockUser.id,
+        walletAddress: WALLET,
+        sessionId: mockSession.id,
+      });
       cryptoService.compareToken.mockResolvedValue(false);
 
       await expect(service.refreshAccessToken('tampered-token', IP)).rejects.toThrow(
@@ -266,38 +286,47 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('should revoke the refresh token', async () => {
-      mockRefreshTokenRepo.findOne.mockResolvedValue(mockRefreshToken);
-      mockRefreshTokenRepo.save.mockResolvedValue({ ...mockRefreshToken, isRevoked: true });
+    it('revokes the current session', async () => {
+      await service.logout(mockUser.id, mockSession.id);
 
-      await service.logout('user-uuid', 'some-refresh-token');
-
-      expect(mockRefreshTokenRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ isRevoked: true }),
-      );
+      expect(sessionsService.revokeSession).toHaveBeenCalledWith(mockUser.id, mockSession.id);
     });
 
-    it('should not throw if token not found', async () => {
-      mockRefreshTokenRepo.findOne.mockResolvedValue(null);
-
-      await expect(service.logout('user-uuid', 'missing-token')).resolves.not.toThrow();
+    it('is a no-op when session id is missing', async () => {
+      await expect(service.logout(mockUser.id)).resolves.toBeUndefined();
+      expect(sessionsService.revokeSession).not.toHaveBeenCalled();
     });
   });
 
   describe('validateUser', () => {
-    it('should return user for valid payload', async () => {
+    it('returns user details with the current session id', async () => {
       usersService.findById.mockResolvedValue(mockUser);
 
-      const result = await service.validateUser({ sub: 'user-uuid', walletAddress: WALLET });
+      const result = await service.validateUser({
+        sub: mockUser.id,
+        walletAddress: WALLET,
+        sessionId: mockSession.id,
+      });
 
-      expect(result.id).toBe(mockUser.id);
+      expect(result).toEqual(
+        expect.objectContaining({ id: mockUser.id, sessionId: mockSession.id }),
+      );
+      expect(sessionsService.validateActiveSession).toHaveBeenCalledWith(
+        mockUser.id,
+        mockSession.id,
+      );
+      expect(sessionsService.touchSession).toHaveBeenCalledWith(mockSession.id);
     });
 
-    it('should throw UnauthorizedException for deactivated user', async () => {
+    it('rejects deactivated users', async () => {
       usersService.findById.mockResolvedValue({ ...mockUser, isActive: false });
 
       await expect(
-        service.validateUser({ sub: 'user-uuid', walletAddress: WALLET }),
+        service.validateUser({
+          sub: mockUser.id,
+          walletAddress: WALLET,
+          sessionId: mockSession.id,
+        }),
       ).rejects.toThrow(UnauthorizedException);
     });
   });

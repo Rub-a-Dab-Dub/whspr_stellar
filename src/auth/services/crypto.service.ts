@@ -28,11 +28,7 @@ export class CryptoService {
    * @param signature - Base64 encoded signature
    * @returns true if signature is valid
    */
-  verifyStellarSignature(
-    walletAddress: string,
-    message: string,
-    signature: string,
-  ): boolean {
+  verifyStellarSignature(walletAddress: string, message: string, signature: string): boolean {
     try {
       // Validate Stellar address format
       if (!StellarSdk.StrKey.isValidEd25519PublicKey(walletAddress)) {

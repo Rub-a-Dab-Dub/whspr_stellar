@@ -39,6 +39,10 @@ export class User {
   @Column({ type: 'text', nullable: true })
   bio!: string | null;
 
+  @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
+  @Index('idx_users_referral_code')
+  referralCode!: string | null;
+
   @Column({
     type: 'enum',
     enum: UserTier,

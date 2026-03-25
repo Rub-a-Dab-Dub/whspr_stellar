@@ -10,10 +10,13 @@ import { envValidationSchema } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { ReportsModule } from './reports/reports.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
-import { NFTsModule } from './nfts/nfts.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { ObservabilityModule } from './observability/observability.module';
+import { UserSettingsModule } from './user-settings/user-settings.module';
 
 @Module({
   imports: [
@@ -38,12 +41,17 @@ import { NFTsModule } from './nfts/nfts.module';
     ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
+    UserSettingsModule,
     AuthModule,
+    SessionsModule,
     WalletsModule,
-    NFTsModule,
+    AnalyticsModule,
     ScheduledJobsModule,
+    WebhooksModule,
+    ObservabilityModule,
+    UserSettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
