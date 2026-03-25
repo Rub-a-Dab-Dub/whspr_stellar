@@ -40,6 +40,7 @@ export const envValidationSchema = Joi.object({
 
   // CORS
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+  ADMIN_USER_IDS: Joi.string().allow('').default(''),
 
   // Attachments / Storage
   STORAGE_PROVIDER: Joi.string().valid('s3', 'r2').default('s3'),
