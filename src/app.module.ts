@@ -15,6 +15,7 @@ import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
+import { UserSettingsModule } from './user-settings/user-settings.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ObservabilityModule } from './observability/observability.module';
     ScheduledJobsModule,
     WebhooksModule,
     ObservabilityModule,
+    UserSettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
