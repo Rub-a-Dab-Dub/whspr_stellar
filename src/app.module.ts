@@ -40,6 +40,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
+    UserSettingsModule,
     AuthModule,
     WalletsModule,
     AnalyticsModule,
