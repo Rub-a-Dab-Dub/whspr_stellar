@@ -1,7 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { RedisThrottlerStorage } from './common/redis/redis-throttler-storage';
+import { RedisModule } from './common/redis/redis.module';
+import { RedisService } from './common/redis/redis.service';
+import { AdvancedThrottlerGuard } from './common/guards/advanced-throttler.guard';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -17,6 +22,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 import { AdminModule } from './admin/admin.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -31,12 +37,31 @@ import { AdminModule } from './admin/admin.module';
     TypeOrmModule.forRootAsync({
       useFactory: typeOrmConfig,
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 10,
-      },
-    ]),
+    RedisModule,
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule, RedisModule],
+      inject: [ConfigService, RedisService],
+      useFactory: (config: ConfigService, redisService: RedisService) => ({
+        throttlers: [
+          {
+            name: 'short',
+            ttl: 1000,
+            limit: config.get<number>('THROTTLE_LIMIT_SHORT', 3),
+          },
+          {
+            name: 'medium',
+            ttl: 60000,
+            limit: config.get<number>('THROTTLE_LIMIT_MEDIUM', 60),
+          },
+          {
+            name: 'long',
+            ttl: 3600000,
+            limit: config.get<number>('THROTTLE_LIMIT_LONG', 1000),
+          },
+        ],
+        storage: new RedisThrottlerStorage(redisService.getClient()),
+      }),
+    }),
     LoggingModule,
     ScheduleModule.forRoot(),
     HealthModule,
@@ -48,10 +73,15 @@ import { AdminModule } from './admin/admin.module';
     ScheduledJobsModule,
     WebhooksModule,
     ObservabilityModule,
-    UserSettingsModule,
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: AdvancedThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
