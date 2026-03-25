@@ -8,6 +8,8 @@ import { AppModule } from './app.module';
 import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './config/winston.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { LoggingMiddleware } from './common/logging/logging.middleware';
+import { LoggerService } from './common/logging/logger.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -43,6 +45,10 @@ async function bootstrap() {
 
   // Global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Logging middleware
+  const loggerService = app.get(LoggerService);
+  app.use(new LoggingMiddleware(loggerService));
 
   // Swagger documentation
   const config = new DocumentBuilder()

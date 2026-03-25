@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { typeOrmConfig } from './config/typeorm.config';
@@ -9,7 +10,9 @@ import { envValidationSchema } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { StellarEventsModule } from './stellar-events/stellar-events.module';
+import { WalletsModule } from './wallets/wallets.module';
+import { LoggingModule } from './common/logging/logging.module';
+import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 
 @Module({
   imports: [
@@ -30,12 +33,15 @@ import { StellarEventsModule } from './stellar-events/stellar-events.module';
         limit: 10,
       },
     ]),
+    LoggingModule,
+    ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
     AuthModule,
-    StellarEventsModule,
+    WalletsModule,
+    ScheduledJobsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

@@ -40,3 +40,18 @@ lerna-debug.log*
 .env.*.local
 
 package-lock.json
+
+# Rust / Soroban
+contracts/target/
+contracts/out/
+contracts/target-tarpaulin/
+contracts/**/test_snapshots/
+contracts/scripts/__pycache__/
+*.pyc
+*.wasm
+!contracts/out/*.wasm
+
+# Allow contracts env files (public network config, no secrets)
+!contracts/.env.local
+!contracts/.env.testnet
+!contracts/.env.mainnet
