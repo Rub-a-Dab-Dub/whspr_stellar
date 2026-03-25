@@ -4,9 +4,7 @@ export const envValidationSchema = Joi.object({
   // Server
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().default(3001),
-  LOG_LEVEL: Joi.string()
-    .valid('error', 'warn', 'info', 'debug', 'verbose')
-    .default('info'),
+  LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug', 'verbose').default('info'),
 
   // Database
   DATABASE_HOST: Joi.string().required(),
@@ -40,14 +38,11 @@ export const envValidationSchema = Joi.object({
 
   // CORS
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+  ADMIN_USER_IDS: Joi.string().allow('').default(''),
 
   // Stellar / Horizon
-  STELLAR_HORIZON_MAINNET_URL: Joi.string()
-    .uri()
-    .default('https://horizon.stellar.org'),
-  STELLAR_HORIZON_TESTNET_URL: Joi.string()
-    .uri()
-    .default('https://horizon-testnet.stellar.org'),
+  STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
+  STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
 
   // Scheduled Jobs
   JOB_BLOCKCHAIN_EVENT_POLLING_MS: Joi.number().default(5000),
@@ -61,4 +56,9 @@ export const envValidationSchema = Joi.object({
   JOB_ANALYTICS_AGGREGATION_CRON: Joi.string().default('0 0 * * *'),
   JOB_AUDIT_LOG_CLEANUP_CRON: Joi.string().default('0 0 * * 0'),
   JOB_LOCK_TTL_MS: Joi.number().default(15000),
+
+  // Moderation
+  REPORT_AUTO_FLAG_THRESHOLD: Joi.number().min(1).default(3),
+  REPORT_AUTO_DELETE_THRESHOLD: Joi.number().min(1).default(5),
+  REPORT_COOLDOWN_MINUTES: Joi.number().min(1).default(30),
 });
