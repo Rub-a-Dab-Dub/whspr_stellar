@@ -37,6 +37,9 @@ export const envValidationSchema = Joi.object({
   // Rate Limiting
   THROTTLE_TTL: Joi.number().default(60),
   THROTTLE_LIMIT: Joi.number().default(10),
+  THROTTLE_LIMIT_SHORT: Joi.number().default(3),
+  THROTTLE_LIMIT_MEDIUM: Joi.number().default(60),
+  THROTTLE_LIMIT_LONG: Joi.number().default(1000),
 
   // CORS
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
