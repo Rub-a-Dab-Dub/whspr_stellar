@@ -42,6 +42,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     UsersModule,
     UserSettingsModule,
     AuthModule,
+    SessionsModule,
     WalletsModule,
     AnalyticsModule,
     ScheduledJobsModule,
