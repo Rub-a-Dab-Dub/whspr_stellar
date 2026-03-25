@@ -19,7 +19,7 @@ describe('UsersService', () => {
     displayName: 'Test User',
     avatarUrl: 'https://example.com/avatar.jpg',
     bio: 'Test bio',
-    tier: UserTier.FREE,
+    tier: UserTier.SILVER,
     isActive: true,
     isVerified: false,
     createdAt: new Date('2024-01-01'),

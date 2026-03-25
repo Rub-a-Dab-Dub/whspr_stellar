@@ -23,6 +23,7 @@ import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { MembershipTierModule } from './membership-tier/membership-tier.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     WebhooksModule,
     ObservabilityModule,
     AdminModule,
+    MembershipTierModule,
   ],
   controllers: [AppController],
   providers: [

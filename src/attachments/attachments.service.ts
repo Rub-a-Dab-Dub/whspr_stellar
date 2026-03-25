@@ -135,22 +135,28 @@ export class AttachmentsService {
 
   private getMaxFileSizeForTier(tier: UserTier): number {
     const defaults: Record<UserTier, number> = {
-      [UserTier.FREE]: 10 * 1024 * 1024,
-      [UserTier.PREMIUM]: 25 * 1024 * 1024,
-      [UserTier.VIP]: 50 * 1024 * 1024,
+      [UserTier.SILVER]: 10 * 1024 * 1024,
+      [UserTier.GOLD]: 25 * 1024 * 1024,
+      [UserTier.BLACK]: 50 * 1024 * 1024,
     };
 
     const byTierConfig: Record<UserTier, number> = {
-      [UserTier.FREE]: this.configService.get<number>('ATTACHMENT_MAX_SIZE_FREE_BYTES', defaults[UserTier.FREE]),
-      [UserTier.PREMIUM]: this.configService.get<number>(
-        'ATTACHMENT_MAX_SIZE_PREMIUM_BYTES',
-        defaults[UserTier.PREMIUM],
+      [UserTier.SILVER]: this.configService.get<number>(
+        'ATTACHMENT_MAX_SIZE_SILVER_BYTES',
+        defaults[UserTier.SILVER],
       ),
-      [UserTier.VIP]: this.configService.get<number>('ATTACHMENT_MAX_SIZE_VIP_BYTES', defaults[UserTier.VIP]),
+      [UserTier.GOLD]: this.configService.get<number>(
+        'ATTACHMENT_MAX_SIZE_GOLD_BYTES',
+        defaults[UserTier.GOLD],
+      ),
+      [UserTier.BLACK]: this.configService.get<number>(
+        'ATTACHMENT_MAX_SIZE_BLACK_BYTES',
+        defaults[UserTier.BLACK],
+      ),
     };
 
-    const maxBytes = byTierConfig[tier] ?? defaults[UserTier.FREE];
-    return Number.isFinite(maxBytes) && maxBytes > 0 ? Math.floor(maxBytes) : defaults[UserTier.FREE];
+    const maxBytes = byTierConfig[tier] ?? defaults[UserTier.SILVER];
+    return Number.isFinite(maxBytes) && maxBytes > 0 ? Math.floor(maxBytes) : defaults[UserTier.SILVER];
   }
 
   private validateFileSize(tier: UserTier, fileSize: number): void {
