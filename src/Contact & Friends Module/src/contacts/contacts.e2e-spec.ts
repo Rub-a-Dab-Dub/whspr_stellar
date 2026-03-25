@@ -7,13 +7,16 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ContactStatus } from './entities/contact.entity';
 import { ContactResponseDto, PaginatedContactsDto } from './dto/contact-response.dto';
 
-const OWNER  = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const OWNER = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const TARGET = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
 /** Stub guard that injects a fixed user into request.user */
 const mockJwtGuard = {
   canActivate: (ctx: ExecutionContext) => {
-    ctx.switchToHttp().getRequest().user = { sub: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', username: 'alice' };
+    ctx.switchToHttp().getRequest().user = {
+      sub: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      username: 'alice',
+    };
     return true;
   },
 };
@@ -100,7 +103,7 @@ describe('ContactsController (e2e)', () => {
       await request(app.getHttpServer())
         .get('/contacts')
         .expect(200)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.total).toBe(1);
           expect(res.body.data[0].status).toBe(ContactStatus.ACCEPTED);
         });
@@ -109,9 +112,7 @@ describe('ContactsController (e2e)', () => {
     it('200 — passes search param through to service', async () => {
       service.getContacts.mockResolvedValue({ data: [], total: 0, page: 1, limit: 20 });
 
-      await request(app.getHttpServer())
-        .get('/contacts?search=alice')
-        .expect(200);
+      await request(app.getHttpServer()).get('/contacts?search=alice').expect(200);
 
       expect(service.getContacts).toHaveBeenCalledWith(OWNER, 1, 20, 'alice');
     });
@@ -126,7 +127,7 @@ describe('ContactsController (e2e)', () => {
       await request(app.getHttpServer())
         .get('/contacts/blocked')
         .expect(200)
-        .expect(res => expect(res.body[0].status).toBe(ContactStatus.BLOCKED));
+        .expect((res) => expect(res.body[0].status).toBe(ContactStatus.BLOCKED));
     });
   });
 
@@ -139,13 +140,11 @@ describe('ContactsController (e2e)', () => {
       await request(app.getHttpServer())
         .patch(`/contacts/${TARGET}/accept`)
         .expect(200)
-        .expect(res => expect(res.body.status).toBe(ContactStatus.ACCEPTED));
+        .expect((res) => expect(res.body.status).toBe(ContactStatus.ACCEPTED));
     });
 
     it('400 — rejects non-UUID param', async () => {
-      await request(app.getHttpServer())
-        .patch('/contacts/not-a-uuid/accept')
-        .expect(400);
+      await request(app.getHttpServer()).patch('/contacts/not-a-uuid/accept').expect(400);
     });
   });
 
@@ -155,9 +154,7 @@ describe('ContactsController (e2e)', () => {
     it('204 — removes a contact', async () => {
       service.removeContact.mockResolvedValue(undefined);
 
-      await request(app.getHttpServer())
-        .delete(`/contacts/${TARGET}`)
-        .expect(204);
+      await request(app.getHttpServer()).delete(`/contacts/${TARGET}`).expect(204);
     });
   });
 
@@ -170,7 +167,7 @@ describe('ContactsController (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/contacts/${TARGET}/block`)
         .expect(201)
-        .expect(res => expect(res.body.status).toBe(ContactStatus.BLOCKED));
+        .expect((res) => expect(res.body.status).toBe(ContactStatus.BLOCKED));
     });
   });
 
@@ -180,9 +177,7 @@ describe('ContactsController (e2e)', () => {
     it('204 — unblocks a user', async () => {
       service.unblockUser.mockResolvedValue(undefined);
 
-      await request(app.getHttpServer())
-        .delete(`/contacts/${TARGET}/block`)
-        .expect(204);
+      await request(app.getHttpServer()).delete(`/contacts/${TARGET}/block`).expect(204);
     });
   });
 });

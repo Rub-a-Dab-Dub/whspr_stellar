@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { ContactsRepository } from './contacts.repository';
 import { BlockchainService } from '../blockchain/blockchain.service';
@@ -7,7 +12,7 @@ import { Contact, ContactStatus } from './entities/contact.entity';
 
 const OWNER = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const TARGET = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-const THIRD  = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const THIRD = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
 function makeContact(overrides: Partial<Contact> = {}): Contact {
   return Object.assign(new Contact(), {
@@ -61,21 +66,24 @@ describe('ContactsService', () => {
 
   describe('addContact', () => {
     it('throws BadRequest when adding self', async () => {
-      await expect(service.addContact(OWNER, { contactId: OWNER }))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.addContact(OWNER, { contactId: OWNER })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('throws Forbidden when either party is blocked', async () => {
       repo.isBlockedEither.mockResolvedValue(true);
-      await expect(service.addContact(OWNER, { contactId: TARGET }))
-        .rejects.toThrow(ForbiddenException);
+      await expect(service.addContact(OWNER, { contactId: TARGET })).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('throws Conflict when request already exists', async () => {
       repo.isBlockedEither.mockResolvedValue(false);
       repo.findOne.mockResolvedValue(makeContact());
-      await expect(service.addContact(OWNER, { contactId: TARGET }))
-        .rejects.toThrow(ConflictException);
+      await expect(service.addContact(OWNER, { contactId: TARGET })).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('creates a PENDING contact', async () => {
@@ -86,11 +94,13 @@ describe('ContactsService', () => {
 
       const result = await service.addContact(OWNER, { contactId: TARGET, label: 'Alice' });
 
-      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({
-        ownerId: OWNER,
-        contactId: TARGET,
-        status: ContactStatus.PENDING,
-      }));
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ownerId: OWNER,
+          contactId: TARGET,
+          status: ContactStatus.PENDING,
+        }),
+      );
       expect(result.status).toBe(ContactStatus.PENDING);
     });
   });
@@ -109,21 +119,29 @@ describe('ContactsService', () => {
     });
 
     it('sets status to ACCEPTED and creates reverse entry', async () => {
-      const pending = makeContact({ ownerId: TARGET, contactId: OWNER, status: ContactStatus.PENDING });
+      const pending = makeContact({
+        ownerId: TARGET,
+        contactId: OWNER,
+        status: ContactStatus.PENDING,
+      });
       repo.findOne
-        .mockResolvedValueOnce(pending)   // original request
-        .mockResolvedValueOnce(null);     // reverse lookup
+        .mockResolvedValueOnce(pending) // original request
+        .mockResolvedValueOnce(null); // reverse lookup
       repo.save.mockResolvedValue({ ...pending, status: ContactStatus.ACCEPTED } as Contact);
-      repo.create.mockResolvedValue(makeContact({ ownerId: OWNER, contactId: TARGET, status: ContactStatus.ACCEPTED }));
+      repo.create.mockResolvedValue(
+        makeContact({ ownerId: OWNER, contactId: TARGET, status: ContactStatus.ACCEPTED }),
+      );
 
       const result = await service.acceptContact(OWNER, TARGET);
 
       expect(repo.save).toHaveBeenCalled();
-      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({
-        ownerId: OWNER,
-        contactId: TARGET,
-        status: ContactStatus.ACCEPTED,
-      }));
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ownerId: OWNER,
+          contactId: TARGET,
+          status: ContactStatus.ACCEPTED,
+        }),
+      );
       expect(result.status).toBe(ContactStatus.ACCEPTED);
     });
   });
@@ -139,9 +157,7 @@ describe('ContactsService', () => {
     it('removes contact and reverse entry', async () => {
       const contact = makeContact();
       const reverse = makeContact({ ownerId: TARGET, contactId: OWNER });
-      repo.findOne
-        .mockResolvedValueOnce(contact)
-        .mockResolvedValueOnce(reverse);
+      repo.findOne.mockResolvedValueOnce(contact).mockResolvedValueOnce(reverse);
 
       await service.removeContact(OWNER, TARGET);
 
@@ -163,7 +179,9 @@ describe('ContactsService', () => {
 
       const result = await service.blockUser(OWNER, TARGET);
 
-      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ status: ContactStatus.BLOCKED }));
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: ContactStatus.BLOCKED }),
+      );
       expect(result.status).toBe(ContactStatus.BLOCKED);
     });
 
@@ -173,7 +191,9 @@ describe('ContactsService', () => {
 
       const result = await service.blockUser(OWNER, TARGET);
 
-      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ status: ContactStatus.BLOCKED }));
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ status: ContactStatus.BLOCKED }),
+      );
       expect(result.status).toBe(ContactStatus.BLOCKED);
     });
 
@@ -184,7 +204,7 @@ describe('ContactsService', () => {
       await service.blockUser(OWNER, TARGET);
 
       // give the fire-and-forget a tick
-      await new Promise(r => setImmediate(r));
+      await new Promise((r) => setImmediate(r));
       expect(blockchain.syncBlock).toHaveBeenCalledWith(OWNER, TARGET, true);
     });
   });
@@ -208,7 +228,7 @@ describe('ContactsService', () => {
       await service.unblockUser(OWNER, TARGET);
 
       expect(repo.remove).toHaveBeenCalled();
-      await new Promise(r => setImmediate(r));
+      await new Promise((r) => setImmediate(r));
       expect(blockchain.syncBlock).toHaveBeenCalledWith(OWNER, TARGET, false);
     });
   });
@@ -266,7 +286,9 @@ describe('ContactsService', () => {
 
   describe('syncOnChainBlockStatus', () => {
     it('blocks user when on-chain says blocked and local is not', async () => {
-      blockchain.fetchAllBlocks.mockResolvedValue([{ blockerId: OWNER, targetId: TARGET, isBlocked: true }]);
+      blockchain.fetchAllBlocks.mockResolvedValue([
+        { blockerId: OWNER, targetId: TARGET, isBlocked: true },
+      ]);
       repo.findOne.mockResolvedValue(null);
       repo.isBlockedEither.mockResolvedValue(false);
       repo.create.mockResolvedValue(makeContact({ status: ContactStatus.BLOCKED }));
@@ -277,7 +299,9 @@ describe('ContactsService', () => {
     });
 
     it('removes block when on-chain says unblocked and local is blocked', async () => {
-      blockchain.fetchAllBlocks.mockResolvedValue([{ blockerId: OWNER, targetId: TARGET, isBlocked: false }]);
+      blockchain.fetchAllBlocks.mockResolvedValue([
+        { blockerId: OWNER, targetId: TARGET, isBlocked: false },
+      ]);
       const blocked = makeContact({ status: ContactStatus.BLOCKED });
       repo.findOne.mockResolvedValue(blocked);
 

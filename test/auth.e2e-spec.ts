@@ -61,10 +61,7 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should return 400 for missing wallet address', () => {
-      return request(app.getHttpServer())
-        .post('/api/auth/challenge')
-        .send({})
-        .expect(400);
+      return request(app.getHttpServer()).post('/api/auth/challenge').send({}).expect(400);
     });
 
     it('should replace existing challenge for same wallet', async () => {
@@ -127,10 +124,7 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should return 400 for missing refresh token', () => {
-      return request(app.getHttpServer())
-        .post('/api/auth/refresh')
-        .send({})
-        .expect(400);
+      return request(app.getHttpServer()).post('/api/auth/refresh').send({}).expect(400);
     });
   });
 

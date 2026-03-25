@@ -16,16 +16,13 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
 import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
 import { plainToInstance } from 'class-transformer';
+import { UserSettingsService } from '../user-settings/user-settings.service';
 
 @Injectable()
 export class UsersService {
-  private readonly logger = new Logger(UsersService.name);
-
   constructor(
     private readonly usersRepository: UsersRepository,
-    @Optional()
-    @Inject(forwardRef(() => AnalyticsService))
-    private readonly analyticsService?: AnalyticsService,
+    private readonly userSettingsService: UserSettingsService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
@@ -60,31 +57,19 @@ export class UsersService {
     });
 
     const savedUser = await this.usersRepository.save(user);
-
-    if (this.analyticsService) {
-      try {
-        await this.analyticsService.trackEvent('new_users', savedUser.id, {
-          source: 'users_service.create',
-          idempotencyKey: `new_users:${savedUser.id}`,
-        });
-      } catch (error) {
-        this.logger.warn(
-          `Failed to track new user analytics for ${savedUser.id}: ${String(error)}`,
-        );
-      }
-    }
-
+    await this.userSettingsService.ensureSettingsForUser(savedUser.id);
     return this.toResponseDto(savedUser);
   }
 
-  async findById(id: string): Promise<UserResponseDto> {
+  async findById(id: string, viewerId?: string): Promise<UserResponseDto> {
     const user = await this.usersRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    return this.toResponseDto(user);
+    const dto = this.toResponseDto(user);
+    return this.applyPrivacy(dto, viewerId);
   }
 
   async findByUsername(username: string): Promise<UserResponseDto> {
@@ -94,7 +79,7 @@ export class UsersService {
       throw new NotFoundException(`User with username ${username} not found`);
     }
 
-    return this.toResponseDto(user);
+    return this.applyPrivacy(this.toResponseDto(user));
   }
 
   async findByWalletAddress(walletAddress: string): Promise<UserResponseDto> {
@@ -104,7 +89,7 @@ export class UsersService {
       throw new NotFoundException(`User with wallet address ${walletAddress} not found`);
     }
 
-    return this.toResponseDto(user);
+    return this.applyPrivacy(this.toResponseDto(user));
   }
 
   async updateProfile(id: string, updateProfileDto: UpdateProfileDto): Promise<UserResponseDto> {
@@ -164,7 +149,7 @@ export class UsersService {
     const [users, total] = await this.usersRepository.findActiveUsers(pagination);
 
     return {
-      data: users.map((user) => this.toResponseDto(user)),
+      data: await Promise.all(users.map(async (user) => this.applyPrivacy(this.toResponseDto(user)))),
       meta: {
         page,
         limit,
@@ -178,5 +163,17 @@ export class UsersService {
     return plainToInstance(UserResponseDto, user, {
       excludeExtraneousValues: true,
     });
+  }
+
+  private async applyPrivacy(user: UserResponseDto, viewerId?: string): Promise<UserResponseDto> {
+    if (viewerId && viewerId === user.id) {
+      return user;
+    }
+
+    const privacy = await this.userSettingsService.getPrivacySettings(user.id);
+    if (!privacy.onlineStatusVisible) {
+      user.isActive = false;
+    }
+    return user;
   }
 }

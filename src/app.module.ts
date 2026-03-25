@@ -13,7 +13,9 @@ import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
-import { AnalyticsModule } from './analytics/analytics.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { ObservabilityModule } from './observability/observability.module';
+import { UserSettingsModule } from './user-settings/user-settings.module';
 
 @Module({
   imports: [
@@ -42,6 +44,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
     WalletsModule,
     AnalyticsModule,
     ScheduledJobsModule,
+    WebhooksModule,
+    ObservabilityModule,
+    UserSettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
