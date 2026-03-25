@@ -17,6 +17,7 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
         limit: 10,
       },
     ]),
+    CacheModule,
     LoggingModule,
     ScheduleModule.forRoot(),
     HealthModule,
@@ -49,7 +51,6 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     ScheduledJobsModule,
     WebhooksModule,
     ObservabilityModule,
-    UserSettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
