@@ -1,46 +1,75 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
+import compression from 'compression';
 import { AppModule } from './app.module';
-import { AdminModule } from './admin/admin.module';
-import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
-import { LoggingInterceptor } from './logger/logging.interceptor';
+import { WinstonModule } from 'nest-winston';
+import { winstonConfig } from './config/winston.config';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { LoggingMiddleware } from './common/logging/logging.middleware';
+import { LoggerService } from './common/logging/logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-    }),
-  );
-  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
-  app.useGlobalInterceptors(new LoggingInterceptor());
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  app.use(require('helmet')());
+  const app = await NestFactory.create(AppModule, {
+    logger: WinstonModule.createLogger(winstonConfig),
+  });
+
+  const configService = app.get(ConfigService);
+
+  // Global prefix
+  app.setGlobalPrefix('api');
+
+  // Security
+  app.use(helmet());
+  app.use(compression());
 
   // CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
     credentials: true,
   });
 
-  if (process.env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Admin API')
-      .setDescription('Admin dashboard API for user management, audit logs, and platform configuration')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-    const document = SwaggerModule.createDocument(app, config, {
-      include: [AdminModule],
-    });
-    SwaggerModule.setup('admin/docs', app, document, {
-      jsonDocumentUrl: 'admin/docs-json',
-    });
-  }
+  // Global validation pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
 
-  await app.listen(process.env.PORT ?? 3000);
+  // Global exception filter
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Logging middleware
+  const loggerService = app.get(LoggerService);
+  app.use(new LoggingMiddleware(loggerService));
+
+  // Swagger documentation
+  const config = new DocumentBuilder()
+    .setTitle('Gasless Gossip API')
+    .setDescription('API documentation for Gasless Gossip backend')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addTag('auth', 'Authentication endpoints')
+    .addTag('users', 'User management')
+    .addTag('rooms', 'Chat rooms')
+    .addTag('health', 'Health check endpoints')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const port = configService.get<number>('PORT', 3001);
+  await app.listen(port);
+
+  console.log(`🚀 Application is running on: http://localhost:${port}`);
+  console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`);
 }
+
 bootstrap();

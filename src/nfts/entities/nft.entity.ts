@@ -1,4 +1,4 @@
-import { User } from '../../user/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
@@ -9,6 +9,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { WalletNetwork } from '../../wallets/entities/wallet.entity';
 
 @Entity('nfts')
 @Index('IDX_NFTS_ASSET', ['network', 'contractAddress', 'tokenId'], {
@@ -44,9 +45,9 @@ export class NFT {
   @Column({ nullable: true })
   collection!: string | null;
 
-  @Column({ default: 'stellar' })
+  @Column({ default: WalletNetwork.STELLAR_MAINNET })
   @Index('IDX_NFTS_NETWORK')
-  network!: string;
+  network!: WalletNetwork;
 
   @Column({ type: 'timestamp', nullable: true })
   lastSyncedAt!: Date | null;

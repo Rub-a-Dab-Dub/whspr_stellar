@@ -4,17 +4,18 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as StellarSdk from '@stellar/stellar-sdk';
 import { createHash } from 'crypto';
+import Redis from 'ioredis';
+import * as StellarSdk from '@stellar/stellar-sdk';
 import { Repository } from 'typeorm';
-import { RedisService } from '../redis/redis.service';
-import { User } from '../user/entities/user.entity';
-import { UserProfile } from '../user/entities/user-profile.entity';
+import { User } from '../users/entities/user.entity';
 import { NFT } from './entities/nft.entity';
 import { NFTQueryFilters, NFTsRepository } from './repositories/nfts.repository';
+import { Wallet, WalletNetwork } from '../wallets/entities/wallet.entity';
 
 interface StellarAssetBalance {
   asset_type: string;
@@ -46,7 +47,7 @@ interface ResolvedNFTAsset {
   imageUrl: string;
   name: string;
   collection: string;
-  network: string;
+  network: WalletNetwork;
 }
 
 interface ResolvedMetadata {
@@ -56,57 +57,60 @@ interface ResolvedMetadata {
   collection: string;
 }
 
-interface StellarTomlCurrency {
-  code?: string;
-  issuer?: string;
-  name?: string;
-  image?: string;
-  desc?: string;
-  conditions?: string;
-  [key: string]: unknown;
-}
-
 @Injectable()
-export class NFTsService {
+export class NFTsService implements OnModuleDestroy {
   private readonly logger = new Logger(NFTsService.name);
   private readonly metadataCacheTtlSeconds = 300;
-  private readonly network = 'stellar';
-  private readonly server: StellarSdk.Horizon.Server;
-  private readonly networkPassphrase: string;
+  private readonly servers: Record<WalletNetwork, StellarSdk.Horizon.Server>;
+  private readonly redis: Redis;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly nftsRepository: NFTsRepository,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly redisService: RedisService,
+    @InjectRepository(Wallet)
+    private readonly walletRepository: Repository<Wallet>,
   ) {
-    const horizonUrl =
-      this.configService.get<string>('STELLAR_HORIZON_URL') ||
-      'https://horizon-testnet.stellar.org';
+    this.servers = {
+      [WalletNetwork.STELLAR_MAINNET]: new StellarSdk.Horizon.Server(
+        this.configService.get<string>(
+          'STELLAR_HORIZON_MAINNET_URL',
+          'https://horizon.stellar.org',
+        ),
+      ),
+      [WalletNetwork.STELLAR_TESTNET]: new StellarSdk.Horizon.Server(
+        this.configService.get<string>(
+          'STELLAR_HORIZON_TESTNET_URL',
+          'https://horizon-testnet.stellar.org',
+        ),
+      ),
+    };
 
-    this.server = new StellarSdk.Horizon.Server(horizonUrl);
-    this.networkPassphrase =
-      this.configService.get<string>('STELLAR_NETWORK_PASSPHRASE') ||
-      StellarSdk.Networks.TESTNET;
+    this.redis = new Redis({
+      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
+      port: this.configService.get<number>('REDIS_PORT', 6379),
+      password: this.configService.get<string>('REDIS_PASSWORD') || undefined,
+      db: this.configService.get<number>('REDIS_DB', 0),
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+    });
   }
 
   async syncUserNFTs(userId: string): Promise<NFT[]> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
+    const [user, wallet] = await Promise.all([
+      this.userRepository.findOne({ where: { id: userId } }),
+      this.getPrimaryStellarWallet(userId),
+    ]);
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.walletAddress) {
-      throw new BadRequestException(
-        'User does not have a Stellar wallet configured',
-      );
-    }
-
-    const discoveredNFTs = await this.fetchWalletNFTs(user.walletAddress);
+    const discoveredNFTs = await this.fetchWalletNFTs(
+      wallet.walletAddress,
+      wallet.network,
+    );
     const syncedAt = new Date();
     const seenKeys = new Set<string>();
     const entitiesToSave: NFT[] = [];
@@ -147,7 +151,7 @@ export class NFTsService {
     }
 
     const currentOwnedNFTs = await this.nftsRepository.findByOwnerId(userId, {
-      network: this.network,
+      network: wallet.network,
     });
     const staleNFTs = currentOwnedNFTs.filter(
       (nft) =>
@@ -160,7 +164,7 @@ export class NFTsService {
       await this.nftsRepository.remove(staleNFTs);
     }
 
-    return this.nftsRepository.findByOwnerId(userId, { network: this.network });
+    return this.nftsRepository.findByOwnerId(userId, { network: wallet.network });
   }
 
   async getNFT(id: string, ownerId?: string): Promise<NFT> {
@@ -183,23 +187,18 @@ export class NFTsService {
   }
 
   async useAsAvatar(ownerId: string, nftId: string): Promise<User> {
-    const [user, nft] = await Promise.all([
+    const [user, nft, wallet] = await Promise.all([
       this.userRepository.findOne({ where: { id: ownerId } }),
       this.getNFT(nftId, ownerId),
+      this.getPrimaryStellarWallet(ownerId),
     ]);
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.walletAddress) {
-      throw new BadRequestException(
-        'User does not have a Stellar wallet configured',
-      );
-    }
-
     const isOwner = await this.verifyOwnership(
-      user.walletAddress,
+      wallet.walletAddress,
       nft.contractAddress,
       nft.tokenId,
       nft.network,
@@ -211,7 +210,7 @@ export class NFTsService {
       );
     }
 
-    user.profile = this.buildUpdatedProfile(user.profile, nft.imageUrl);
+    user.avatarUrl = nft.imageUrl;
 
     return this.userRepository.save(user);
   }
@@ -220,14 +219,10 @@ export class NFTsService {
     ownerWalletAddress: string,
     contractAddress: string,
     tokenId: string,
-    network: string = this.network,
+    network: WalletNetwork = WalletNetwork.STELLAR_MAINNET,
   ): Promise<boolean> {
-    if (network !== this.network) {
-      return false;
-    }
-
     try {
-      const page = await this.server.accounts().forAsset(
+      const page = await this.getServer(network).accounts().forAsset(
         new StellarSdk.Asset(tokenId, contractAddress),
       ).call();
       const records = this.extractRecords<Record<string, unknown>>(page);
@@ -248,7 +243,7 @@ export class NFTsService {
       }
 
       this.logger.error(
-        `Failed to verify Stellar NFT ownership for ${tokenId}:${contractAddress}: ${error.message}`,
+        `Failed to verify Stellar NFT ownership for ${tokenId}:${contractAddress}: ${this.getErrorMessage(error)}`,
       );
       return false;
     }
@@ -264,9 +259,10 @@ export class NFTsService {
 
   private async fetchWalletNFTs(
     walletAddress: string,
+    network: WalletNetwork,
   ): Promise<ResolvedNFTAsset[]> {
     try {
-      const account = await this.server.accounts().accountId(walletAddress).call();
+      const account = await this.getServer(network).loadAccount(walletAddress);
       const balances = Array.isArray((account as any)?.balances)
         ? ((account as any).balances as StellarAssetBalance[])
         : [];
@@ -274,7 +270,7 @@ export class NFTsService {
       const nfts = await Promise.all(
         balances
           .filter((balance) => this.isIssuedAsset(balance))
-          .map((balance) => this.resolveBalanceToNFT(balance)),
+          .map((balance) => this.resolveBalanceToNFT(balance, network)),
       );
 
       return nfts.filter((nft): nft is ResolvedNFTAsset => nft !== null);
@@ -287,7 +283,7 @@ export class NFTsService {
       }
 
       this.logger.error(
-        `Failed to fetch Stellar NFTs for wallet ${walletAddress}: ${error.message}`,
+        `Failed to fetch Stellar NFTs for wallet ${walletAddress}: ${this.getErrorMessage(error)}`,
       );
       throw new BadRequestException('Failed to sync NFTs from Stellar Horizon');
     }
@@ -295,6 +291,7 @@ export class NFTsService {
 
   private async resolveBalanceToNFT(
     balance: StellarAssetBalance,
+    network: WalletNetwork,
   ): Promise<ResolvedNFTAsset | null> {
     const assetCode = balance.asset_code;
     const assetIssuer = balance.asset_issuer;
@@ -303,13 +300,17 @@ export class NFTsService {
       return null;
     }
 
-    const assetRecord = await this.fetchAssetRecord(assetCode, assetIssuer);
+    const assetRecord = await this.fetchAssetRecord(
+      assetCode,
+      assetIssuer,
+      network,
+    );
 
     if (!assetRecord || !this.isNFTLikeAsset(balance, assetRecord)) {
       return null;
     }
 
-    const resolvedMetadata = await this.resolveMetadata(assetRecord);
+    const resolvedMetadata = await this.resolveMetadata(assetRecord, network);
 
     return {
       contractAddress: assetIssuer,
@@ -325,16 +326,17 @@ export class NFTsService {
       imageUrl: resolvedMetadata.imageUrl,
       name: resolvedMetadata.name,
       collection: resolvedMetadata.collection,
-      network: this.network,
+      network,
     };
   }
 
   private async fetchAssetRecord(
     assetCode: string,
     assetIssuer: string,
+    network: WalletNetwork,
   ): Promise<HorizonAssetRecord | null> {
     try {
-      const page = await this.server
+      const page = await this.getServer(network)
         .assets()
         .forCode(assetCode)
         .forIssuer(assetIssuer)
@@ -348,7 +350,7 @@ export class NFTsService {
       }
 
       this.logger.error(
-        `Failed to fetch Horizon asset ${assetCode}:${assetIssuer}: ${error.message}`,
+        `Failed to fetch Horizon asset ${assetCode}:${assetIssuer}: ${this.getErrorMessage(error)}`,
       );
       throw error;
     }
@@ -356,9 +358,10 @@ export class NFTsService {
 
   private async resolveMetadata(
     assetRecord: HorizonAssetRecord,
+    network: WalletNetwork,
   ): Promise<ResolvedMetadata> {
-    const cacheKey = `nfts:metadata:${this.network}:${assetRecord.asset_issuer}:${assetRecord.asset_code}`;
-    const cachedValue = await this.redisService.get(cacheKey);
+    const cacheKey = `nfts:metadata:${network}:${assetRecord.asset_issuer}:${assetRecord.asset_code}`;
+    const cachedValue = await this.getCachedValue(cacheKey);
 
     if (cachedValue) {
       try {
@@ -368,36 +371,24 @@ export class NFTsService {
       }
     }
 
-    const assetContractId = this.getAssetContractId(
-      assetRecord.asset_code,
-      assetRecord.asset_issuer,
-    );
-    const { homeDomain, currency } = await this.resolveCurrencyToml(assetRecord);
+    const homeDomain = await this.getIssuerHomeDomain(assetRecord, network);
     const fallbackImageUrl = this.buildFallbackImageUrl(
       assetRecord.asset_code,
       assetRecord.asset_issuer,
     );
 
     const metadata: ResolvedMetadata = {
-      imageUrl:
-        typeof currency?.image === 'string' && currency.image.length > 0
-          ? currency.image
-          : fallbackImageUrl,
-      name:
-        typeof currency?.name === 'string' && currency.name.length > 0
-          ? currency.name
-          : assetRecord.asset_code,
+      imageUrl: fallbackImageUrl,
+      name: assetRecord.asset_code,
       collection: homeDomain || assetRecord.asset_issuer,
       metadata: {
         canonicalAsset: `${assetRecord.asset_code}:${assetRecord.asset_issuer}`,
         asset: this.serializeAssetRecord(assetRecord),
         issuerHomeDomain: homeDomain || null,
-        assetContractId,
-        currency: currency ?? null,
       },
     };
 
-    await this.redisService.set(
+    await this.setCachedValue(
       cacheKey,
       JSON.stringify(metadata),
       this.metadataCacheTtlSeconds,
@@ -406,52 +397,23 @@ export class NFTsService {
     return metadata;
   }
 
-  private async resolveCurrencyToml(assetRecord: HorizonAssetRecord): Promise<{
-    homeDomain: string | null;
-    currency: StellarTomlCurrency | null;
-  }> {
+  private async getIssuerHomeDomain(
+    assetRecord: HorizonAssetRecord,
+    network: WalletNetwork,
+  ): Promise<string | null> {
     try {
-      const issuerAccount = (await this.server.accounts().accountId(
+      const issuerAccount = await this.getServer(network).loadAccount(
         assetRecord.asset_issuer,
-      ).call()) as Record<string, unknown>;
-      const homeDomain =
-        typeof issuerAccount.home_domain === 'string'
-          ? issuerAccount.home_domain
-          : null;
-
-      if (!homeDomain) {
-        return {
-          homeDomain: null,
-          currency: null,
-        };
-      }
-
-      const resolvedToml = await StellarSdk.StellarToml.Resolver.resolve(
-        homeDomain,
       );
-      const currencies = Array.isArray((resolvedToml as any)?.CURRENCIES)
-        ? ((resolvedToml as any).CURRENCIES as StellarTomlCurrency[])
-        : [];
-      const currency =
-        currencies.find(
-          (item) =>
-            item.code === assetRecord.asset_code &&
-            (!item.issuer || item.issuer === assetRecord.asset_issuer),
-        ) || null;
+      const homeDomain = (issuerAccount as unknown as { home_domain?: unknown })
+        .home_domain;
 
-      return {
-        homeDomain,
-        currency,
-      };
+      return typeof homeDomain === 'string' ? homeDomain : null;
     } catch (error) {
       this.logger.debug(
-        `No stellar.toml metadata found for ${assetRecord.asset_code}:${assetRecord.asset_issuer}`,
+        `No issuer home domain found for ${assetRecord.asset_code}:${assetRecord.asset_issuer}`,
       );
-
-      return {
-        homeDomain: null,
-        currency: null,
-      };
+      return null;
     }
   }
 
@@ -476,18 +438,6 @@ export class NFTsService {
     );
   }
 
-  private buildUpdatedProfile(
-    profile: UserProfile | undefined,
-    avatarUrl: string | null,
-  ): UserProfile {
-    return {
-      bio: profile?.bio,
-      avatarUrl: avatarUrl ?? profile?.avatarUrl,
-      website: profile?.website,
-      location: profile?.location,
-    };
-  }
-
   private toAssetKey(
     contractAddress: string,
     tokenId: string,
@@ -506,23 +456,6 @@ export class NFTsService {
     }
 
     return [];
-  }
-
-  private getAssetContractId(
-    assetCode: string,
-    assetIssuer: string,
-  ): string | null {
-    try {
-      const asset = new StellarSdk.Asset(assetCode, assetIssuer) as StellarSdk.Asset & {
-        contractId?: (networkPassphrase: string) => string;
-      };
-
-      return typeof asset.contractId === 'function'
-        ? asset.contractId(this.networkPassphrase)
-        : null;
-    } catch (error) {
-      return null;
-    }
   }
 
   private serializeAssetRecord(
@@ -580,5 +513,100 @@ export class NFTsService {
         (error as any).status === 404 ||
         (error as any).name === 'NotFoundError')
     );
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return String(error);
+  }
+
+  private getServer(network: WalletNetwork): StellarSdk.Horizon.Server {
+    const server = this.servers[network];
+
+    if (!server) {
+      throw new BadRequestException(`Unsupported Stellar network: ${network}`);
+    }
+
+    return server;
+  }
+
+  private async getPrimaryStellarWallet(userId: string): Promise<Wallet> {
+    const wallet =
+      (await this.walletRepository.findOne({
+        where: {
+          userId,
+          network: WalletNetwork.STELLAR_MAINNET,
+          isPrimary: true,
+        },
+        order: {
+          createdAt: 'ASC',
+        },
+      })) ??
+      (await this.walletRepository.findOne({
+        where: {
+          userId,
+          network: WalletNetwork.STELLAR_TESTNET,
+          isPrimary: true,
+        },
+        order: {
+          createdAt: 'ASC',
+        },
+      })) ??
+      (await this.walletRepository.findOne({
+        where: {
+          userId,
+          network: WalletNetwork.STELLAR_MAINNET,
+        },
+        order: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      })) ??
+      (await this.walletRepository.findOne({
+        where: {
+          userId,
+          network: WalletNetwork.STELLAR_TESTNET,
+        },
+        order: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      }));
+
+    if (!wallet) {
+      throw new BadRequestException(
+        'User does not have a linked Stellar wallet configured',
+      );
+    }
+
+    return wallet;
+  }
+
+  private async getCachedValue(key: string): Promise<string | null> {
+    try {
+      return await this.redis.get(key);
+    } catch (error) {
+      this.logger.warn(`Failed to read NFT metadata cache for ${key}`);
+      return null;
+    }
+  }
+
+  private async setCachedValue(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<void> {
+    try {
+      await this.redis.set(key, value, 'EX', ttlSeconds);
+    } catch (error) {
+      this.logger.warn(`Failed to write NFT metadata cache for ${key}`);
+    }
+  }
+
+  onModuleDestroy(): void {
+    this.redis.disconnect();
   }
 }

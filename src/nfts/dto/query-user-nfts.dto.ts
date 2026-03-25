@@ -1,4 +1,5 @@
-import { IsBooleanString, IsOptional, IsString } from 'class-validator';
+import { IsBooleanString, IsEnum, IsOptional, IsString } from 'class-validator';
+import { WalletNetwork } from '../../wallets/entities/wallet.entity';
 
 export class QueryUserNFTsDto {
   @IsOptional()
@@ -14,8 +15,8 @@ export class QueryUserNFTsDto {
   tokenId?: string;
 
   @IsOptional()
-  @IsString()
-  network?: string;
+  @IsEnum(WalletNetwork)
+  network?: WalletNetwork;
 
   @IsOptional()
   @IsBooleanString()

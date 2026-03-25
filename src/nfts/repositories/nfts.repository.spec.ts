@@ -1,3 +1,4 @@
+import { WalletNetwork } from '../../wallets/entities/wallet.entity';
 import { NFT } from '../entities/nft.entity';
 import { NFTsRepository } from './nfts.repository';
 
@@ -24,7 +25,7 @@ describe('NFTsRepository', () => {
       collection: 'issuer.example',
       contractAddress: 'GISSUER',
       tokenId: 'ART1',
-      network: 'stellar',
+      network: WalletNetwork.STELLAR_MAINNET,
     });
 
     expect((repository as any).createQueryBuilder).toHaveBeenCalledWith('nft');
@@ -63,7 +64,7 @@ describe('NFTsRepository', () => {
       where: {
         contractAddress: 'GISSUER',
         tokenId: 'ART1',
-        network: 'stellar',
+        network: WalletNetwork.STELLAR_MAINNET,
       },
     });
     expect(result).toBe(nft);

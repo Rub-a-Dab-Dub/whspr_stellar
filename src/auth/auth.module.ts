@@ -1,26 +1,47 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { AuthService } from './auth.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+
 import { AuthController } from './auth.controller';
+import { AuthService } from './services/auth.service';
+import { CryptoService } from './services/crypto.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
-import { UsersModule } from '../user/user.module';
-import { UsersModule as ProfileUsersModule } from '../users/users.module';
-import { RedisModule } from '../redis/redis.module';
-import { AdminModule } from '../admin/admin.module';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+
+import { AuthChallenge } from './entities/auth-challenge.entity';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { AuthAttempt } from './entities/auth-attempt.entity';
+
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([AuthChallenge, RefreshToken, AuthAttempt]),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '15m' },
+      }),
+    }),
     UsersModule,
-    ProfileUsersModule,
-    RedisModule,
-    AdminModule,
-    PassportModule,
-    JwtModule.register({}), // We configure JWT per token type in the service
   ],
-  providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
   controllers: [AuthController],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    CryptoService,
+    JwtStrategy,
+    // Apply JwtAuthGuard globally — routes opt-out with @Public()
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

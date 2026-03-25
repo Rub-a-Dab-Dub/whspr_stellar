@@ -89,12 +89,138 @@ impl BaseContract {
             .set(&DataKey::RateLimitConfig, &config);
     }
 
-    pub fn set_reputation(env: Env, user: Address, reputation: u32) {
+    pub fn reset_reputation(env: Env, user: Address, justification: Symbol) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
+        
+        let record = ReputationRecord {
+            score: 0,
+            total_ratings: 0,
+            total_score_sum: 0,
+            flags: 0,
+            is_restricted: false,
+        };
         env.storage()
             .instance()
-            .set(&DataKey::UserReputation(user), &reputation);
+            .set(&DataKey::UserReputation(user.clone()), &record);
+            
+        Self::append_reputation_event(&env, user.clone(), ReputationEvent {
+            event_type: Symbol::new(&env, "reset"),
+            actor: Some(admin),
+            score: None,
+            context_or_reason: justification.clone(),
+            timestamp: env.ledger().timestamp(),
+        });
+        
+        env.events().publish((Symbol::new(&env, "reputation_reset"), user), justification);
+    }
+
+    pub fn rate_user(env: Env, rater: Address, user: Address, score: i32, context: Symbol) -> Result<(), ContractError> {
+        rater.require_auth();
+
+        let context_key = DataKey::UserRatingContext(rater.clone(), user.clone(), context.clone());
+        if env.storage().instance().has(&context_key) {
+            return Err(ContractError::RatingAlreadySubmitted);
+        }
+        env.storage().instance().set(&context_key, &true);
+
+        let mut record: ReputationRecord = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserReputation(user.clone()))
+            .unwrap_or(ReputationRecord {
+                score: 0,
+                total_ratings: 0,
+                total_score_sum: 0,
+                flags: 0,
+                is_restricted: false,
+            });
+
+        record.total_ratings += 1;
+        record.total_score_sum += score as i128;
+        
+        // Simple unweighted average logic mapped to score. Assume score maps to 0-100 logic directly
+        let avg = record.total_score_sum / record.total_ratings as i128;
+        record.score = if avg > 100 { 100 } else if avg < 0 { 0 } else { avg as u32 };
+
+        env.storage().instance().set(&DataKey::UserReputation(user.clone()), &record);
+
+        Self::append_reputation_event(&env, user.clone(), ReputationEvent {
+            event_type: Symbol::new(&env, "rating"),
+            actor: Some(rater.clone()),
+            score: Some(score),
+            context_or_reason: context.clone(),
+            timestamp: env.ledger().timestamp(),
+        });
+
+        env.events().publish(
+            (Symbol::new(&env, "user_rated"), rater, user),
+            (score, context),
+        );
+
+        Ok(())
+    }
+
+    pub fn get_reputation(env: Env, address: Address) -> ReputationRecord {
+        env.storage()
+            .instance()
+            .get(&DataKey::UserReputation(address))
+            .unwrap_or(ReputationRecord {
+                score: 0,
+                total_ratings: 0,
+                total_score_sum: 0,
+                flags: 0,
+                is_restricted: false,
+            })
+    }
+
+    pub fn flag_user(env: Env, flagger: Address, user: Address, reason: Symbol) -> Result<(), ContractError> {
+        flagger.require_auth();
+
+        let mut record: ReputationRecord = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserReputation(user.clone()))
+            .unwrap_or(ReputationRecord {
+                score: 0,
+                total_ratings: 0,
+                total_score_sum: 0,
+                flags: 0,
+                is_restricted: false,
+            });
+
+        record.flags += 1;
+        if record.flags >= 3 {
+            record.is_restricted = true;
+        }
+
+        env.storage().instance().set(&DataKey::UserReputation(user.clone()), &record);
+
+        Self::append_reputation_event(&env, user.clone(), ReputationEvent {
+            event_type: Symbol::new(&env, "flag"),
+            actor: Some(flagger.clone()),
+            score: None,
+            context_or_reason: reason.clone(),
+            timestamp: env.ledger().timestamp(),
+        });
+
+        env.events().publish((Symbol::new(&env, "user_flagged"), flagger, user), reason);
+
+        Ok(())
+    }
+
+    pub fn get_reputation_history(env: Env, address: Address) -> Vec<ReputationEvent> {
+        env.storage()
+            .instance()
+            .get(&DataKey::ReputationHistory(address))
+            .unwrap_or(Vec::new(&env))
+    }
+
+    fn append_reputation_event(env: &Env, user: Address, event: ReputationEvent) {
+        let key = DataKey::ReputationHistory(user);
+        let mut history: Vec<ReputationEvent> = env.storage().instance().get(&key).unwrap_or(Vec::new(env));
+        history.push_back(event);
+        env.storage().instance().set(&key, &history);
     }
 
     pub fn set_override(env: Env, user: Address, is_exempt: bool) {
@@ -1133,6 +1259,48 @@ impl BaseContract {
             })
     }
 
+    pub fn set_claim_window_config(env: Env, config: ClaimWindowConfig) {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
+        admin.require_auth();
+
+        // Validate input: must be > 0 and reasonably bounded
+        let validity = config.claim_validity_ledgers;
+        if validity == 0 || validity >= 1_000_000 {
+            panic!("claim_validity_ledgers must be > 0 and < 1_000_000");
+        }
+
+        // Build new ClaimConfig to persist (storage uses u32)
+        let new_cfg = ClaimConfig {
+            claim_window_enabled: config.enabled,
+            claim_validity_ledgers: validity as u32,
+        };
+
+        // Read old for event emission
+        let old_cfg_opt: Option<ClaimConfig> = env.storage().instance().get(&DataKey::ClaimConfig);
+        let old_window = old_cfg_opt
+            .map(|c: ClaimConfig| ClaimWindowConfig {
+                claim_validity_ledgers: c.claim_validity_ledgers as u64,
+                enabled: c.claim_window_enabled,
+            })
+            .unwrap_or(ClaimWindowConfig {
+                claim_validity_ledgers: 0,
+                enabled: false,
+            });
+
+        // Persist
+        env.storage().instance().set(&DataKey::ClaimConfig, &new_cfg);
+
+        // Emit event with old and new window config
+        env.events().publish(
+            (Symbol::new(&env, "claim_config_updated"), admin),
+            (old_window, config, env.ledger().timestamp()),
+        );
+    }
+
     pub fn update_admin(env: Env, new_admin: Address) {
         let admin: Address = env
             .storage()
@@ -2121,6 +2289,149 @@ impl BaseContract {
 
     pub fn get_dashboard(env: Env) -> Analytics {
         env.storage().get(&DataKey::AnalyticsDashboard).unwrap_or_default()
+    }
+
+    pub fn transfer_in_chat(
+        env: Env,
+        from: Address,
+        to: Address,
+        amount: i128,
+        conversation_id: BytesN<32>,
+    ) -> Result<(), ContractError> {
+        from.require_auth();
+        Self::validate_transfer_amount(&env, amount)?;
+
+        let settings = Self::get_platform_settings(env.clone());
+        let token_client = token::Client::new(&env, &settings.fee_token);
+
+        // Implementation of allowance check before transfer execution
+        let allowance = token_client.allowance(&from, &env.current_contract_address());
+        if allowance < amount {
+            return Err(ContractError::InsufficientAllowance);
+        }
+
+        // Execute transfer using allowance
+        token_client.transfer_from(&env.current_contract_address(), &from, &to, &amount);
+
+        // Store transfer-to-message association on-chain
+        let record = ChatTransfer {
+            from: from.clone(),
+            to: to.clone(),
+            amount,
+            conversation_id: conversation_id.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+        env.storage().instance().set(&DataKey::ChatTransfer(conversation_id.clone()), &record);
+
+        // Emit TransferSent event
+        env.events().publish(
+            (Symbol::new(&env, "TransferSent"), from, to),
+            (amount, conversation_id),
+        );
+
+        Ok(())
+    }
+
+    pub fn tip(
+        env: Env,
+        from: Address,
+        to: Address,
+        amount: i128,
+        message_id: BytesN<32>,
+    ) -> Result<(), ContractError> {
+        from.require_auth();
+        Self::validate_transfer_amount(&env, amount)?;
+
+        let settings = Self::get_platform_settings(env.clone());
+        let token_client = token::Client::new(&env, &settings.fee_token);
+
+        let allowance = token_client.allowance(&from, &env.current_contract_address());
+        if allowance < amount {
+            return Err(ContractError::InsufficientAllowance);
+        }
+
+        token_client.transfer_from(&env.current_contract_address(), &from, &to, &amount);
+
+        let record = TipRecord {
+            from: from.clone(),
+            to: to.clone(),
+            amount,
+            message_id: message_id.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+        env.storage().instance().set(&DataKey::MessageTip(message_id.clone()), &record);
+
+        // Emit TipSent event
+        env.events().publish(
+            (Symbol::new(&env, "TipSent"), from, to),
+            (amount, message_id),
+        );
+
+        Ok(())
+    }
+
+    pub fn split_bill(
+        env: Env,
+        from: Address,
+        recipients: Vec<Address>,
+        amounts: Vec<i128>,
+        conversation_id: BytesN<32>,
+    ) -> Result<(), ContractError> {
+        from.require_auth();
+
+        if recipients.len() != amounts.len() {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        let mut total_amount: i128 = 0;
+        for amt in amounts.iter() {
+            if amt <= 0 {
+                return Err(ContractError::InvalidAmount);
+            }
+            total_amount += amt;
+        }
+
+        Self::validate_transfer_amount(&env, total_amount)?;
+
+        let settings = Self::get_platform_settings(env.clone());
+        let token_client = token::Client::new(&env, &settings.fee_token);
+
+        let allowance = token_client.allowance(&from, &env.current_contract_address());
+        if allowance < total_amount {
+            return Err(ContractError::InsufficientAllowance);
+        }
+
+        // Atomically transfer: if any fails, Soroban rolls back the entire call
+        for i in 0..recipients.len() {
+            let recipient = recipients.get(i).unwrap();
+            let amount = amounts.get(i).unwrap();
+            token_client.transfer_from(&env.current_contract_address(), &from, &recipient, &amount);
+        }
+
+        let record = BillSplit {
+            from: from.clone(),
+            recipients: recipients.clone(),
+            amounts: amounts.clone(),
+            conversation_id: conversation_id.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+        env.storage().instance().set(&DataKey::SplitBill(conversation_id.clone()), &record);
+
+        // Emit BillSplit event
+        env.events().publish(
+            (Symbol::new(&env, "BillSplit"), from),
+            (recipients, amounts, conversation_id),
+        );
+
+        Ok(())
+    }
+
+    fn validate_transfer_amount(env: &Env, amount: i128) -> Result<(), ContractError> {
+        let min_threshold: i128 = 10_000_000; // Example: 1 XLM (10^7 stroops)
+        if amount < min_threshold {
+            return Err(ContractError::MinimumThresholdNotMet);
+        }
+        Ok(())
     }
 }
 

@@ -1,17 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
-import { User } from '../../user/entities/user.entity';
+import { In, Repository } from 'typeorm';
 import { NFTsService } from '../nfts.service';
+import { Wallet, WalletNetwork } from '../../wallets/entities/wallet.entity';
 
 @Injectable()
 export class NFTSyncJob {
   private readonly logger = new Logger(NFTSyncJob.name);
 
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    @InjectRepository(Wallet)
+    private readonly walletRepository: Repository<Wallet>,
     private readonly nftsService: NFTsService,
   ) {}
 
@@ -23,16 +23,19 @@ export class NFTSyncJob {
 
   private async syncTrackedWallets(): Promise<void> {
     try {
-      const users = await this.userRepository.find({
+      const wallets = await this.walletRepository.find({
         where: {
-          walletAddress: Not(IsNull()),
-          deletedAt: IsNull(),
+          isPrimary: true,
+          network: In([
+            WalletNetwork.STELLAR_MAINNET,
+            WalletNetwork.STELLAR_TESTNET,
+          ]),
         },
-        select: ['id', 'walletAddress'],
+        select: ['userId', 'walletAddress', 'network'],
       });
 
       const results = await Promise.allSettled(
-        users.map((user) => this.nftsService.syncUserNFTs(user.id)),
+        wallets.map((wallet) => this.nftsService.syncUserNFTs(wallet.userId)),
       );
 
       const failed = results.filter(
@@ -40,10 +43,13 @@ export class NFTSyncJob {
       ).length;
 
       this.logger.log(
-        `Scheduled Stellar NFT sync finished for ${users.length} users (${failed} failed)`,
+        `Scheduled Stellar NFT sync finished for ${wallets.length} wallets (${failed} failed)`,
       );
     } catch (error) {
-      this.logger.error('Scheduled Stellar NFT sync failed', error.stack);
+      this.logger.error(
+        'Scheduled Stellar NFT sync failed',
+        error instanceof Error ? error.stack : undefined,
+      );
     }
   }
 }

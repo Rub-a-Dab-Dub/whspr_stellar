@@ -1,5 +1,5 @@
 use crate::storage::DataKey;
-use crate::types::{ActionType, DailyStats, RateLimitConfig};
+use crate::types::{ActionType, DailyStats, RateLimitConfig, ReputationRecord};
 use soroban_sdk::{Address, Env};
 
 // Checks if an action is allowed based on limits and reputation.
@@ -28,11 +28,23 @@ pub fn check_can_act(env: &Env, user: &Address, action: ActionType) {
         .expect("RateLimitConfig not initialized");
 
     // 3. Load User Reputation (Default to 0)
-    let reputation: u32 = env
+    let record: ReputationRecord = env
         .storage()
         .instance()
         .get(&DataKey::UserReputation(user.clone()))
-        .unwrap_or(0);
+        .unwrap_or(ReputationRecord {
+            score: 0,
+            total_ratings: 0,
+            total_score_sum: 0,
+            flags: 0,
+            is_restricted: false,
+        });
+
+    if record.is_restricted {
+        panic!("Rate limit exceeded: User is restricted due to flags");
+    }
+
+    let reputation = record.score;
     // Clamp reputation to 100 for calculations
     let effective_rep = if reputation > 100 { 100 } else { reputation };
 

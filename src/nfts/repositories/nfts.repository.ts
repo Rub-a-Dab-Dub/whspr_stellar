@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
+import { WalletNetwork } from '../../wallets/entities/wallet.entity';
 import { NFT } from '../entities/nft.entity';
 
 export interface NFTQueryFilters {
   collection?: string;
   contractAddress?: string;
   tokenId?: string;
-  network?: string;
+  network?: WalletNetwork;
 }
 
 @Injectable()
@@ -70,7 +71,7 @@ export class NFTsRepository extends Repository<NFT> {
   async findByAsset(
     contractAddress: string,
     tokenId: string,
-    network: string = 'stellar',
+    network: WalletNetwork = WalletNetwork.STELLAR_MAINNET,
   ): Promise<NFT | null> {
     return this.findOne({
       where: {

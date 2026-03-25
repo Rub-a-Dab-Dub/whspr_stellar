@@ -2,97 +2,79 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { RedisService } from '../redis/redis.service';
-import { User } from '../user/entities/user.entity';
+import { User } from '../users/entities/user.entity';
+import { Wallet, WalletNetwork } from '../wallets/entities/wallet.entity';
 import { NFT } from './entities/nft.entity';
 import { NFTsRepository } from './repositories/nfts.repository';
 import { NFTsService } from './nfts.service';
 
-const mockResolver = {
-  resolve: jest.fn(),
+const mockRedis = {
+  get: jest.fn(),
+  set: jest.fn(),
+  disconnect: jest.fn(),
 };
 
-const mockServer = {
-  accounts: jest.fn(),
-  assets: jest.fn(),
-};
+jest.mock('ioredis', () =>
+  jest.fn().mockImplementation(() => mockRedis),
+);
 
-const mockAsset = jest
-  .fn()
-  .mockImplementation((code: string, issuer: string) => ({
-    code,
-    issuer,
-    contractId: jest.fn(() => `contract-${code}-${issuer}`),
-    toString: () => `${code}:${issuer}`,
-  }));
+const mockServersByUrl = new Map<string, any>();
 
 jest.mock('@stellar/stellar-sdk', () => ({
   Horizon: {
-    Server: jest.fn(() => mockServer),
+    Server: jest.fn((url: string) => mockServersByUrl.get(url)),
   },
-  Networks: {
-    TESTNET: 'TESTNET',
-  },
-  StellarToml: {
-    Resolver: mockResolver,
-  },
-  Asset: mockAsset,
+  Asset: jest.fn((code: string, issuer: string) => ({
+    code,
+    issuer,
+  })),
 }));
 
 describe('NFTsService', () => {
   let service: NFTsService;
+  let moduleRef: TestingModule;
   let nftsRepository: jest.Mocked<NFTsRepository>;
   let userRepository: jest.Mocked<any>;
-  let redisService: jest.Mocked<RedisService>;
-
-  let accountResponses: Record<string, unknown>;
-  let assetResponses: Record<string, unknown>;
-  let holderResponses: Record<string, unknown>;
+  let walletRepository: jest.Mocked<any>;
+  let mainnetServer: any;
+  let testnetServer: any;
 
   beforeEach(async () => {
-    accountResponses = {};
-    assetResponses = {};
-    holderResponses = {};
+    mainnetServer = {
+      loadAccount: jest.fn(),
+      assets: jest.fn(),
+      accounts: jest.fn(),
+    };
+    testnetServer = {
+      loadAccount: jest.fn(),
+      assets: jest.fn(),
+      accounts: jest.fn(),
+    };
 
-    mockServer.accounts.mockImplementation(() => ({
-      accountId: jest.fn((accountId: string) => ({
-        call: jest.fn().mockResolvedValue(accountResponses[accountId]),
-      })),
-      forAsset: jest.fn((asset: { code: string; issuer: string }) => ({
-        call: jest
-          .fn()
-          .mockResolvedValue(holderResponses[`${asset.code}:${asset.issuer}`]),
-      })),
-    }));
+    mockServersByUrl.clear();
+    mockServersByUrl.set('https://horizon.stellar.org', mainnetServer);
+    mockServersByUrl.set('https://horizon-testnet.stellar.org', testnetServer);
 
-    mockServer.assets.mockImplementation(() => ({
-      forCode: jest.fn((code: string) => ({
-        forIssuer: jest.fn((issuer: string) => ({
-          limit: jest.fn(() => ({
-            call: jest
-              .fn()
-              .mockResolvedValue(assetResponses[`${code}:${issuer}`]),
-          })),
-        })),
-      })),
-    }));
+    mockRedis.get.mockReset();
+    mockRedis.set.mockReset();
+    mockRedis.disconnect.mockReset();
 
-    const module: TestingModule = await Test.createTestingModule({
+    moduleRef = await Test.createTestingModule({
       providers: [
         NFTsService,
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string) => {
-              if (key === 'STELLAR_HORIZON_URL') {
+            get: jest.fn((key: string, defaultValue?: unknown) => {
+              if (key === 'STELLAR_HORIZON_MAINNET_URL') {
+                return 'https://horizon.stellar.org';
+              }
+
+              if (key === 'STELLAR_HORIZON_TESTNET_URL') {
                 return 'https://horizon-testnet.stellar.org';
               }
 
-              if (key === 'STELLAR_NETWORK_PASSPHRASE') {
-                return 'TESTNET';
-              }
-
-              return undefined;
+              return defaultValue;
             }),
           },
         },
@@ -117,107 +99,119 @@ describe('NFTsService', () => {
           },
         },
         {
-          provide: RedisService,
+          provide: getRepositoryToken(Wallet),
           useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
+            findOne: jest.fn(),
           },
         },
       ],
     }).compile();
 
-    service = module.get(NFTsService);
-    nftsRepository = module.get(NFTsRepository) as jest.Mocked<NFTsRepository>;
-    userRepository = module.get(getRepositoryToken(User)) as jest.Mocked<any>;
-    redisService = module.get(RedisService) as jest.Mocked<RedisService>;
-    mockResolver.resolve.mockReset();
-    mockAsset.mockClear();
+    service = moduleRef.get(NFTsService);
+    nftsRepository = moduleRef.get(NFTsRepository) as jest.Mocked<NFTsRepository>;
+    userRepository = moduleRef.get(getRepositoryToken(User)) as jest.Mocked<any>;
+    walletRepository = moduleRef.get(getRepositoryToken(Wallet)) as jest.Mocked<any>;
+  });
+
+  afterEach(async () => {
+    await moduleRef.close();
   });
 
   it('syncUserNFTs should persist discovered Stellar NFTs and evict stale ones', async () => {
+    const wallet: Wallet = {
+      id: 'wallet-1',
+      userId: 'user-1',
+      walletAddress: 'GUSER',
+      network: WalletNetwork.STELLAR_MAINNET,
+      isVerified: true,
+      isPrimary: true,
+      label: null,
+      createdAt: new Date(),
+      user: null as any,
+    };
     const staleNFT = {
       id: 'stale-id',
       contractAddress: 'GSTALE',
       tokenId: 'OLDNFT',
-      network: 'stellar',
+      network: WalletNetwork.STELLAR_MAINNET,
     } as NFT;
     const syncedNFT = {
       id: 'nft-1',
       contractAddress: 'GISSUER',
       tokenId: 'ART1',
       ownerId: 'user-1',
-      imageUrl: 'https://cdn.example.com/art1.png',
-      name: 'Genesis Art',
+      imageUrl: 'data:image/svg+xml,abc',
+      name: 'ART1',
       collection: 'issuer.example',
-      network: 'stellar',
+      network: WalletNetwork.STELLAR_MAINNET,
     } as NFT;
 
-    userRepository.findOne.mockResolvedValue({
-      id: 'user-1',
-      walletAddress: 'GUSER',
-    });
-    redisService.get.mockResolvedValue(null);
+    userRepository.findOne.mockResolvedValue({ id: 'user-1' });
+    walletRepository.findOne
+      .mockResolvedValueOnce(wallet)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    mockRedis.get.mockResolvedValue(null);
     nftsRepository.findByAsset.mockResolvedValue(null);
-    nftsRepository.save.mockResolvedValue([syncedNFT]);
+    (nftsRepository.save as jest.Mock).mockResolvedValue([syncedNFT]);
     nftsRepository.findByOwnerId
       .mockResolvedValueOnce([staleNFT])
       .mockResolvedValueOnce([syncedNFT]);
-    nftsRepository.remove.mockResolvedValue([staleNFT]);
-    mockResolver.resolve.mockResolvedValue({
-      CURRENCIES: [
-        {
-          code: 'ART1',
-          issuer: 'GISSUER',
-          name: 'Genesis Art',
-          image: 'https://cdn.example.com/art1.png',
-        },
-      ],
-    });
+    (nftsRepository.remove as jest.Mock).mockResolvedValue([staleNFT]);
 
-    accountResponses.GUSER = {
-      balances: [
-        {
-          asset_type: 'credit_alphanum4',
-          asset_code: 'ART1',
-          asset_issuer: 'GISSUER',
-          balance: '1.0000000',
-          limit: '1.0000000',
-          is_authorized: true,
-        },
-      ],
-    };
-    accountResponses.GISSUER = {
-      home_domain: 'issuer.example',
-    };
-    assetResponses['ART1:GISSUER'] = {
-      records: [
-        {
-          asset_type: 'credit_alphanum4',
-          asset_code: 'ART1',
-          asset_issuer: 'GISSUER',
-          amount: '1.0000000',
-          num_accounts: 1,
-        },
-      ],
-    };
+    mainnetServer.loadAccount
+      .mockResolvedValueOnce({
+        balances: [
+          {
+            asset_type: 'credit_alphanum4',
+            asset_code: 'ART1',
+            asset_issuer: 'GISSUER',
+            balance: '1.0000000',
+            limit: '1.0000000',
+            is_authorized: true,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        home_domain: 'issuer.example',
+      });
+    mainnetServer.assets.mockReturnValue({
+      forCode: jest.fn(() => ({
+        forIssuer: jest.fn(() => ({
+          limit: jest.fn(() => ({
+            call: jest.fn().mockResolvedValue({
+              records: [
+                {
+                  asset_type: 'credit_alphanum4',
+                  asset_code: 'ART1',
+                  asset_issuer: 'GISSUER',
+                  amount: '1.0000000',
+                  num_accounts: 1,
+                },
+              ],
+            }),
+          })),
+        })),
+      })),
+    });
 
     const result = await service.syncUserNFTs('user-1');
 
     expect(result).toEqual([syncedNFT]);
     expect(nftsRepository.save).toHaveBeenCalledTimes(1);
     expect(nftsRepository.remove).toHaveBeenCalledWith([staleNFT]);
-    expect(redisService.set).toHaveBeenCalledWith(
-      'nfts:metadata:stellar:GISSUER:ART1',
+    expect(mockRedis.set).toHaveBeenCalledWith(
+      'nfts:metadata:stellar_mainnet:GISSUER:ART1',
       expect.any(String),
+      'EX',
       300,
     );
   });
 
-  it('syncUserNFTs should reject users without a Stellar wallet', async () => {
-    userRepository.findOne.mockResolvedValue({
-      id: 'user-1',
-      walletAddress: null,
-    });
+  it('syncUserNFTs should reject users without a linked Stellar wallet', async () => {
+    userRepository.findOne.mockResolvedValue({ id: 'user-1' });
+    walletRepository.findOne.mockResolvedValue(null);
 
     await expect(service.syncUserNFTs('user-1')).rejects.toThrow(
       BadRequestException,
@@ -232,38 +226,51 @@ describe('NFTsService', () => {
     );
   });
 
-  it('useAsAvatar should verify ownership and persist the NFT image on the user profile', async () => {
+  it('useAsAvatar should verify ownership and persist the NFT image on the user', async () => {
     const nftId = '11111111-1111-1111-1111-111111111111';
+    const wallet: Wallet = {
+      id: 'wallet-1',
+      userId: 'user-1',
+      walletAddress: 'GUSER',
+      network: WalletNetwork.STELLAR_MAINNET,
+      isVerified: true,
+      isPrimary: true,
+      label: null,
+      createdAt: new Date(),
+      user: null as any,
+    };
 
     userRepository.findOne.mockResolvedValue({
       id: 'user-1',
-      walletAddress: 'GUSER',
-      profile: {
-        bio: 'bio',
-        website: 'https://example.com',
-        location: 'Lagos',
-      },
+      avatarUrl: null,
     });
     userRepository.save.mockImplementation(async (user: User) => user);
+    walletRepository.findOne
+      .mockResolvedValueOnce(wallet)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
     nftsRepository.findOwnedById.mockResolvedValue({
       id: nftId,
       contractAddress: 'GISSUER',
       tokenId: 'ART1',
       imageUrl: 'https://cdn.example.com/art1.png',
-      network: 'stellar',
+      network: WalletNetwork.STELLAR_MAINNET,
     } as NFT);
-    holderResponses['ART1:GISSUER'] = {
-      records: [{ account_id: 'GUSER' }],
-    };
+    mainnetServer.accounts.mockReturnValue({
+      forAsset: jest.fn(() => ({
+        call: jest.fn().mockResolvedValue({
+          records: [{ account_id: 'GUSER' }],
+        }),
+      })),
+    });
 
     const result = await service.useAsAvatar('user-1', nftId);
 
-    expect(result.profile.avatarUrl).toBe('https://cdn.example.com/art1.png');
+    expect(result.avatarUrl).toBe('https://cdn.example.com/art1.png');
     expect(userRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
-        profile: expect.objectContaining({
-          avatarUrl: 'https://cdn.example.com/art1.png',
-        }),
+        avatarUrl: 'https://cdn.example.com/art1.png',
       }),
     );
   });
@@ -273,7 +280,7 @@ describe('NFTsService', () => {
       id: 'nft-1',
       contractAddress: 'GISSUER',
       tokenId: 'ART1',
-      network: 'stellar',
+      network: WalletNetwork.STELLAR_MAINNET,
     } as NFT;
 
     jest.spyOn(service, 'syncUserNFTs').mockResolvedValue([syncedNFT]);
@@ -290,9 +297,22 @@ describe('NFTsService', () => {
     expect(result).toEqual([syncedNFT]);
   });
 
-  it('verifyOwnership should return false for unsupported networks', async () => {
+  it('verifyOwnership should return false when Horizon cannot find holders', async () => {
+    mainnetServer.accounts.mockReturnValue({
+      forAsset: jest.fn(() => ({
+        call: jest.fn().mockRejectedValue({
+          response: { status: 404 },
+        }),
+      })),
+    });
+
     await expect(
-      service.verifyOwnership('GUSER', 'GISSUER', 'ART1', 'ethereum'),
+      service.verifyOwnership(
+        'GUSER',
+        'GISSUER',
+        'ART1',
+        WalletNetwork.STELLAR_MAINNET,
+      ),
     ).resolves.toBe(false);
   });
 });
