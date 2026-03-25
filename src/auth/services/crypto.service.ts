@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as StellarSdk from 'stellar-sdk';
+import * as StellarSdk from '@stellar/stellar-sdk';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 

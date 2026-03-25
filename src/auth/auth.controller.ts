@@ -18,6 +18,7 @@ import { RefreshRequestDto } from './dto/refresh-request.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { CurrentSessionId } from '../sessions/current-session-id.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -62,11 +63,15 @@ export class AuthController {
   async verifyChallenge(
     @Body() verifyRequest: VerifyRequestDto,
     @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-device-info') deviceInfo?: string,
   ): Promise<AuthResponseDto> {
     return this.authService.verifyChallenge(
       verifyRequest.walletAddress,
       verifyRequest.signature,
       ipAddress,
+      userAgent,
+      deviceInfo,
     );
   }
 
@@ -87,8 +92,15 @@ export class AuthController {
   async refreshToken(
     @Body() refreshRequest: RefreshRequestDto,
     @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-device-info') deviceInfo?: string,
   ): Promise<AuthResponseDto> {
-    return this.authService.refreshAccessToken(refreshRequest.refreshToken, ipAddress);
+    return this.authService.refreshAccessToken(
+      refreshRequest.refreshToken,
+      ipAddress,
+      userAgent,
+      deviceInfo,
+    );
   }
 
   @Post('logout')
@@ -103,8 +115,9 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(
     @CurrentUser('id') userId: string,
-    @Body() refreshRequest: RefreshRequestDto,
+    @CurrentSessionId() sessionId?: string,
+    @Body() _refreshRequest?: RefreshRequestDto,
   ): Promise<void> {
-    await this.authService.logout(userId, refreshRequest.refreshToken);
+    await this.authService.logout(userId, sessionId);
   }
 }

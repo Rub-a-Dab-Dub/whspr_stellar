@@ -40,6 +40,7 @@ export const envValidationSchema = Joi.object({
 
   // CORS
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+  ADMIN_USER_IDS: Joi.string().allow('').default(''),
 
   // Attachments / Storage
   STORAGE_PROVIDER: Joi.string().valid('s3', 'r2').default('s3'),
@@ -68,7 +69,7 @@ export const envValidationSchema = Joi.object({
   JOB_NFT_SYNC_MS: Joi.number().default(600000),
   JOB_REFERRAL_REWARD_PROCESSING_MS: Joi.number().default(3600000),
   JOB_WEBHOOK_DELIVERY_RETRY_MS: Joi.number().default(300000),
-  JOB_SESSION_CLEANUP_CRON: Joi.string().default('0 0 * * *'),
+  JOB_SESSION_CLEANUP_CRON: Joi.string().default('0 2 * * *'),
   JOB_TIER_EXPIRY_CHECK_CRON: Joi.string().default('0 0 * * *'),
   JOB_ANALYTICS_AGGREGATION_CRON: Joi.string().default('0 0 * * *'),
   JOB_AUDIT_LOG_CLEANUP_CRON: Joi.string().default('0 0 * * 0'),
