@@ -45,7 +45,9 @@ export class ContactsRepository {
       qb.andWhere('c.label ILIKE :search', { search: `%${search}%` });
     }
 
-    qb.skip((page - 1) * limit).take(limit).orderBy('c.createdAt', 'DESC');
+    qb.skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('c.createdAt', 'DESC');
 
     return qb.getManyAndCount();
   }
@@ -82,10 +84,10 @@ export class ContactsRepository {
     const count = await this.repo
       .createQueryBuilder('c')
       .where('c.status = :status', { status: ContactStatus.BLOCKED })
-      .andWhere(
-        '(c.ownerId = :a AND c.contactId = :b) OR (c.ownerId = :b AND c.contactId = :a)',
-        { a: userA, b: userB },
-      )
+      .andWhere('(c.ownerId = :a AND c.contactId = :b) OR (c.ownerId = :b AND c.contactId = :a)', {
+        a: userA,
+        b: userB,
+      })
       .getCount();
     return count > 0;
   }

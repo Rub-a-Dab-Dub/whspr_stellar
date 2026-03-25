@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as StellarSdk from 'stellar-sdk';
+import * as StellarSdk from '@stellar/stellar-sdk';
 import { AssetBalanceDto } from '../dto/balance-response.dto';
 import { WalletNetwork } from '../entities/wallet.entity';
 
@@ -13,10 +13,7 @@ export class HorizonService {
   constructor(private readonly configService: ConfigService) {
     this.servers = {
       [WalletNetwork.STELLAR_MAINNET]: new StellarSdk.Horizon.Server(
-        configService.get<string>(
-          'STELLAR_HORIZON_MAINNET_URL',
-          'https://horizon.stellar.org',
-        ),
+        configService.get<string>('STELLAR_HORIZON_MAINNET_URL', 'https://horizon.stellar.org'),
       ),
       [WalletNetwork.STELLAR_TESTNET]: new StellarSdk.Horizon.Server(
         configService.get<string>(
@@ -46,12 +43,22 @@ export class HorizonService {
         const assetLine = b as StellarSdk.Horizon.HorizonApi.BalanceLineAsset;
 
         return {
-          assetCode: isNative ? 'XLM' : isLiquidityPool ? 'LP' : assetLine.asset_code ?? 'UNKNOWN',
+          assetCode: isNative
+            ? 'XLM'
+            : isLiquidityPool
+              ? 'LP'
+              : (assetLine.asset_code ?? 'UNKNOWN'),
           assetType: b.asset_type,
-          assetIssuer: isNative || isLiquidityPool ? null : assetLine.asset_issuer ?? null,
+          assetIssuer: isNative || isLiquidityPool ? null : (assetLine.asset_issuer ?? null),
           balance: b.balance,
-          buyingLiabilities: isLiquidityPool ? '0.0000000' : (b as StellarSdk.Horizon.HorizonApi.BalanceLineNative).buying_liabilities ?? '0.0000000',
-          sellingLiabilities: isLiquidityPool ? '0.0000000' : (b as StellarSdk.Horizon.HorizonApi.BalanceLineNative).selling_liabilities ?? '0.0000000',
+          buyingLiabilities: isLiquidityPool
+            ? '0.0000000'
+            : ((b as StellarSdk.Horizon.HorizonApi.BalanceLineNative).buying_liabilities ??
+              '0.0000000'),
+          sellingLiabilities: isLiquidityPool
+            ? '0.0000000'
+            : ((b as StellarSdk.Horizon.HorizonApi.BalanceLineNative).selling_liabilities ??
+              '0.0000000'),
         };
       });
     } catch (error: any) {
