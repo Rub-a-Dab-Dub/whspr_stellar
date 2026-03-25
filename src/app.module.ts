@@ -16,6 +16,7 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     WebhooksModule,
     ObservabilityModule,
     UserSettingsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
