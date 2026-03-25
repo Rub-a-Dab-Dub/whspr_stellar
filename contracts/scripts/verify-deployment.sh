@@ -102,7 +102,7 @@ initialize_exit=$?
 set -e
 
 if [[ ${initialize_exit} -ne 0 ]]; then
-  if [[ "${initialize_output}" != *"already initialized"* ]]; then
+  if [[ "${initialize_output}" != *"already initialized"* && "${initialize_output}" != *"Error(Contract, #1)"* ]]; then
     echo "Token initialize check failed:"
     echo "${initialize_output}"
     exit 1

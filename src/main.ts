@@ -1,5 +1,6 @@
+import './observability/tracing';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
@@ -8,6 +9,8 @@ import { AppModule } from './app.module';
 import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './config/winston.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { LoggingMiddleware } from './common/logging/logging.middleware';
+import { LoggerService } from './common/logging/logger.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -17,11 +20,19 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Global prefix
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: 'health/live', method: RequestMethod.GET },
+      { path: 'health/ready', method: RequestMethod.GET },
+      { path: 'metrics', method: RequestMethod.GET },
+    ],
+  });
 
   // Security
   app.use(helmet());
   app.use(compression());
+  app.use(requestIdMiddleware);
+  app.useGlobalInterceptors(app.get(RequestMetricsInterceptor));
 
   // CORS
   app.enableCors({
@@ -43,6 +54,10 @@ async function bootstrap() {
 
   // Global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Logging middleware
+  const loggerService = app.get(LoggerService);
+  app.use(new LoggingMiddleware(loggerService));
 
   // Swagger documentation
   const config = new DocumentBuilder()

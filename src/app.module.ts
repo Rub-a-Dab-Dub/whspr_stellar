@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { typeOrmConfig } from './config/typeorm.config';
@@ -10,7 +11,11 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
-import { ReferralsModule } from './referrals/referrals.module';
+import { LoggingModule } from './common/logging/logging.module';
+import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { ObservabilityModule } from './observability/observability.module';
+import { UserSettingsModule } from './user-settings/user-settings.module';
 
 @Module({
   imports: [
@@ -31,11 +36,17 @@ import { ReferralsModule } from './referrals/referrals.module';
         limit: 10,
       },
     ]),
+    LoggingModule,
+    ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
     AuthModule,
     WalletsModule,
-    ReferralsModule,
+    AnalyticsModule,
+    ScheduledJobsModule,
+    WebhooksModule,
+    ObservabilityModule,
+    UserSettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -95,6 +95,8 @@ pub enum ContractError {
     ClaimWindowDisabled = 30,
     ClaimExpired = 31,
     RatingAlreadySubmitted = 32,
+    InsufficientAllowance = 33,
+    MinimumThresholdNotMet = 34,
 }
 
 #[derive(Clone)]
