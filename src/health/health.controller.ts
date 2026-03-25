@@ -4,9 +4,8 @@ import {
   HealthCheck,
   HealthCheckService,
   TypeOrmHealthIndicator,
-  MemoryHealthIndicator,
-  DiskHealthIndicator,
 } from '@nestjs/terminus';
+import { RedisHealthIndicator } from './redis.health.indicator';
 
 @ApiTags('health')
 @Controller('health')
@@ -14,30 +13,19 @@ export class HealthController {
   constructor(
     private health: HealthCheckService,
     private db: TypeOrmHealthIndicator,
-    private memory: MemoryHealthIndicator,
-    private disk: DiskHealthIndicator,
+    private redis: RedisHealthIndicator,
   ) {}
-
-  @Get()
-  @HealthCheck()
-  @ApiOperation({ summary: 'Check application health' })
-  @ApiResponse({ status: 200, description: 'Application is healthy' })
-  @ApiResponse({ status: 503, description: 'Application is unhealthy' })
-  check() {
-    return this.health.check([
-      () => this.db.pingCheck('database'),
-      () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-      () => this.memory.checkRSS('memory_rss', 150 * 1024 * 1024),
-      () => this.disk.checkStorage('storage', { path: '/', thresholdPercent: 0.9 }),
-    ]);
-  }
 
   @Get('ready')
   @HealthCheck()
   @ApiOperation({ summary: 'Check if application is ready' })
   @ApiResponse({ status: 200, description: 'Application is ready' })
+  @ApiResponse({ status: 503, description: 'Dependencies are not ready' })
   ready() {
-    return this.health.check([() => this.db.pingCheck('database')]);
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.redis.isHealthy('redis'),
+    ]);
   }
 
   @Get('live')

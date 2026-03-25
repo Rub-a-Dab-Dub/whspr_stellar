@@ -351,6 +351,9 @@ export class AuthService {
     await this.attemptRepository.save(attempt);
   }
 
+  /**
+   * Record successful authentication attempt
+   */
   private async recordSuccessfulAttempt(walletAddress: string, ipAddress: string): Promise<void> {
     const attempt = this.attemptRepository.create({
       walletAddress,

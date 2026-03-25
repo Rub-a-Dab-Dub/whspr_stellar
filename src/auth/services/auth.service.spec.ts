@@ -230,9 +230,7 @@ describe('AuthService', () => {
     it('blocks repeated failed attempts', async () => {
       mockAttemptRepo.count.mockResolvedValue(5);
 
-      await expect(service.verifyChallenge(WALLET, 'any-signature', IP)).rejects.toThrow(
-        HttpException,
-      );
+      await expect(service.verifyChallenge(WALLET, 'any-sig', IP)).rejects.toThrow(HttpException);
     });
   });
 
