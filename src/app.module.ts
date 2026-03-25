@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { typeOrmConfig } from './config/typeorm.config';
@@ -12,6 +13,9 @@ import { AuthModule } from './auth/auth.module';
 import { StellarEventsModule } from './stellar-events/stellar-events.module';
 import { RedisCacheModule } from './cache/redis-cache.module';
 import { CacheMiddleware } from './middleware/cache.middleware';
+import { WalletsModule } from './wallets/wallets.module';
+import { LoggingModule } from './common/logging/logging.module';
+import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 
 @Module({
   imports: [
@@ -28,6 +32,22 @@ import { CacheMiddleware } from './middleware/cache.middleware';
     UsersModule,
     AuthModule,
     StellarEventsModule,
+    TypeOrmModule.forRootAsync({
+      useFactory: typeOrmConfig,
+    }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
+    LoggingModule,
+    ScheduleModule.forRoot(),
+    HealthModule,
+    UsersModule,
+    AuthModule,
+    WalletsModule,
+    ScheduledJobsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -37,3 +57,4 @@ export class AppModule implements NestModule {
     consumer.apply(CacheMiddleware).forRoutes('users', 'health');
   }
 }
+export class AppModule { }
