@@ -37,8 +37,7 @@ describe('WalletsController (e2e)', () => {
             sellingLiabilities: '0.0000000',
           },
         ]),
-        buildVerificationMessage: (addr: string, uid: string) =>
-          `verify:${addr}:${uid}`,
+        buildVerificationMessage: (addr: string, uid: string) => `verify:${addr}:${uid}`,
       })
       .compile();
 
@@ -233,9 +232,7 @@ describe('WalletsController (e2e)', () => {
     });
 
     it('returns 401 without auth token', () => {
-      return request(app.getHttpServer())
-        .get(`/api/wallets/${walletId}/balance`)
-        .expect(401);
+      return request(app.getHttpServer()).get(`/api/wallets/${walletId}/balance`).expect(401);
     });
   });
 
@@ -276,9 +273,7 @@ describe('WalletsController (e2e)', () => {
     });
 
     it('returns 401 without auth token', () => {
-      return request(app.getHttpServer())
-        .delete(`/api/wallets/${walletId}`)
-        .expect(401);
+      return request(app.getHttpServer()).delete(`/api/wallets/${walletId}`).expect(401);
     });
   });
 });

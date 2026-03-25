@@ -4,9 +4,7 @@ export const envValidationSchema = Joi.object({
   // Server
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().default(3001),
-  LOG_LEVEL: Joi.string()
-    .valid('error', 'warn', 'info', 'debug', 'verbose')
-    .default('info'),
+  LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug', 'verbose').default('info'),
 
   // Database
   DATABASE_HOST: Joi.string().required(),
@@ -33,6 +31,8 @@ export const envValidationSchema = Joi.object({
   REDIS_PORT: Joi.number().default(6379),
   REDIS_PASSWORD: Joi.string().allow('').optional(),
   REDIS_DB: Joi.number().default(0),
+  ADMIN_USER_IDS: Joi.string().allow('').optional(),
+  ADMIN_WALLET_ADDRESSES: Joi.string().allow('').optional(),
 
   // Rate Limiting
   THROTTLE_TTL: Joi.number().default(60),
@@ -41,13 +41,25 @@ export const envValidationSchema = Joi.object({
   // CORS
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
 
+  // Attachments / Storage
+  STORAGE_PROVIDER: Joi.string().valid('s3', 'r2').default('s3'),
+  STORAGE_BUCKET: Joi.string().required(),
+  STORAGE_REGION: Joi.string().default('auto'),
+  STORAGE_ENDPOINT: Joi.string().uri().optional(),
+  STORAGE_ACCESS_KEY_ID: Joi.string().required(),
+  STORAGE_SECRET_ACCESS_KEY: Joi.string().required(),
+  STORAGE_PUBLIC_BASE_URL: Joi.string().uri().optional(),
+  ATTACHMENT_PRESIGN_EXPIRY_SECONDS: Joi.number().default(300),
+  ATTACHMENT_MAX_SIZE_FREE_BYTES: Joi.number().default(10485760),
+  ATTACHMENT_MAX_SIZE_PREMIUM_BYTES: Joi.number().default(26214400),
+  ATTACHMENT_MAX_SIZE_VIP_BYTES: Joi.number().default(52428800),
+  ATTACHMENT_ALLOWED_MIME_TYPES: Joi.string().default(
+    'image/jpeg,image/png,image/webp,image/gif,video/mp4,audio/mpeg,audio/wav,application/pdf',
+  ),
+
   // Stellar / Horizon
-  STELLAR_HORIZON_MAINNET_URL: Joi.string()
-    .uri()
-    .default('https://horizon.stellar.org'),
-  STELLAR_HORIZON_TESTNET_URL: Joi.string()
-    .uri()
-    .default('https://horizon-testnet.stellar.org'),
+  STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
+  STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
 
   // Scheduled Jobs
   JOB_BLOCKCHAIN_EVENT_POLLING_MS: Joi.number().default(5000),
@@ -61,4 +73,11 @@ export const envValidationSchema = Joi.object({
   JOB_ANALYTICS_AGGREGATION_CRON: Joi.string().default('0 0 * * *'),
   JOB_AUDIT_LOG_CLEANUP_CRON: Joi.string().default('0 0 * * 0'),
   JOB_LOCK_TTL_MS: Joi.number().default(15000),
+
+  // Observability
+  OTEL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+  OTEL_SERVICE_NAME: Joi.string().default('gasless-gossip-api'),
+  OTEL_EXPORTER_OTLP_ENDPOINT: Joi.string()
+    .uri()
+    .default('http://localhost:4318/v1/traces'),
 });
