@@ -14,6 +14,7 @@ import { WalletsModule } from './wallets/wallets.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { NFTsModule } from './nfts/nfts.module';
+import { AppI18nModule } from './i18n/app-i18n.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { NFTsModule } from './nfts/nfts.module';
     ]),
     LoggingModule,
     ScheduleModule.forRoot(),
+    AppI18nModule,
     HealthModule,
     UsersModule,
     AuthModule,

@@ -1,13 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { validationMessages } from '../../i18n/validation-messages';
 
-export class RefreshRequestDto {
-  @ApiProperty({
-    description: 'Refresh token',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  })
+export class VerifyWalletDto {
+  @ApiProperty({ description: 'Base64-encoded signature of the verification message' })
   @IsString({ message: validationMessages.string() })
   @IsNotEmpty({ message: validationMessages.notEmpty() })
-  refreshToken!: string;
+  signature!: string;
 }

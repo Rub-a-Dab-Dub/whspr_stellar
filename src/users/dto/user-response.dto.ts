@@ -33,6 +33,10 @@ export class UserResponseDto {
   bio!: string | null;
 
   @Expose()
+  @ApiPropertyOptional({ example: 'en' })
+  preferredLocale!: string | null;
+
+  @Expose()
   @ApiProperty({ enum: UserTier, example: UserTier.FREE })
   tier!: UserTier;
 

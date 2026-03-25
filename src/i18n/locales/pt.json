@@ -1,0 +1,92 @@
+{
+  "validation": {
+    "string": "{property} deve ser uma string",
+    "notEmpty": "{property} nao pode estar vazio",
+    "email": "{property} deve ser um e-mail valido",
+    "url": "{property} deve ser uma URL valida",
+    "minLength": "{property} deve ter pelo menos {min} caracteres",
+    "maxLength": "{property} deve ter no maximo {max} caracteres",
+    "exactLength": "{property} deve ter exatamente {length} caracteres",
+    "usernamePattern": "O nome de usuario so pode conter letras, numeros e sublinhados",
+    "stellarAddressFormat": "Formato de endereco Stellar invalido",
+    "ethereumAddress": "{property} deve ser um endereco Ethereum valido",
+    "integer": "{property} deve ser um numero inteiro",
+    "min": "{property} nao pode ser menor que {min}",
+    "max": "{property} nao pode ser maior que {max}",
+    "enum": "{property} deve ser um destes valores: {allowed}",
+    "booleanString": "{property} deve ser uma string booleana",
+    "uuid": "Formato de UUID invalido",
+    "whitelist": "A propriedade {property} nao deve existir"
+  },
+  "errors": {
+    "common": {
+      "internalServerError": "Erro interno do servidor"
+    },
+    "auth": {
+      "authenticationRequired": "Autenticacao obrigatoria",
+      "invalidToken": "Token invalido",
+      "challengeNotFoundOrExpired": "Desafio nao encontrado ou expirado",
+      "invalidSignature": "Assinatura invalida",
+      "userDeactivated": "A conta do usuario esta desativada",
+      "invalidOrExpiredRefreshToken": "Token de atualizacao invalido ou expirado",
+      "refreshTokenNotFoundOrExpired": "Token de atualizacao nao encontrado ou expirado",
+      "invalidRefreshToken": "Token de atualizacao invalido",
+      "tooManyFailedAttempts": "Muitas tentativas falharam. Tente novamente mais tarde.",
+      "wsTokenNotFound": "Token de autenticacao nao encontrado",
+      "wsInvalidOrExpiredToken": "Token invalido ou expirado"
+    },
+    "users": {
+      "walletAlreadyRegistered": "O endereco da carteira ja esta registrado",
+      "usernameTaken": "O nome de usuario ja esta em uso",
+      "emailRegistered": "O e-mail ja esta registrado",
+      "notFoundById": "Usuario com ID {id} nao encontrado",
+      "notFoundByUsername": "Usuario com nome {username} nao encontrado",
+      "notFoundByWallet": "Usuario com endereco de carteira {walletAddress} nao encontrado",
+      "alreadyDeactivated": "O usuario ja esta desativado",
+      "invalidPreferredLocale": "O idioma preferido nao e suportado"
+    },
+    "wallets": {
+      "invalidStellarWalletAddress": "Endereco de carteira Stellar invalido",
+      "maxWalletsExceeded": "Maximo de {maxWallets} carteiras por usuario",
+      "alreadyLinked": "A carteira ja esta vinculada a sua conta",
+      "signatureVerificationFailed": "A verificacao da assinatura da carteira falhou",
+      "notFound": "Carteira nao encontrada",
+      "cannotRemovePrimary": "Nao e possivel remover a carteira principal enquanto outras carteiras existirem. Defina primeiro uma nova carteira principal.",
+      "unfundedAccount": "A conta Stellar {walletAddress} nao foi encontrada em {network}. Envie pelo menos 1 XLM para ativa-la."
+    },
+    "nfts": {
+      "userNotFound": "Usuario nao encontrado",
+      "notFound": "NFT nao encontrado",
+      "ownershipVerificationFailed": "Nao foi possivel verificar a propriedade do NFT na Stellar",
+      "syncFailed": "Falha ao sincronizar NFTs da Stellar Horizon",
+      "unsupportedNetwork": "Rede Stellar nao suportada: {network}",
+      "walletNotConfigured": "O usuario nao possui uma carteira Stellar vinculada"
+    }
+  },
+  "notifications": {
+    "walletLinked": {
+      "title": "Carteira vinculada",
+      "body": "{walletLabel} ({walletAddress}) foi vinculada com sucesso."
+    },
+    "nftAvatarUpdated": {
+      "title": "Avatar atualizado",
+      "body": "Seu avatar agora usa o NFT {nftName}."
+    },
+    "nftSyncComplete": {
+      "title": "Sincronizacao de NFT concluida",
+      "body": "{count} NFTs estao prontos para recursos com acesso restrito."
+    }
+  },
+  "emails": {
+    "welcome": {
+      "subject": "Bem-vindo ao WHSPR Stellar",
+      "preview": "Sua conta esta pronta para uso.",
+      "body": "Ola {displayName}, sua conta esta pronta. Conecte carteiras, verifique a propriedade e comece a usar recursos restritos."
+    },
+    "walletLinked": {
+      "subject": "Carteira vinculada com sucesso",
+      "preview": "Uma nova carteira Stellar foi vinculada a sua conta.",
+      "body": "Sua carteira Stellar {walletAddress} agora esta vinculada a sua conta."
+    }
+  }
+}

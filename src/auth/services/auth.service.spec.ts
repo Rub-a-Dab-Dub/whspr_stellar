@@ -10,6 +10,7 @@ import { AuthChallenge } from '../entities/auth-challenge.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { AuthAttempt } from '../entities/auth-attempt.entity';
 import { UserTier } from '../../users/entities/user.entity';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -30,6 +31,7 @@ describe('AuthService', () => {
     displayName: null,
     avatarUrl: null,
     bio: null,
+    preferredLocale: null,
     tier: UserTier.FREE,
     isActive: true,
     isVerified: false,
@@ -110,6 +112,12 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('test-secret') },
+        },
+        {
+          provide: TranslationService,
+          useValue: {
+            translate: jest.fn((key: string) => key),
+          },
         },
         { provide: getRepositoryToken(AuthChallenge), useValue: mockChallengeRepo },
         { provide: getRepositoryToken(RefreshToken), useValue: mockRefreshTokenRepo },

@@ -39,6 +39,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   bio!: string | null;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  preferredLocale!: string | null;
+
   @Column({
     type: 'enum',
     enum: UserTier,

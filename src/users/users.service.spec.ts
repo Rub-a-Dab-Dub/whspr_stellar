@@ -5,6 +5,7 @@ import { UsersRepository } from './users.repository';
 import { User, UserTier } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { TranslationService } from '../i18n/services/translation.service';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -18,6 +19,7 @@ describe('UsersService', () => {
     displayName: 'Test User',
     avatarUrl: 'https://example.com/avatar.jpg',
     bio: 'Test bio',
+    preferredLocale: null,
     tier: UserTier.FREE,
     isActive: true,
     isVerified: false,
@@ -45,6 +47,13 @@ describe('UsersService', () => {
         {
           provide: UsersRepository,
           useValue: mockRepository,
+        },
+        {
+          provide: TranslationService,
+          useValue: {
+            translate: jest.fn((key: string) => key),
+            normalizeSupportedLocale: jest.fn((locale?: string | null) => locale ?? null),
+          },
         },
       ],
     }).compile();

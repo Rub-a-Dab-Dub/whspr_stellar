@@ -18,6 +18,7 @@ import { CryptoService } from './crypto.service';
 import { ChallengeResponseDto } from '../dto/challenge-response.dto';
 import { AuthResponseDto } from '../dto/auth-response.dto';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 export interface JwtPayload {
   sub: string;
@@ -46,6 +47,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly cryptoService: CryptoService,
+    private readonly translationService: TranslationService,
   ) {}
 
   /**
@@ -104,7 +106,9 @@ export class AuthService {
 
     if (!challenge) {
       await this.recordFailedAttempt(walletAddress, ipAddress);
-      throw new UnauthorizedException('Challenge not found or expired');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.challengeNotFoundOrExpired'),
+      );
     }
 
     // Verify signature
@@ -117,7 +121,9 @@ export class AuthService {
 
     if (!isValid) {
       await this.recordFailedAttempt(walletAddress, ipAddress);
-      throw new UnauthorizedException('Invalid signature');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidSignature'),
+      );
     }
 
     // Delete used challenge
@@ -142,7 +148,7 @@ export class AuthService {
 
     // Check if user is active
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
     }
 
     // Generate tokens
@@ -172,7 +178,9 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
     } catch (error) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidOrExpiredRefreshToken'),
+      );
     }
 
     // Find refresh token in database
@@ -186,7 +194,9 @@ export class AuthService {
     });
 
     if (!storedToken) {
-      throw new UnauthorizedException('Refresh token not found or expired');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.refreshTokenNotFoundOrExpired'),
+      );
     }
 
     // Verify token hash matches (single-use)
@@ -196,7 +206,9 @@ export class AuthService {
     );
 
     if (!isValid) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidRefreshToken'),
+      );
     }
 
     // Revoke old refresh token (single-use)
@@ -207,7 +219,7 @@ export class AuthService {
     const user = await this.usersService.findById(payload.sub);
 
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
     }
 
     // Generate new tokens
@@ -248,7 +260,7 @@ export class AuthService {
     const user = await this.usersService.findById(payload.sub);
 
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
     }
 
     return user;
@@ -316,7 +328,7 @@ export class AuthService {
         `Brute force detected for wallet ${walletAddress} from IP ${ipAddress}`,
       );
       throw new HttpException(
-        'Too many failed attempts. Please try again later.',
+        this.translationService.translate('errors.auth.tooManyFailedAttempts'),
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
