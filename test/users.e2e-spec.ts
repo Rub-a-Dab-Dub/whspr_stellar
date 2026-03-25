@@ -200,9 +200,7 @@ describe('UsersController (e2e)', () => {
     });
 
     it('should return 404 for non-existent username', () => {
-      return request(app.getHttpServer())
-        .get('/api/users/username/nonexistentuser')
-        .expect(404);
+      return request(app.getHttpServer()).get('/api/users/username/nonexistentuser').expect(404);
     });
   });
 
@@ -271,12 +269,10 @@ describe('UsersController (e2e)', () => {
 
     it('should return 409 when updating to existing username', async () => {
       // Create another user
-      const response = await request(app.getHttpServer())
-        .post('/api/users')
-        .send({
-          walletAddress: '0x1234567890123456789012345678901234567894',
-          username: 'anotheruser',
-        });
+      const response = await request(app.getHttpServer()).post('/api/users').send({
+        walletAddress: '0x1234567890123456789012345678901234567894',
+        username: 'anotheruser',
+      });
 
       const anotherUserId = response.body.id;
 
@@ -293,12 +289,10 @@ describe('UsersController (e2e)', () => {
   describe('DELETE /users/me', () => {
     it('should deactivate user (soft delete)', async () => {
       // Create a user to deactivate
-      const createResponse = await request(app.getHttpServer())
-        .post('/api/users')
-        .send({
-          walletAddress: '0x1234567890123456789012345678901234567895',
-          username: 'userToDelete',
-        });
+      const createResponse = await request(app.getHttpServer()).post('/api/users').send({
+        walletAddress: '0x1234567890123456789012345678901234567895',
+        username: 'userToDelete',
+      });
 
       const userToDeleteId = createResponse.body.id;
 
@@ -323,11 +317,9 @@ describe('UsersController (e2e)', () => {
 
     it('should return 400 when trying to deactivate already deactivated user', async () => {
       // Create a user
-      const createResponse = await request(app.getHttpServer())
-        .post('/api/users')
-        .send({
-          walletAddress: '0x1234567890123456789012345678901234567896',
-        });
+      const createResponse = await request(app.getHttpServer()).post('/api/users').send({
+        walletAddress: '0x1234567890123456789012345678901234567896',
+      });
 
       const userId = createResponse.body.id;
 
@@ -335,9 +327,7 @@ describe('UsersController (e2e)', () => {
       await request(app.getHttpServer()).delete(`/api/users/me?userId=${userId}`).expect(204);
 
       // Try to deactivate again
-      return request(app.getHttpServer())
-        .delete(`/api/users/me?userId=${userId}`)
-        .expect(400);
+      return request(app.getHttpServer()).delete(`/api/users/me?userId=${userId}`).expect(400);
     });
   });
 });
