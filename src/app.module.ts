@@ -15,6 +15,7 @@ import { envValidationSchema } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { ReportsModule } from './reports/reports.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
@@ -24,6 +25,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
 import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MembershipTierModule } from './membership-tier/membership-tier.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -38,37 +40,20 @@ import { MembershipTierModule } from './membership-tier/membership-tier.module';
     TypeOrmModule.forRootAsync({
       useFactory: typeOrmConfig,
     }),
-    RedisModule,
-    ThrottlerModule.forRootAsync({
-      imports: [ConfigModule, RedisModule],
-      inject: [ConfigService, RedisService],
-      useFactory: (config: ConfigService, redisService: RedisService) => ({
-        throttlers: [
-          {
-            name: 'short',
-            ttl: 1000,
-            limit: config.get<number>('THROTTLE_LIMIT_SHORT', 3),
-          },
-          {
-            name: 'medium',
-            ttl: 60000,
-            limit: config.get<number>('THROTTLE_LIMIT_MEDIUM', 60),
-          },
-          {
-            name: 'long',
-            ttl: 3600000,
-            limit: config.get<number>('THROTTLE_LIMIT_LONG', 1000),
-          },
-        ],
-        storage: new RedisThrottlerStorage(redisService.getClient()),
-      }),
-    }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
+    CacheModule,
     LoggingModule,
     ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
     UserSettingsModule,
     AuthModule,
+    SessionsModule,
     WalletsModule,
     AnalyticsModule,
     ScheduledJobsModule,
@@ -86,4 +71,4 @@ import { MembershipTierModule } from './membership-tier/membership-tier.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
