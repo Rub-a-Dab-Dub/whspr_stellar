@@ -33,7 +33,7 @@ export class BlockchainService implements OnModuleInit {
     if (!rpcUrl || !contractAddress || !privateKey) {
       this.logger.warn(
         'Blockchain env vars not set (BLOCKCHAIN_RPC_URL, CONTACT_CONTRACT_ADDRESS, BLOCKCHAIN_PRIVATE_KEY). ' +
-        'On-chain sync is disabled.',
+          'On-chain sync is disabled.',
       );
       return;
     }
@@ -66,7 +66,9 @@ export class BlockchainService implements OnModuleInit {
         isBlocked,
       );
       await tx.wait(1);
-      this.logger.log(`[on-chain] setBlock tx=${tx.hash} blocker=${blockerId} target=${targetId} blocked=${isBlocked}`);
+      this.logger.log(
+        `[on-chain] setBlock tx=${tx.hash} blocker=${blockerId} target=${targetId} blocked=${isBlocked}`,
+      );
     } catch (err) {
       this.logger.error(`[on-chain] syncBlock failed: ${(err as Error).message}`);
       throw err;
