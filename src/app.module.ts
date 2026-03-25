@@ -42,6 +42,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     UsersModule,
     AuthModule,
     WalletsModule,
+    AnalyticsModule,
     ScheduledJobsModule,
     WebhooksModule,
     ObservabilityModule,
@@ -50,4 +51,4 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

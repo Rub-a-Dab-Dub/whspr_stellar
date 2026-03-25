@@ -3,7 +3,12 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Inject,
+  Logger,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';

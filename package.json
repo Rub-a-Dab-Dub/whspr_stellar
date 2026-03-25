@@ -55,6 +55,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "compression": "^1.7.4",
+    "ethers": "^6.16.0",
     "helmet": "^7.1.0",
     "ioredis": "^5.10.1",
     "joi": "^17.11.0",
