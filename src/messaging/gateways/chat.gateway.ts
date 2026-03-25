@@ -234,6 +234,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  /**
+   * Emit a receipt when an on-chain transfer linked to a message is confirmed.
+   */
+  async sendMessageReceipt(
+    conversationId: string,
+    messageId: string,
+    transactionId: string,
+    txHash: string,
+  ): Promise<void> {
+    const roomId = `conversation:${conversationId}`;
+    const event = {
+      messageId,
+      transactionId,
+      txHash,
+      status: 'CONFIRMED',
+      timestamp: Date.now(),
+    };
+
+    await this.eventReplayService.storeEvent(roomId, 'message:receipt', event);
+    this.server.to(roomId).emit('message:receipt', event);
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   private extractToken(client: Socket): string | null {

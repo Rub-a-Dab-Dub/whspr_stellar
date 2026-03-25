@@ -42,4 +42,8 @@ export class TransferUpdateDto {
   @IsOptional()
   @IsString()
   txHash?: string;
+
+  @IsOptional()
+  @IsString()
+  failureReason?: string;
 }
