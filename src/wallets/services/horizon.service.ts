@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as StellarSdk from 'stellar-sdk';
+import * as StellarSdk from '@stellar/stellar-sdk';
 import { AssetBalanceDto } from '../dto/balance-response.dto';
 import { WalletNetwork } from '../entities/wallet.entity';
 
