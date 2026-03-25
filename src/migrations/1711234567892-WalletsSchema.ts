@@ -24,15 +24,9 @@ export class WalletsSchema1711234567892 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(
-      `CREATE INDEX "idx_wallets_user_id"   ON "wallets"("userId")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "idx_wallets_address"   ON "wallets"("walletAddress")`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "idx_wallets_is_primary" ON "wallets"("isPrimary")`,
-    );
+    await queryRunner.query(`CREATE INDEX "idx_wallets_user_id"   ON "wallets"("userId")`);
+    await queryRunner.query(`CREATE INDEX "idx_wallets_address"   ON "wallets"("walletAddress")`);
+    await queryRunner.query(`CREATE INDEX "idx_wallets_is_primary" ON "wallets"("isPrimary")`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

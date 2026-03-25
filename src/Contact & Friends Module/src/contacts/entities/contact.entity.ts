@@ -1,11 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  Index,
-  Unique,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index, Unique } from 'typeorm';
 
 export enum ContactStatus {
   PENDING = 'PENDING',
@@ -19,27 +12,27 @@ export enum ContactStatus {
 @Index(['contactId'])
 export class Contact {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   /** The user who owns this contact entry */
   @Column({ type: 'uuid' })
-  ownerId: string;
+  ownerId!: string;
 
   /** The user being referenced as a contact */
   @Column({ type: 'uuid' })
-  contactId: string;
+  contactId!: string;
 
   @Column({
     type: 'enum',
     enum: ContactStatus,
     default: ContactStatus.PENDING,
   })
-  status: ContactStatus;
+  status!: ContactStatus;
 
   /** Optional label/nickname for the contact */
   @Column({ type: 'varchar', length: 100, nullable: true })
-  label: string | null;
+  label!: string | null;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }

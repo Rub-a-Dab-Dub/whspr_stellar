@@ -1,8 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import {
-  ScheduledJobsOperations,
-  SCHEDULED_JOBS_OPERATIONS,
-} from './scheduled-jobs.operations';
+import { ScheduledJobsOperations, SCHEDULED_JOBS_OPERATIONS } from './scheduled-jobs.operations';
 
 @Injectable()
 export class ScheduledJobHandlersService {
