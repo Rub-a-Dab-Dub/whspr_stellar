@@ -36,6 +36,7 @@ import { StellarEventsModule } from './stellar-events/stellar-events.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReactionsModule } from './reactions/reactions.module';
 import { StickersModule } from './stickers/stickers.module';
+import { PrivacyModule } from './privacy/privacy.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { StickersModule } from './stickers/stickers.module';
     NotificationsModule,
     ReactionsModule,
     StickersModule,
+    PrivacyModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,
