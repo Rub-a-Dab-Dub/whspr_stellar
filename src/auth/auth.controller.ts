@@ -1,97 +1,123 @@
-// src/auth/auth.controller.ts
 import {
   Controller,
   Post,
   Body,
-  UseGuards,
-  Get,
-  Query,
   HttpCode,
   HttpStatus,
-  Req,
+  Ip,
+  Headers,
+  UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
-import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-// import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
+import { AuthService } from './services/auth.service';
+import { ChallengeRequestDto } from './dto/challenge-request.dto';
+import { ChallengeResponseDto } from './dto/challenge-response.dto';
+import { VerifyRequestDto } from './dto/verify-request.dto';
+import { AuthResponseDto } from './dto/auth-response.dto';
+import { RefreshRequestDto } from './dto/refresh-request.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-// import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
-import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { RateLimit } from '../common/decorators/rate-limit.decorator';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+import { Public } from './decorators/public.decorator';
+import { CurrentSessionId } from '../sessions/current-session-id.decorator';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
+  @Post('challenge')
   @Public()
-  @Post('register')
-  @RateLimit(3, 60000) // 3 requests per minute
-  async register(@Body() registerDto: RegisterDto) {
-    return await this.authService.register(
-      registerDto.email || '',
-      registerDto.password || '',
-      registerDto.preferredLocale,
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Generate authentication challenge',
+    description: 'Generate a nonce for wallet signature. Challenge expires in 5 minutes.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Challenge generated successfully',
+    type: ChallengeResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid wallet address' })
+  async generateChallenge(
+    @Body() challengeRequest: ChallengeRequestDto,
+  ): Promise<ChallengeResponseDto> {
+    return this.authService.generateChallenge(challengeRequest.walletAddress);
+  }
+
+  @Post('verify')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify signed challenge',
+    description:
+      'Verify the signed challenge and issue JWT tokens. Access token expires in 15 minutes, refresh token in 30 days.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Authentication successful',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request' })
+  @ApiResponse({ status: 401, description: 'Invalid signature or expired challenge' })
+  @ApiResponse({ status: 429, description: 'Too many failed attempts' })
+  async verifyChallenge(
+    @Body() verifyRequest: VerifyRequestDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-device-info') deviceInfo?: string,
+  ): Promise<AuthResponseDto> {
+    return this.authService.verifyChallenge(
+      verifyRequest.walletAddress,
+      verifyRequest.signature,
+      ipAddress,
+      userAgent,
+      deviceInfo,
     );
   }
 
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @RateLimit(5, 60000) // 5 requests per minute
-  async login(@Body() loginDto: LoginDto) {
-    return await this.authService.login(loginDto.email, loginDto.password);
-  }
-
-  @Public()
   @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  async refreshTokens(@Body() refreshTokenDto: RefreshTokenDto) {
-    return await this.authService.refreshTokens(refreshTokenDto.refreshToken);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('logout')
-  @HttpCode(HttpStatus.OK)
-  async logout(@CurrentUser() user: any, @Body('jti') jti: string) {
-    return await this.authService.logout(user.userId, jti, user);
-  }
-
   @Public()
-  @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @RateLimit(3, 60000)
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return await this.authService.forgotPassword(forgotPasswordDto.email);
-  }
-
-  @Public()
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  async resetPassword(
-    @Body() resetPasswordDto: ResetPasswordDto,
-    @Req() req: Request,
-  ) {
-    return await this.authService.resetPassword(
-      resetPasswordDto.token || '',
-      resetPasswordDto.newPassword || '',
-      req,
+  @ApiOperation({
+    summary: 'Refresh access token',
+    description:
+      'Use refresh token to get new access and refresh tokens. Refresh tokens are single-use.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tokens refreshed successfully',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
+  async refreshToken(
+    @Body() refreshRequest: RefreshRequestDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-device-info') deviceInfo?: string,
+  ): Promise<AuthResponseDto> {
+    return this.authService.refreshAccessToken(
+      refreshRequest.refreshToken,
+      ipAddress,
+      userAgent,
+      deviceInfo,
     );
   }
 
-  @Public()
-  @Get('verify-email')
-  async verifyEmail(@Query('token') token: string, @Req() req: Request) {
-    return await this.authService.verifyEmail(token, req);
-  }
-
+  @Post('logout')
   @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  getProfile(@CurrentUser() user: any) {
-    return user;
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Logout user',
+    description: 'Revoke refresh token and logout user.',
+  })
+  @ApiResponse({ status: 204, description: 'Logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async logout(
+    @CurrentUser('id') userId: string,
+    @CurrentSessionId() sessionId?: string,
+    @Body() _refreshRequest?: RefreshRequestDto,
+  ): Promise<void> {
+    await this.authService.logout(userId, sessionId);
   }
 }

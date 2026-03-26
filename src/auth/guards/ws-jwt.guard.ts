@@ -1,32 +1,62 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
+import { AuthService, JwtPayload } from '../services/auth.service';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 @Injectable()
 export class WsJwtGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly authService: AuthService,
+    private readonly translationService: TranslationService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     try {
-      const client: Socket = context.switchToWs().getClient();
-      const token = client.handshake.auth.token;
+      const client: Socket = context.switchToWs().getClient<Socket>();
+      const token = this.extractTokenFromHandshake(client);
 
       if (!token) {
-        return false;
+        throw new WsException(
+          this.translationService.translate('errors.auth.wsTokenNotFound'),
+        );
       }
 
-      const decoded = this.jwtService.verify(token);
-      const userId = decoded.sub || decoded.id;
+      const payload: JwtPayload = this.jwtService.verify(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
 
-      if (!userId) {
-        return false;
-      }
+      const user = await this.authService.validateUser(payload);
 
-      // Store userId in socket data for easy access
-      client.data.userId = userId;
+      // Attach user to socket for later use
+      client.data.user = user;
+
       return true;
     } catch (error) {
-      return false;
+      if (error instanceof WsException) {
+        throw error;
+      }
+
+      throw new WsException(
+        this.translationService.translate('errors.auth.wsInvalidOrExpiredToken'),
+      );
     }
+  }
+
+  private extractTokenFromHandshake(client: Socket): string | null {
+    const authHeader = client.handshake.headers.authorization;
+
+    if (!authHeader) {
+      // Try to get token from query params
+      const token = client.handshake.auth?.token || client.handshake.query?.token;
+      return token as string | null;
+    }
+
+    const [type, token] = authHeader.split(' ');
+    return type === 'Bearer' ? token : null;
   }
 }

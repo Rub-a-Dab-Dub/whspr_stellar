@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { User } from '../../user/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { RequestWithLocale } from '../interfaces/request-with-locale.interface';
 import { LocaleContextService } from '../services/locale-context.service';
 import { TranslationService } from '../services/translation.service';
@@ -70,37 +70,19 @@ describe('LocaleGuard', () => {
     localeContext = moduleRef.get(LocaleContextService);
   });
 
-  it('uses the explicit x-lang header first', async () => {
+  it('uses the Accept-Language header for locale detection', async () => {
     const request = {
-      headers: {
-        'x-lang': 'sw',
-        'accept-language': 'pt-BR,fr;q=0.8',
-      },
+      headers: { 'accept-language': 'pt-BR,fr;q=0.8' },
     } as unknown as RequestWithLocale;
 
     await guard.canActivate(createHttpContext(request));
 
-    expect(request.locale).toBe('sw');
-    expect(request.i18nLang).toBe('sw');
-    expect(localeContext.getLocale()).toBe('sw');
+    expect(request.locale).toBe('pt');
+    expect(request.i18nLang).toBe('pt');
+    expect(localeContext.getLocale()).toBe('pt');
   });
 
-  it('prefers the stored user locale over request headers', async () => {
-    const request = {
-      headers: {
-        'accept-language': 'sw',
-      },
-      user: {
-        preferredLocale: 'fr',
-      },
-    } as unknown as RequestWithLocale;
-
-    await guard.canActivate(createHttpContext(request));
-
-    expect(request.locale).toBe('fr');
-  });
-
-  it('falls back to the persisted user locale from the token', async () => {
+  it('prefers the stored user locale over the request header', async () => {
     const request = {
       headers: {
         authorization: 'Bearer signed-token',
@@ -108,12 +90,29 @@ describe('LocaleGuard', () => {
       },
     } as unknown as RequestWithLocale;
 
-    jwtService.verify.mockReturnValue({ sub: 'user-1' });
-    userRepository.findOne.mockResolvedValue({ preferredLocale: 'pt' });
+    jwtService.verify.mockReturnValue({ sub: 'user-1' } as any);
+    userRepository.findOne.mockResolvedValue({ preferredLocale: 'fr' });
 
     await guard.canActivate(createHttpContext(request));
 
-    expect(request.locale).toBe('pt');
+    expect(request.locale).toBe('fr');
+  });
+
+  it('falls back to the header locale when the token is invalid', async () => {
+    const request = {
+      headers: {
+        authorization: 'Bearer bad-token',
+        'accept-language': 'fr',
+      },
+    } as unknown as RequestWithLocale;
+
+    jwtService.verify.mockImplementation(() => {
+      throw new Error('invalid token');
+    });
+
+    await guard.canActivate(createHttpContext(request));
+
+    expect(request.locale).toBe('fr');
   });
 
   it('falls back to english when no supported locale can be resolved', async () => {

@@ -3,10 +3,18 @@
     "string": "{property} lazima iwe maandishi",
     "notEmpty": "{property} haitakiwi kuwa tupu",
     "email": "{property} lazima iwe barua pepe sahihi",
+    "url": "{property} lazima iwe URL sahihi",
     "minLength": "{property} lazima iwe na angalau herufi {min}",
     "maxLength": "{property} lazima iwe na si zaidi ya herufi {max}",
+    "exactLength": "{property} lazima iwe na herufi {length} kamili",
+    "usernamePattern": "Jina la mtumiaji linaweza kuwa na herufi, nambari na mistari chini tu",
+    "stellarAddressFormat": "Muundo wa anwani ya Stellar si sahihi",
+    "ethereumAddress": "{property} lazima iwe anwani sahihi ya Ethereum",
+    "integer": "{property} lazima iwe nambari kamili",
+    "min": "{property} haiwezi kuwa chini ya {min}",
+    "max": "{property} haiwezi kuwa zaidi ya {max}",
     "enum": "{property} lazima iwe moja ya hizi: {allowed}",
-    "passwordStrength": "Nenosiri lazima liwe na herufi kubwa, ndogo, na namba au alama maalum",
+    "booleanString": "{property} lazima iwe maandishi ya boolean",
     "uuid": "Muundo wa UUID si sahihi",
     "whitelist": "Sifa {property} haipaswi kuwepo"
   },
@@ -15,81 +23,70 @@
       "internalServerError": "Hitilafu ya ndani ya seva"
     },
     "auth": {
-      "invalidCredentials": "Taarifa za kuingia si sahihi",
+      "authenticationRequired": "Uthibitishaji unahitajika",
+      "invalidToken": "Token si sahihi",
+      "challengeNotFoundOrExpired": "Changamoto haijapatikana au muda wake umeisha",
+      "invalidSignature": "Sahihi si sahihi",
+      "userDeactivated": "Akaunti ya mtumiaji imezimwa",
+      "invalidOrExpiredRefreshToken": "Refresh token si sahihi au muda wake umeisha",
+      "refreshTokenNotFoundOrExpired": "Refresh token haijapatikana au muda wake umeisha",
       "invalidRefreshToken": "Refresh token si sahihi",
-      "refreshTokenMismatch": "Refresh token hailingani",
-      "tokenRevoked": "Token imefutwa",
-      "accountLocked": "Akaunti imefungwa",
-      "accountBanned": "Akaunti imepigwa marufuku",
-      "accountSuspended": "Akaunti imesimamishwa",
-      "invalidOrExpiredVerificationToken": "Token ya uthibitisho si sahihi au muda wake umeisha",
-      "invalidOrExpiredResetToken": "Token ya kuweka upya nenosiri si sahihi au muda wake umeisha",
-      "registrationDisabled": "Usajili wa watumiaji wapya umezimwa kwa sasa.",
-      "registrationSuccess": "Usajili umefanikiwa. Tafadhali angalia barua pepe yako kuthibitisha akaunti.",
-      "logoutSuccess": "Kutoka kumefaulu",
-      "passwordResetRequested": "Ikiwa barua pepe ipo, kiungo cha kuweka upya kimetumwa.",
-      "passwordResetSuccess": "Nenosiri limewekwa upya kwa mafanikio",
-      "emailVerifiedSuccess": "Barua pepe imethibitishwa kwa mafanikio"
+      "tooManyFailedAttempts": "Majaribio mengi yameshindwa. Tafadhali jaribu tena baadaye.",
+      "wsTokenNotFound": "Token ya uthibitishaji haijapatikana",
+      "wsInvalidOrExpiredToken": "Token si sahihi au muda wake umeisha"
     },
     "users": {
-      "notFound": "Mtumiaji hajapatikana",
-      "emailAlreadyExists": "Barua pepe tayari ipo",
-      "preferredLocaleNotSupported": "Lugha uliyochagua haitumiki"
+      "walletAlreadyRegistered": "Anwani ya wallet tayari imesajiliwa",
+      "usernameTaken": "Jina la mtumiaji tayari limetumika",
+      "emailRegistered": "Barua pepe tayari imesajiliwa",
+      "notFoundById": "Mtumiaji mwenye ID {id} hajapatikana",
+      "notFoundByUsername": "Mtumiaji mwenye jina {username} hajapatikana",
+      "notFoundByWallet": "Mtumiaji mwenye anwani ya wallet {walletAddress} hajapatikana",
+      "alreadyDeactivated": "Mtumiaji tayari amezimwa",
+      "invalidPreferredLocale": "Lugha uliyochagua haitumiki"
     },
-    "notifications": {
-      "notFound": "Arifa haijapatikana",
-      "notFoundOrAlreadyRead": "Arifa haijapatikana au tayari imesomwa"
+    "wallets": {
+      "invalidStellarWalletAddress": "Anwani ya Stellar wallet si sahihi",
+      "maxWalletsExceeded": "Kiwango cha juu ni wallet {maxWallets} kwa kila mtumiaji",
+      "alreadyLinked": "Wallet tayari imeunganishwa na akaunti yako",
+      "signatureVerificationFailed": "Uhakiki wa sahihi ya wallet umeshindwa",
+      "notFound": "Wallet haijapatikana",
+      "cannotRemovePrimary": "Huwezi kuondoa wallet kuu wakati kuna wallet nyingine. Chagua wallet kuu mpya kwanza.",
+      "unfundedAccount": "Akaunti ya Stellar {walletAddress} haijapatikana kwenye {network}. Weka angalau XLM 1 ili kuiwasha."
+    },
+    "nfts": {
+      "userNotFound": "Mtumiaji hajapatikana",
+      "notFound": "NFT haijapatikana",
+      "ownershipVerificationFailed": "Umiliki wa NFT haukuweza kuthibitishwa kwenye Stellar",
+      "syncFailed": "Imeshindikana kusawazisha NFT kutoka Stellar Horizon",
+      "unsupportedNetwork": "Mtandao wa Stellar hautumiki: {network}",
+      "walletNotConfigured": "Mtumiaji hana Stellar wallet iliyounganishwa"
     }
   },
   "notifications": {
-    "mention": {
-      "title": "{username} amekutaja"
+    "walletLinked": {
+      "title": "Wallet imeunganishwa",
+      "body": "{walletLabel} ({walletAddress}) imeunganishwa kwa mafanikio."
     },
-    "reaction": {
-      "addedTitle": "Hisia mpya",
-      "removedTitle": "Hisia imeondolewa",
-      "message": "Mtu {action} hisia ya {reactionType} kwenye ujumbe wako",
-      "actions": {
-        "added": "ameongeza",
-        "removed": "ameondoa"
-      }
+    "nftAvatarUpdated": {
+      "title": "Avatar imesasishwa",
+      "body": "Avatar yako sasa inatumia NFT {nftName}."
     },
-    "roomInvitation": {
-      "title": "Mwaliko wa chumba",
-      "message": "Umealikwa kujiunga na \"{roomName}\""
-    },
-    "rewardGranted": {
-      "title": "Zawadi imepokelewa!",
-      "message": "Umepokea: {rewardName}"
-    },
-    "levelUp": {
-      "title": "Umefika ngazi mpya!",
-      "message": "Hongera! Umefika kiwango cha {newLevel}"
-    },
-    "achievement": {
-      "title": "Mafanikio yamefunguliwa!",
-      "message": "Umefungua: {achievementName}"
-    },
-    "email": {
-      "mentionSubject": "Umetajwa kwenye Whspr Stellar",
-      "replySubject": "Jibu jipya kwa ujumbe wako",
-      "roomInviteSubject": "Umealikwa kujiunga na chumba",
-      "reactionSubject": "Mtu amejibu ujumbe wako kwa hisia",
-      "rewardSubject": "Umepokea zawadi mpya!",
-      "digestSubject": "Muhtasari wako wa arifa wa {period} - Whspr Stellar",
-      "welcomeSubject": "Karibu Whspr Stellar - Weka arifa zako"
+    "nftSyncComplete": {
+      "title": "Usawazishaji wa NFT umekamilika",
+      "body": "NFT {count} ziko tayari kwa vipengele vya ufikiaji maalum."
     }
   },
   "emails": {
-    "auth": {
-      "verifyEmail": {
-        "subject": "Thibitisha barua pepe yako",
-        "body": "<h1>Uthibitisho wa barua pepe</h1><p>Bofya kiungo hapa chini kuthibitisha barua pepe yako:</p><a href=\"{verificationUrl}\">Thibitisha barua pepe</a><p>Kiungo hiki kitaisha baada ya saa 24.</p>"
-      },
-      "resetPassword": {
-        "subject": "Ombi la kuweka upya nenosiri",
-        "body": "<h1>Weka upya nenosiri</h1><p>Bofya kiungo hapa chini kuweka upya nenosiri lako:</p><a href=\"{resetUrl}\">Weka upya nenosiri</a><p>Kiungo hiki kitaisha baada ya saa 1.</p>"
-      }
+    "welcome": {
+      "subject": "Karibu WHSPR Stellar",
+      "preview": "Akaunti yako iko tayari kutumika.",
+      "body": "Habari {displayName}, akaunti yako iko tayari. Unganisha wallet, thibitisha umiliki, na anza kutumia vipengele maalum."
+    },
+    "walletLinked": {
+      "subject": "Wallet imeunganishwa kwa mafanikio",
+      "preview": "Stellar wallet mpya imeunganishwa na akaunti yako.",
+      "body": "Stellar wallet yako {walletAddress} sasa imeunganishwa na akaunti yako."
     }
   }
 }

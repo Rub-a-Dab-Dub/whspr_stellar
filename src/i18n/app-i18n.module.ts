@@ -1,17 +1,13 @@
 import * as path from 'path';
 import { Global, Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import {
-  AcceptLanguageResolver,
-  HeaderResolver,
-  I18nJsonLoader,
-  I18nModule,
-} from 'nestjs-i18n';
+import { I18nJsonLoader, I18nModule } from 'nestjs-i18n';
 import { HttpExceptionFilter } from '../common/filters/http-exception.filter';
-import { User } from '../user/entities/user.entity';
+import { LoggingModule } from '../common/logging/logging.module';
+import { User } from '../users/entities/user.entity';
 import { DEFAULT_LOCALE } from './locales.constants';
 import { LocaleGuard } from './guards/locale.guard';
 import { LocalizedParseUUIDPipe } from './pipes/localized-parse-uuid.pipe';
@@ -25,12 +21,14 @@ import { TranslationService } from './services/translation.service';
 @Module({
   imports: [
     ConfigModule,
+    LoggingModule,
     TypeOrmModule.forFeature([User]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_ACCESS_SECRET'),
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '15m' },
       }),
     }),
     I18nModule.forRoot({
@@ -40,10 +38,6 @@ import { TranslationService } from './services/translation.service';
         path: path.join(__dirname, 'locales'),
         watch: process.env.NODE_ENV !== 'production',
       },
-      resolvers: [
-        { use: HeaderResolver, options: ['x-lang'] },
-        AcceptLanguageResolver,
-      ],
       disableMiddleware: true,
       logging: false,
     }),

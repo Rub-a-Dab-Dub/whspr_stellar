@@ -1,84 +1,53 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
+  DeleteDateColumn,
+  Entity,
   Index,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from '../../user/entities/user.entity';
-import {
-  NotificationType,
-  NotificationPriority,
-} from '../enums/notification-type.enum';
+
+export enum InAppNotificationType {
+  NEW_MESSAGE = 'NEW_MESSAGE',
+  TRANSFER_RECEIVED = 'TRANSFER_RECEIVED',
+  GROUP_INVITE = 'GROUP_INVITE',
+  CONTACT_REQUEST = 'CONTACT_REQUEST',
+  PROPOSAL_VOTE = 'PROPOSAL_VOTE',
+  TRANSACTION_CONFIRMED = 'TRANSACTION_CONFIRMED',
+}
 
 @Entity('notifications')
-@Index(['recipientId', 'isRead', 'createdAt'])
-@Index(['type', 'recipientId'])
-@Index(['isRead', 'createdAt'])
+@Index('idx_notifications_user_created', ['userId', 'createdAt'])
+@Index('idx_notifications_user_is_read', ['userId', 'isRead'])
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
-  @Column()
-  recipientId: string;
+  @Column({ type: 'uuid' })
+  userId!: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  recipient: User;
+  @Column({ type: 'enum', enum: InAppNotificationType })
+  @Index('idx_notifications_type')
+  type!: InAppNotificationType;
 
-  @Column({ nullable: true })
-  senderId: string | null;
+  @Column({ type: 'varchar', length: 160 })
+  title!: string;
 
-  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
-  sender: User | null;
+  @Column({ type: 'text' })
+  body!: string;
 
-  @Column({
-    type: 'enum',
-    enum: NotificationType,
-  })
-  type: NotificationType;
+  @Column({ type: 'jsonb', nullable: true })
+  data!: Record<string, unknown> | null;
 
-  @Column()
-  title: string;
+  @Column({ type: 'boolean', default: false })
+  isRead!: boolean;
 
-  @Column('text')
-  message: string;
+  @Column({ type: 'timestamp', nullable: true })
+  readAt!: Date | null;
 
-  @Column('jsonb', { nullable: true })
-  data: Record<string, any> | null;
+  @CreateDateColumn({ type: 'timestamp' })
+  createdAt!: Date;
 
-  @Column({
-    type: 'enum',
-    enum: NotificationPriority,
-    default: NotificationPriority.NORMAL,
-  })
-  priority: NotificationPriority;
-
-  @Column({ default: false })
-  isRead: boolean;
-
-  @Column({ nullable: true })
-  readAt: Date | null;
-
-  @Column({ nullable: true })
-  actionUrl: string | null;
-
-  @Column({ nullable: true })
-  imageUrl: string | null;
-
-  @Column({ nullable: true })
-  expiresAt: Date | null;
-
-  @Column({ default: false })
-  isDeleted: boolean;
-
-  @Column({ nullable: true })
-  deletedAt: Date | null;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @DeleteDateColumn({ type: 'timestamp', nullable: true })
+  deletedAt!: Date | null;
 }

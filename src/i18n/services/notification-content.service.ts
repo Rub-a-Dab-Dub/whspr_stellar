@@ -4,36 +4,41 @@ import { TranslationService } from './translation.service';
 export interface LocalizedNotificationContent {
   locale: string;
   title: string;
-  message: string;
+  body: string;
 }
 
 @Injectable()
 export class NotificationContentService {
   constructor(private readonly translationService: TranslationService) {}
 
-  buildRoomInvitationNotification(input: {
+  buildWalletLinkedNotification(input: {
     preferredLocale?: string | null;
-    roomName: string;
+    walletAddress: string;
+    walletLabel?: string | null;
   }): LocalizedNotificationContent {
     const locale = this.translationService.resolveLocale(input.preferredLocale);
+    const walletLabel = input.walletLabel || input.walletAddress;
 
     return {
       locale,
       title: this.translationService.translateForLocale(
         locale,
-        'notifications.roomInvitation.title',
+        'notifications.walletLinked.title',
       ),
-      message: this.translationService.translateForLocale(
+      body: this.translationService.translateForLocale(
         locale,
-        'notifications.roomInvitation.message',
-        { roomName: input.roomName },
+        'notifications.walletLinked.body',
+        {
+          walletAddress: input.walletAddress,
+          walletLabel,
+        },
       ),
     };
   }
 
-  buildRewardGrantedNotification(input: {
+  buildNftAvatarUpdatedNotification(input: {
     preferredLocale?: string | null;
-    rewardName: string;
+    nftName: string;
   }): LocalizedNotificationContent {
     const locale = this.translationService.resolveLocale(input.preferredLocale);
 
@@ -41,19 +46,21 @@ export class NotificationContentService {
       locale,
       title: this.translationService.translateForLocale(
         locale,
-        'notifications.rewardGranted.title',
+        'notifications.nftAvatarUpdated.title',
       ),
-      message: this.translationService.translateForLocale(
+      body: this.translationService.translateForLocale(
         locale,
-        'notifications.rewardGranted.message',
-        { rewardName: input.rewardName },
+        'notifications.nftAvatarUpdated.body',
+        {
+          nftName: input.nftName,
+        },
       ),
     };
   }
 
-  buildLevelUpNotification(input: {
+  buildNftSyncNotification(input: {
     preferredLocale?: string | null;
-    newLevel: number;
+    count: number;
   }): LocalizedNotificationContent {
     const locale = this.translationService.resolveLocale(input.preferredLocale);
 
@@ -61,32 +68,14 @@ export class NotificationContentService {
       locale,
       title: this.translationService.translateForLocale(
         locale,
-        'notifications.levelUp.title',
+        'notifications.nftSyncComplete.title',
       ),
-      message: this.translationService.translateForLocale(
+      body: this.translationService.translateForLocale(
         locale,
-        'notifications.levelUp.message',
-        { newLevel: input.newLevel },
-      ),
-    };
-  }
-
-  buildAchievementNotification(input: {
-    preferredLocale?: string | null;
-    achievementName: string;
-  }): LocalizedNotificationContent {
-    const locale = this.translationService.resolveLocale(input.preferredLocale);
-
-    return {
-      locale,
-      title: this.translationService.translateForLocale(
-        locale,
-        'notifications.achievement.title',
-      ),
-      message: this.translationService.translateForLocale(
-        locale,
-        'notifications.achievement.message',
-        { achievementName: input.achievementName },
+        'notifications.nftSyncComplete.body',
+        {
+          count: input.count,
+        },
       ),
     };
   }

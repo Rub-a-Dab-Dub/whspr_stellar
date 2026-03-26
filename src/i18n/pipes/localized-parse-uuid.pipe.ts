@@ -8,9 +8,7 @@ export class LocalizedParseUUIDPipe implements PipeTransform<string, string> {
 
   transform(value: string): string {
     if (!isUuid(value)) {
-      throw new BadRequestException(
-        this.translationService.translate('validation.uuid'),
-      );
+      throw new BadRequestException(this.translationService.translate('validation.uuid'));
     }
 
     return value;

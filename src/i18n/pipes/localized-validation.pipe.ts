@@ -41,9 +41,8 @@ export class LocalizedValidationPipe implements PipeTransform {
       return [];
     }
 
-    return Object.entries(error.constraints).map(
-      ([constraintName, rawMessage]) =>
-        this.translateConstraint(error, constraintName, rawMessage),
+    return Object.entries(error.constraints).map(([constraintName, rawMessage]) =>
+      this.translateConstraint(error, constraintName, rawMessage),
     );
   }
 
@@ -74,10 +73,9 @@ export class LocalizedValidationPipe implements PipeTransform {
     });
   }
 
-  private parseMessage(rawMessage: string): {
-    key: string | null;
-    args: Record<string, unknown>;
-  } {
+  private parseMessage(
+    rawMessage: string,
+  ): { key: string | null; args: Record<string, unknown> } {
     const separatorIndex = rawMessage.indexOf('|');
 
     if (separatorIndex === -1) {
@@ -94,7 +92,7 @@ export class LocalizedValidationPipe implements PipeTransform {
         key,
         args: JSON.parse(argsString),
       };
-    } catch (_error) {
+    } catch (error) {
       return {
         key,
         args: {},

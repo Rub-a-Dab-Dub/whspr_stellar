@@ -3,10 +3,18 @@
     "string": "{property} doit etre une chaine de caracteres",
     "notEmpty": "{property} ne doit pas etre vide",
     "email": "{property} doit etre une adresse e-mail valide",
+    "url": "{property} doit etre une URL valide",
     "minLength": "{property} doit contenir au moins {min} caracteres",
     "maxLength": "{property} doit contenir au plus {max} caracteres",
+    "exactLength": "{property} doit contenir exactement {length} caracteres",
+    "usernamePattern": "Le nom d'utilisateur ne peut contenir que des lettres, des chiffres et des tirets bas",
+    "stellarAddressFormat": "Format d'adresse Stellar invalide",
+    "ethereumAddress": "{property} doit etre une adresse Ethereum valide",
+    "integer": "{property} doit etre un entier",
+    "min": "{property} ne peut pas etre inferieur a {min}",
+    "max": "{property} ne peut pas etre superieur a {max}",
     "enum": "{property} doit etre l'une des valeurs suivantes : {allowed}",
-    "passwordStrength": "Le mot de passe doit contenir des lettres majuscules, minuscules et un chiffre ou caractere special",
+    "booleanString": "{property} doit etre une chaine booleenne",
     "uuid": "Format UUID invalide",
     "whitelist": "La propriete {property} ne doit pas exister"
   },
@@ -15,81 +23,70 @@
       "internalServerError": "Erreur interne du serveur"
     },
     "auth": {
-      "invalidCredentials": "Identifiants invalides",
+      "authenticationRequired": "Authentification requise",
+      "invalidToken": "Jeton invalide",
+      "challengeNotFoundOrExpired": "Defi introuvable ou expire",
+      "invalidSignature": "Signature invalide",
+      "userDeactivated": "Le compte utilisateur est desactive",
+      "invalidOrExpiredRefreshToken": "Jeton de rafraichissement invalide ou expire",
+      "refreshTokenNotFoundOrExpired": "Jeton de rafraichissement introuvable ou expire",
       "invalidRefreshToken": "Jeton de rafraichissement invalide",
-      "refreshTokenMismatch": "Le jeton de rafraichissement ne correspond pas",
-      "tokenRevoked": "Le jeton a ete revoque",
-      "accountLocked": "Le compte est verrouille",
-      "accountBanned": "Le compte est banni",
-      "accountSuspended": "Le compte est suspendu",
-      "invalidOrExpiredVerificationToken": "Jeton de verification invalide ou expire",
-      "invalidOrExpiredResetToken": "Jeton de reinitialisation invalide ou expire",
-      "registrationDisabled": "Les nouvelles inscriptions sont actuellement desactivees.",
-      "registrationSuccess": "Inscription reussie. Veuillez verifier votre e-mail.",
-      "logoutSuccess": "Deconnexion reussie",
-      "passwordResetRequested": "Si l'e-mail existe, un lien de reinitialisation a ete envoye.",
-      "passwordResetSuccess": "Reinitialisation du mot de passe reussie",
-      "emailVerifiedSuccess": "Adresse e-mail verifiee avec succes"
+      "tooManyFailedAttempts": "Trop de tentatives echouees. Veuillez reessayer plus tard.",
+      "wsTokenNotFound": "Jeton d'authentification introuvable",
+      "wsInvalidOrExpiredToken": "Jeton invalide ou expire"
     },
     "users": {
-      "notFound": "Utilisateur introuvable",
-      "emailAlreadyExists": "L'e-mail existe deja",
-      "preferredLocaleNotSupported": "La langue preferee n'est pas prise en charge"
+      "walletAlreadyRegistered": "L'adresse du portefeuille est deja enregistree",
+      "usernameTaken": "Le nom d'utilisateur est deja pris",
+      "emailRegistered": "L'adresse e-mail est deja enregistree",
+      "notFoundById": "Utilisateur avec l'ID {id} introuvable",
+      "notFoundByUsername": "Utilisateur avec le nom {username} introuvable",
+      "notFoundByWallet": "Utilisateur avec l'adresse de portefeuille {walletAddress} introuvable",
+      "alreadyDeactivated": "L'utilisateur est deja desactive",
+      "invalidPreferredLocale": "La langue preferee n'est pas prise en charge"
     },
-    "notifications": {
-      "notFound": "Notification introuvable",
-      "notFoundOrAlreadyRead": "Notification introuvable ou deja lue"
+    "wallets": {
+      "invalidStellarWalletAddress": "Adresse de portefeuille Stellar invalide",
+      "maxWalletsExceeded": "Maximum de {maxWallets} portefeuilles par utilisateur",
+      "alreadyLinked": "Le portefeuille est deja lie a votre compte",
+      "signatureVerificationFailed": "La verification de signature du portefeuille a echoue",
+      "notFound": "Portefeuille introuvable",
+      "cannotRemovePrimary": "Impossible de supprimer le portefeuille principal tant que d'autres portefeuilles existent. Definissez d'abord un nouveau portefeuille principal.",
+      "unfundedAccount": "Le compte Stellar {walletAddress} est introuvable sur {network}. Financez-le avec au moins 1 XLM pour l'activer."
+    },
+    "nfts": {
+      "userNotFound": "Utilisateur introuvable",
+      "notFound": "NFT introuvable",
+      "ownershipVerificationFailed": "La propriete du NFT n'a pas pu etre verifiee sur Stellar",
+      "syncFailed": "Echec de la synchronisation des NFT depuis Stellar Horizon",
+      "unsupportedNetwork": "Reseau Stellar non pris en charge : {network}",
+      "walletNotConfigured": "L'utilisateur n'a pas de portefeuille Stellar lie"
     }
   },
   "notifications": {
-    "mention": {
-      "title": "{username} vous a mentionne"
+    "walletLinked": {
+      "title": "Portefeuille lie",
+      "body": "{walletLabel} ({walletAddress}) a ete lie avec succes."
     },
-    "reaction": {
-      "addedTitle": "Nouvelle reaction",
-      "removedTitle": "Reaction retiree",
-      "message": "Quelqu'un a {action} une reaction {reactionType} a votre message",
-      "actions": {
-        "added": "ajoute",
-        "removed": "retire"
-      }
+    "nftAvatarUpdated": {
+      "title": "Avatar mis a jour",
+      "body": "Votre avatar de profil utilise maintenant le NFT {nftName}."
     },
-    "roomInvitation": {
-      "title": "Invitation dans une salle",
-      "message": "Vous avez ete invite a rejoindre \"{roomName}\""
-    },
-    "rewardGranted": {
-      "title": "Recompense recue !",
-      "message": "Vous avez recu : {rewardName}"
-    },
-    "levelUp": {
-      "title": "Niveau superieur !",
-      "message": "Felicitations ! Vous avez atteint le niveau {newLevel}"
-    },
-    "achievement": {
-      "title": "Succes debloque !",
-      "message": "Vous avez debloque : {achievementName}"
-    },
-    "email": {
-      "mentionSubject": "Vous avez ete mentionne sur Whspr Stellar",
-      "replySubject": "Nouvelle reponse a votre message",
-      "roomInviteSubject": "Vous avez ete invite a rejoindre une salle",
-      "reactionSubject": "Quelqu'un a reagi a votre message",
-      "rewardSubject": "Vous avez recu une nouvelle recompense !",
-      "digestSubject": "Votre recapitulatif {period} - Whspr Stellar",
-      "welcomeSubject": "Bienvenue sur Whspr Stellar - Configurez vos notifications"
+    "nftSyncComplete": {
+      "title": "Synchronisation NFT terminee",
+      "body": "{count} NFT sont prets pour les fonctionnalites a acces conditionnel."
     }
   },
   "emails": {
-    "auth": {
-      "verifyEmail": {
-        "subject": "Verifiez votre adresse e-mail",
-        "body": "<h1>Verification de l'e-mail</h1><p>Cliquez sur le lien ci-dessous pour verifier votre adresse :</p><a href=\"{verificationUrl}\">Verifier l'e-mail</a><p>Ce lien expirera dans 24 heures.</p>"
-      },
-      "resetPassword": {
-        "subject": "Demande de reinitialisation du mot de passe",
-        "body": "<h1>Reinitialisation du mot de passe</h1><p>Cliquez sur le lien ci-dessous pour reinitialiser votre mot de passe :</p><a href=\"{resetUrl}\">Reinitialiser le mot de passe</a><p>Ce lien expirera dans 1 heure.</p>"
-      }
+    "welcome": {
+      "subject": "Bienvenue sur WHSPR Stellar",
+      "preview": "Votre compte est pret a etre utilise.",
+      "body": "Bonjour {displayName}, votre compte est pret. Connectez vos portefeuilles, verifiez la propriete et commencez a utiliser les fonctionnalites protegees."
+    },
+    "walletLinked": {
+      "subject": "Portefeuille lie avec succes",
+      "preview": "Un nouveau portefeuille Stellar a ete lie a votre compte.",
+      "body": "Votre portefeuille Stellar {walletAddress} est maintenant lie a votre compte."
     }
   }
 }

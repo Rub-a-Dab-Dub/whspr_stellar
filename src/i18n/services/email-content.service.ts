@@ -4,6 +4,7 @@ import { TranslationService } from './translation.service';
 export interface LocalizedEmailContent {
   locale: string;
   subject: string;
+  preview: string;
   body: string;
 }
 
@@ -11,31 +12,25 @@ export interface LocalizedEmailContent {
 export class EmailContentService {
   constructor(private readonly translationService: TranslationService) {}
 
-  buildVerificationEmail(input: {
+  buildWelcomeEmail(input: {
     preferredLocale?: string | null;
-    verificationUrl: string;
+    displayName?: string | null;
   }): LocalizedEmailContent {
     const locale = this.translationService.resolveLocale(input.preferredLocale);
 
     return {
       locale,
-      subject: this.translationService.translateForLocale(
-        locale,
-        'emails.auth.verifyEmail.subject',
-      ),
-      body: this.translationService.translateForLocale(
-        locale,
-        'emails.auth.verifyEmail.body',
-        {
-          verificationUrl: input.verificationUrl,
-        },
-      ),
+      subject: this.translationService.translateForLocale(locale, 'emails.welcome.subject'),
+      preview: this.translationService.translateForLocale(locale, 'emails.welcome.preview'),
+      body: this.translationService.translateForLocale(locale, 'emails.welcome.body', {
+        displayName: input.displayName || 'there',
+      }),
     };
   }
 
-  buildPasswordResetEmail(input: {
+  buildWalletLinkedEmail(input: {
     preferredLocale?: string | null;
-    resetUrl: string;
+    walletAddress: string;
   }): LocalizedEmailContent {
     const locale = this.translationService.resolveLocale(input.preferredLocale);
 
@@ -43,13 +38,17 @@ export class EmailContentService {
       locale,
       subject: this.translationService.translateForLocale(
         locale,
-        'emails.auth.resetPassword.subject',
+        'emails.walletLinked.subject',
+      ),
+      preview: this.translationService.translateForLocale(
+        locale,
+        'emails.walletLinked.preview',
       ),
       body: this.translationService.translateForLocale(
         locale,
-        'emails.auth.resetPassword.body',
+        'emails.walletLinked.body',
         {
-          resetUrl: input.resetUrl,
+          walletAddress: input.walletAddress,
         },
       ),
     };

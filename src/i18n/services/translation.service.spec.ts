@@ -42,27 +42,15 @@ describe('TranslationService', () => {
 
   it('uses the current request locale from async context when no locale is passed', () => {
     const translated = localeContext.runWithLocale('pt', () =>
-      translationService.translate('errors.auth.invalidRefreshToken'),
+      translationService.translate('errors.auth.invalidToken'),
     );
 
-    expect(translated).toBe('Token de atualizacao invalido');
+    expect(translated).toBe('Token invalido');
   });
 
   it('falls back to english when a translation key is missing in the requested locale', () => {
-    expect(
-      translationService.translate('fallback.example', { lang: 'sw' }),
-    ).toBe('Fallback example');
-  });
-
-  it('translates for an explicit locale with interpolation args', () => {
-    expect(
-      translationService.translateForLocale(
-        'fr',
-        'notifications.levelUp.message',
-        {
-          newLevel: 3,
-        },
-      ),
-    ).toContain('niveau 3');
+    expect(translationService.translate('fallback.example', { lang: 'sw' })).toBe(
+      'Fallback example',
+    );
   });
 });

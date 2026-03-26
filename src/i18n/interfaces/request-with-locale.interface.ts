@@ -4,11 +4,7 @@ export interface RequestWithLocale extends Request {
   locale?: string;
   i18nLang?: string;
   user?: {
-    userId?: string;
+    id?: string;
     preferredLocale?: string | null;
-    user?: {
-      id?: string;
-      preferredLocale?: string | null;
-    };
   };
 }

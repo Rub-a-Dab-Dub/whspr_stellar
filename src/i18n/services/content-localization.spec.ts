@@ -34,24 +34,25 @@ describe('Localized content builders', () => {
   });
 
   it('builds notification content in the user preferred locale', () => {
-    const content = notifications.buildRoomInvitationNotification({
+    const content = notifications.buildWalletLinkedNotification({
       preferredLocale: 'sw',
-      roomName: 'Wadau',
+      walletAddress: 'GABC123',
+      walletLabel: 'Main Wallet',
     });
 
     expect(content.locale).toBe('sw');
-    expect(content.title).toBe('Mwaliko wa chumba');
-    expect(content.message).toContain('Wadau');
+    expect(content.title).toBe('Wallet imeunganishwa');
+    expect(content.body).toContain('Main Wallet');
   });
 
   it('builds email content in the requested locale', () => {
-    const content = emails.buildVerificationEmail({
+    const content = emails.buildWelcomeEmail({
       preferredLocale: 'fr',
-      verificationUrl: 'https://example.com/verify',
+      displayName: 'Amina',
     });
 
     expect(content.locale).toBe('fr');
-    expect(content.subject).toBe('Verifiez votre adresse e-mail');
-    expect(content.body).toContain('https://example.com/verify');
+    expect(content.subject).toBe('Bienvenue sur WHSPR Stellar');
+    expect(content.body).toContain('Amina');
   });
 });

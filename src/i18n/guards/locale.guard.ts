@@ -1,22 +1,14 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../user/entities/user.entity';
+import { JwtPayload } from '../../auth/services/auth.service';
+import { User } from '../../users/entities/user.entity';
 import { RequestWithLocale } from '../interfaces/request-with-locale.interface';
 import { parseAcceptLanguageHeader } from '../locales.constants';
 import { LocaleContextService } from '../services/locale-context.service';
 import { TranslationService } from '../services/translation.service';
-
-interface LocaleJwtPayload {
-  sub?: string;
-}
 
 @Injectable()
 export class LocaleGuard implements CanActivate {
@@ -46,22 +38,12 @@ export class LocaleGuard implements CanActivate {
     return true;
   }
 
-  private async resolveRequestLocale(
-    request: RequestWithLocale,
-  ): Promise<string> {
+  private async resolveRequestLocale(request: RequestWithLocale): Promise<string> {
     const requestUserLocale = this.translationService.normalizeSupportedLocale(
-      request.user?.preferredLocale ?? request.user?.user?.preferredLocale,
+      request.user?.preferredLocale,
     );
     if (requestUserLocale) {
       return requestUserLocale;
-    }
-
-    const explicitHeaderLocale =
-      this.translationService.normalizeSupportedLocale(
-        this.readHeader(request, 'x-lang'),
-      );
-    if (explicitHeaderLocale) {
-      return explicitHeaderLocale;
     }
 
     const persistedUserLocale = await this.resolveUserLocaleFromToken(request);
@@ -77,18 +59,6 @@ export class LocaleGuard implements CanActivate {
     return headerLocale ?? this.translationService.resolveLocale();
   }
 
-  private readHeader(
-    request: RequestWithLocale,
-    headerName: string,
-  ): string | null {
-    const headerValue = request.headers[headerName];
-    if (Array.isArray(headerValue)) {
-      return headerValue[0] ?? null;
-    }
-
-    return headerValue ?? null;
-  }
-
   private async resolveUserLocaleFromToken(
     request: RequestWithLocale,
   ): Promise<string | null> {
@@ -99,8 +69,8 @@ export class LocaleGuard implements CanActivate {
     }
 
     try {
-      const payload = this.jwtService.verify<LocaleJwtPayload>(token, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+      const payload = this.jwtService.verify<JwtPayload>(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
       });
 
       if (!payload?.sub) {
@@ -109,12 +79,9 @@ export class LocaleGuard implements CanActivate {
 
       const user = await this.usersRepository.findOne({
         where: { id: payload.sub },
-        select: ['id', 'preferredLocale'],
       });
 
-      return this.translationService.normalizeSupportedLocale(
-        user?.preferredLocale,
-      );
+      return this.translationService.normalizeSupportedLocale(user?.preferredLocale);
     } catch (error) {
       this.logger.debug(
         `Locale resolution skipped for invalid token: ${this.getErrorMessage(error)}`,
