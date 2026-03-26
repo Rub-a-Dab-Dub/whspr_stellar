@@ -33,7 +33,7 @@ export class UserResponseDto {
   bio!: string | null;
 
   @Expose()
-  @ApiProperty({ enum: UserTier, example: UserTier.FREE })
+  @ApiProperty({ enum: UserTier, example: UserTier.SILVER })
   tier!: UserTier;
 
   @Expose()

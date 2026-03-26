@@ -97,8 +97,8 @@ describe('ReferralsService', () => {
   });
 
   describe('processReward', () => {
-    it('should correctly credit reward based on referrer tier (VIP)', async () => {
-      const referral = { id: 'r1', referrer: { id: 'u2', tier: UserTier.VIP } };
+    it('should correctly credit reward based on referrer tier (BLACK)', async () => {
+      const referral = { id: 'r1', referrer: { id: 'u2', tier: UserTier.BLACK } };
       (referralsRepository.findPendingByRefereeId as jest.Mock).mockResolvedValue(referral);
 
       await service.processReward('u1');
@@ -108,8 +108,8 @@ describe('ReferralsService', () => {
       }));
     });
 
-    it('should correctly credit reward based on referrer tier (FREE)', async () => {
-      const referral = { id: 'r1', referrer: { id: 'u2', tier: UserTier.FREE } };
+    it('should correctly credit reward based on referrer tier (SILVER)', async () => {
+      const referral = { id: 'r1', referrer: { id: 'u2', tier: UserTier.SILVER } };
       (referralsRepository.findPendingByRefereeId as jest.Mock).mockResolvedValue(referral);
 
       await service.processReward('u1');

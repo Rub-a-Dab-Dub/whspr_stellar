@@ -9,8 +9,8 @@ describe('AdminUsersService', () => {
   let repo: Repository<User>;
 
   const mockUsers = [
-    { id: '1', username: 'user1', isActive: true, tier: UserTier.FREE },
-    { id: '2', username: 'user2', isActive: false, tier: UserTier.PREMIUM },
+    { id: '1', username: 'user1', isActive: true, tier: UserTier.SILVER },
+    { id: '2', username: 'user2', isActive: false, tier: UserTier.GOLD },
   ];
 
   const mockUserRepository = {
@@ -64,8 +64,8 @@ describe('AdminUsersService', () => {
   });
 
   it('should change tier of a user', async () => {
-    const user = await service.setTier('2', UserTier.VIP);
-    expect(user.tier).toBe(UserTier.VIP);
+    const user = await service.setTier('2', UserTier.BLACK);
+    expect(user.tier).toBe(UserTier.BLACK);
     expect(repo.save).toHaveBeenCalled();
   });
 });
