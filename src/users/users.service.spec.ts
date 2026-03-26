@@ -5,6 +5,7 @@ import { UsersRepository } from './users.repository';
 import { User, UserTier } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { TranslationService } from '../i18n/services/translation.service';
 import { UserSettingsService } from '../user-settings/user-settings.service';
 
 describe('UsersService', () => {
@@ -19,6 +20,8 @@ describe('UsersService', () => {
     displayName: 'Test User',
     avatarUrl: 'https://example.com/avatar.jpg',
     bio: 'Test bio',
+    preferredLocale: null,
+    tier: UserTier.FREE,
     tier: UserTier.SILVER,
     isActive: true,
     isVerified: false,
@@ -57,6 +60,11 @@ describe('UsersService', () => {
           useValue: mockRepository,
         },
         {
+          provide: TranslationService,
+          useValue: {
+            translate: jest.fn((key: string) => key),
+            normalizeSupportedLocale: jest.fn((locale?: string | null) => locale ?? null),
+          },
           provide: UserSettingsService,
           useValue: mockUserSettingsService,
         },

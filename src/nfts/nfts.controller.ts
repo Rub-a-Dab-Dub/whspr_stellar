@@ -4,13 +4,13 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { LocalizedParseUUIDPipe } from '../i18n/pipes/localized-parse-uuid.pipe';
 import { QueryUserNFTsDto } from './dto/query-user-nfts.dto';
 import { NFTsService } from './nfts.service';
 
@@ -48,7 +48,7 @@ export class NFTsController {
   @Get(':id')
   async getNFT(
     @CurrentUser('id') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', LocalizedParseUUIDPipe) id: string,
   ) {
     return this.nftsService.getNFT(id, userId);
   }
@@ -57,7 +57,7 @@ export class NFTsController {
   @HttpCode(HttpStatus.OK)
   async useAsAvatar(
     @CurrentUser('id') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', LocalizedParseUUIDPipe) id: string,
   ) {
     const user = await this.nftsService.useAsAvatar(userId, id);
 

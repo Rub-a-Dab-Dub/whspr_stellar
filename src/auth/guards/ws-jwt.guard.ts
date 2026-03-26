@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { AuthService, JwtPayload } from '../services/auth.service';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 @Injectable()
 export class WsJwtGuard implements CanActivate {
@@ -11,6 +12,7 @@ export class WsJwtGuard implements CanActivate {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
+    private readonly translationService: TranslationService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -19,7 +21,9 @@ export class WsJwtGuard implements CanActivate {
       const token = this.extractTokenFromHandshake(client);
 
       if (!token) {
-        throw new WsException('Authentication token not found');
+        throw new WsException(
+          this.translationService.translate('errors.auth.wsTokenNotFound'),
+        );
       }
 
       const payload: JwtPayload = this.jwtService.verify(token, {
@@ -33,7 +37,13 @@ export class WsJwtGuard implements CanActivate {
 
       return true;
     } catch (error) {
-      throw new WsException('Invalid or expired token');
+      if (error instanceof WsException) {
+        throw error;
+      }
+
+      throw new WsException(
+        this.translationService.translate('errors.auth.wsInvalidOrExpiredToken'),
+      );
     }
   }
 

@@ -22,6 +22,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
+import { NFTsModule } from './nfts/nfts.module';
+import { AppI18nModule } from './i18n/app-i18n.module';
+import { InChatTransfersModule } from './in-chat-transfers/in-chat-transfers.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
@@ -60,6 +63,7 @@ import { ReactionsModule } from './reactions/reactions.module';
     CacheModule,
     LoggingModule,
     ScheduleModule.forRoot(),
+    AppI18nModule,
     HealthModule,
     UsersModule,
     UserSettingsModule,
@@ -71,6 +75,7 @@ import { ReactionsModule } from './reactions/reactions.module';
     NotificationsModule,
     ReactionsModule,
     ScheduledJobsModule,
+    InChatTransfersModule,
     WebhooksModule,
     ObservabilityModule,
     AdminModule,

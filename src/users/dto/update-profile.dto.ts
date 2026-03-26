@@ -8,6 +8,7 @@ import {
   MaxLength,
   Matches,
 } from 'class-validator';
+import { validationMessages } from '../../i18n/validation-messages';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional({
@@ -17,11 +18,11 @@ export class UpdateProfileDto {
     maxLength: 50,
   })
   @IsOptional()
-  @IsString()
-  @MinLength(3)
-  @MaxLength(50)
+  @IsString({ message: validationMessages.string() })
+  @MinLength(3, { message: validationMessages.minLength(3) })
+  @MaxLength(50, { message: validationMessages.maxLength(50) })
   @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: 'Username can only contain letters, numbers, and underscores',
+    message: validationMessages.usernamePattern(),
   })
   username?: string;
 
@@ -30,8 +31,8 @@ export class UpdateProfileDto {
     example: 'john@example.com',
   })
   @IsOptional()
-  @IsEmail()
-  @MaxLength(255)
+  @IsEmail({}, { message: validationMessages.email() })
+  @MaxLength(255, { message: validationMessages.maxLength(255) })
   email?: string;
 
   @ApiPropertyOptional({
@@ -40,8 +41,8 @@ export class UpdateProfileDto {
     maxLength: 100,
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
+  @IsString({ message: validationMessages.string() })
+  @MaxLength(100, { message: validationMessages.maxLength(100) })
   displayName?: string;
 
   @ApiPropertyOptional({
@@ -49,7 +50,7 @@ export class UpdateProfileDto {
     example: 'https://example.com/avatar.jpg',
   })
   @IsOptional()
-  @IsUrl()
+  @IsUrl({}, { message: validationMessages.url() })
   avatarUrl?: string;
 
   @ApiPropertyOptional({
@@ -58,7 +59,17 @@ export class UpdateProfileDto {
     maxLength: 500,
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(500)
+  @IsString({ message: validationMessages.string() })
+  @MaxLength(500, { message: validationMessages.maxLength(500) })
   bio?: string;
+
+  @ApiPropertyOptional({
+    description: 'Preferred locale, for example en, fr, pt, or sw',
+    example: 'sw',
+    maxLength: 10,
+  })
+  @IsOptional()
+  @IsString({ message: validationMessages.string() })
+  @MaxLength(10, { message: validationMessages.maxLength(10) })
+  preferredLocale?: string | null;
 }

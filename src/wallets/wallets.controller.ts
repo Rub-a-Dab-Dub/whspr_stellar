@@ -6,7 +6,6 @@ import {
   Patch,
   Body,
   Param,
-  ParseUUIDPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -16,15 +15,8 @@ import { AddWalletDto } from './dto/add-wallet.dto';
 import { WalletResponseDto } from './dto/wallet-response.dto';
 import { BalanceResponseDto } from './dto/balance-response.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { IsString, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-
-class VerifyWalletDto {
-  @ApiProperty({ description: 'Base64-encoded signature of the verification message' })
-  @IsString()
-  @IsNotEmpty()
-  signature!: string;
-}
+import { VerifyWalletDto } from './dto/verify-wallet.dto';
+import { LocalizedParseUUIDPipe } from '../i18n/pipes/localized-parse-uuid.pipe';
 
 @ApiTags('wallets')
 @ApiBearerAuth()
@@ -61,7 +53,7 @@ export class WalletsController {
   @ApiResponse({ status: 404, description: 'Wallet not found' })
   removeWallet(
     @CurrentUser('id') userId: string,
-    @Param('id', ParseUUIDPipe) walletId: string,
+    @Param('id', LocalizedParseUUIDPipe) walletId: string,
   ): Promise<void> {
     return this.walletsService.removeWallet(userId, walletId);
   }
@@ -73,7 +65,7 @@ export class WalletsController {
   @ApiResponse({ status: 404, description: 'Wallet not found' })
   setPrimary(
     @CurrentUser('id') userId: string,
-    @Param('id', ParseUUIDPipe) walletId: string,
+    @Param('id', LocalizedParseUUIDPipe) walletId: string,
   ): Promise<WalletResponseDto> {
     return this.walletsService.setPrimary(userId, walletId);
   }
@@ -86,7 +78,7 @@ export class WalletsController {
   @ApiResponse({ status: 404, description: 'Wallet not found' })
   verifyWallet(
     @CurrentUser('id') userId: string,
-    @Param('id', ParseUUIDPipe) walletId: string,
+    @Param('id', LocalizedParseUUIDPipe) walletId: string,
     @Body() dto: VerifyWalletDto,
   ): Promise<WalletResponseDto> {
     return this.walletsService.verifyWallet(userId, walletId, dto.signature);
@@ -99,7 +91,7 @@ export class WalletsController {
   @ApiResponse({ status: 404, description: 'Wallet or Stellar account not found' })
   getBalance(
     @CurrentUser('id') userId: string,
-    @Param('id', ParseUUIDPipe) walletId: string,
+    @Param('id', LocalizedParseUUIDPipe) walletId: string,
   ): Promise<BalanceResponseDto> {
     return this.walletsService.getBalance(userId, walletId);
   }
