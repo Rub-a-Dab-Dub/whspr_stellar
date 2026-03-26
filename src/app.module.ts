@@ -30,10 +30,15 @@ import { CacheModule } from './cache/cache.module';
       isGlobal: true,
       envFilePath: '.env',
       validationSchema: envValidationSchema,
-      validationOptions: {
-        abortEarly: true,
-      },
+      validationOptions: { abortEarly: true },
     }),
+    TypeOrmModule.forRootAsync({ useFactory: typeOrmConfig }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
+    RedisCacheModule,
+    HealthModule,
+    UsersModule,
+    AuthModule,
+    StellarEventsModule,
     TypeOrmModule.forRootAsync({
       useFactory: typeOrmConfig,
     }),

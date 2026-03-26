@@ -61,6 +61,9 @@ export const envValidationSchema = Joi.object({
     'image/jpeg,image/png,image/webp,image/gif,video/mp4,audio/mpeg,audio/wav,application/pdf',
   ),
 
+  // Soroban RPC
+  SOROBAN_RPC_URL: Joi.string().uri().required(),
+  SOROBAN_CONTRACT_IDS: Joi.string().default(''), // comma-separated contract addresses
   // Stellar / Horizon
   STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
   STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
