@@ -38,6 +38,7 @@ import { ReactionsModule } from './reactions/reactions.module';
 import { StickersModule } from './stickers/stickers.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { SpamDetectionModule } from './spam-detection/spam-detection.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { SpamDetectionModule } from './spam-detection/spam-detection.module';
     StickersModule,
     PrivacyModule,
     SpamDetectionModule,
+    LeaderboardModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,
