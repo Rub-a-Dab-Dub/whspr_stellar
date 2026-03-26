@@ -98,6 +98,38 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     this.server.to(room).emit('transfer:update', event);
   }
 
+  async sendNotificationRead(
+    userId: string,
+    notificationId: string,
+    readAt: number,
+  ): Promise<void> {
+    const room = this.userRoom(userId);
+    const event = { notificationId, readAt, timestamp: Date.now() };
+    await this.eventReplayService.storeEvent(room, 'notification:read', event);
+    this.server.to(room).emit('notification:read', event);
+  }
+
+  async sendNotificationReadAll(userId: string): Promise<void> {
+    const room = this.userRoom(userId);
+    const event = { timestamp: Date.now() };
+    await this.eventReplayService.storeEvent(room, 'notification:read_all', event);
+    this.server.to(room).emit('notification:read_all', event);
+  }
+
+  async sendNotificationDeleted(userId: string, notificationId: string): Promise<void> {
+    const room = this.userRoom(userId);
+    const event = { notificationId, timestamp: Date.now() };
+    await this.eventReplayService.storeEvent(room, 'notification:deleted', event);
+    this.server.to(room).emit('notification:deleted', event);
+  }
+
+  async sendUnreadCountUpdate(userId: string, unreadCount: number): Promise<void> {
+    const room = this.userRoom(userId);
+    const event = { unreadCount, timestamp: Date.now() };
+    await this.eventReplayService.storeEvent(room, 'notification:unread_count', event);
+    this.server.to(room).emit('notification:unread_count', event);
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   private userRoom(userId: string): string {
