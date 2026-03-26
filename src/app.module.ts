@@ -17,6 +17,9 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
+import { SorobanModule } from './soroban/soroban.module';
+import { KycModule } from './kyc/kyc.module';
+import { TokensModule } from './tokens/tokens.module';
 
 @Module({
   imports: [
@@ -50,6 +53,9 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     WebhooksModule,
     ObservabilityModule,
     UserSettingsModule,
+    SorobanModule,
+    KycModule,
+    TokensModule,
   ],
   controllers: [AppController],
   providers: [AppService],
