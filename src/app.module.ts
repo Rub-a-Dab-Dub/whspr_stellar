@@ -39,6 +39,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ReactionsModule } from './reactions/reactions.module';
 import { StickersModule } from './stickers/stickers.module';
 import { PrivacyModule } from './privacy/privacy.module';
+import { SpamDetectionModule } from './spam-detection/spam-detection.module';
 import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
 
 @Module({
@@ -83,6 +84,7 @@ import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
     ReactionsModule,
     StickersModule,
     PrivacyModule,
+    SpamDetectionModule,
     PinnedMessagesModule,
     ScheduledJobsModule,
     InChatTransfersModule,
