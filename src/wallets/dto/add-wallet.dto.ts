@@ -1,15 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsEnum, IsOptional, MaxLength, Length, Matches } from 'class-validator';
 import { WalletNetwork } from '../entities/wallet.entity';
+import { validationMessages } from '../../i18n/validation-messages';
 
 export class AddWalletDto {
   @ApiProperty({
     description: 'Stellar wallet public key',
     example: 'GCZJM35NKGVK47BB4SPBDV25477PZYIYPVVG453LPYFNXLS3FGHDXOCM',
   })
-  @IsString()
-  @Length(56, 56, { message: 'Stellar address must be exactly 56 characters' })
-  @Matches(/^G[A-Z2-7]{55}$/, { message: 'Invalid Stellar address format' })
+  @IsString({ message: validationMessages.string() })
+  @Length(56, 56, { message: validationMessages.exactLength(56) })
+  @Matches(/^G[A-Z2-7]{55}$/, { message: validationMessages.stellarAddressFormat() })
   walletAddress!: string;
 
   @ApiPropertyOptional({
@@ -17,7 +18,7 @@ export class AddWalletDto {
     example: 'SGVsbG8gV29ybGQhIFRoaXMgaXMgYSBzaWduYXR1cmUgZXhhbXBsZQ==',
   })
   @IsOptional()
-  @IsString()
+  @IsString({ message: validationMessages.string() })
   signature?: string;
 
   @ApiPropertyOptional({
@@ -26,7 +27,9 @@ export class AddWalletDto {
     example: WalletNetwork.STELLAR_MAINNET,
   })
   @IsOptional()
-  @IsEnum(WalletNetwork)
+  @IsEnum(WalletNetwork, {
+    message: validationMessages.enum(Object.values(WalletNetwork)),
+  })
   network?: WalletNetwork;
 
   @ApiPropertyOptional({
@@ -35,7 +38,7 @@ export class AddWalletDto {
     maxLength: 100,
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
+  @IsString({ message: validationMessages.string() })
+  @MaxLength(100, { message: validationMessages.maxLength(100) })
   label?: string;
 }

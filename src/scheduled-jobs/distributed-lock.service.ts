@@ -1,26 +1,20 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import Redlock from 'redlock';
+import { RedisService } from '../common/redis/redis.service';
 
 @Injectable()
-export class DistributedLockService implements OnModuleDestroy {
+export class DistributedLockService {
   private readonly logger = new Logger(DistributedLockService.name);
-  private readonly redisClient: Redis;
   private readonly redlock: Redlock;
 
-  constructor(private readonly configService: ConfigService) {
-    this.redisClient = new Redis({
-      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
-      password: this.configService.get<string>('REDIS_PASSWORD') || undefined,
-      db: this.configService.get<number>('REDIS_DB', 0),
-      lazyConnect: true,
-      maxRetriesPerRequest: 1,
-      enableOfflineQueue: false,
-    });
-
-    this.redlock = new Redlock([this.redisClient], {
+  constructor(
+    private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
+  ) {
+    const redisClient = this.redisService.getClient();
+    this.redlock = new Redlock([redisClient], {
       retryCount: 0,
     });
   }
@@ -48,11 +42,4 @@ export class DistributedLockService implements OnModuleDestroy {
     }
   }
 
-  async onModuleDestroy(): Promise<void> {
-    try {
-      await this.redisClient.quit();
-    } catch {
-      await this.redisClient.disconnect();
-    }
-  }
 }

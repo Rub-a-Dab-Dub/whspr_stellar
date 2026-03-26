@@ -1,24 +1,27 @@
 import { IsBooleanString, IsEnum, IsOptional, IsString } from 'class-validator';
 import { WalletNetwork } from '../../wallets/entities/wallet.entity';
+import { validationMessages } from '../../i18n/validation-messages';
 
 export class QueryUserNFTsDto {
   @IsOptional()
-  @IsString()
+  @IsString({ message: validationMessages.string() })
   collection?: string;
 
   @IsOptional()
-  @IsString()
+  @IsString({ message: validationMessages.string() })
   contractAddress?: string;
 
   @IsOptional()
-  @IsString()
+  @IsString({ message: validationMessages.string() })
   tokenId?: string;
 
   @IsOptional()
-  @IsEnum(WalletNetwork)
+  @IsEnum(WalletNetwork, {
+    message: validationMessages.enum(Object.values(WalletNetwork)),
+  })
   network?: WalletNetwork;
 
   @IsOptional()
-  @IsBooleanString()
+  @IsBooleanString({ message: validationMessages.booleanString() })
   refresh?: string;
 }

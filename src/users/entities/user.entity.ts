@@ -8,9 +8,9 @@ import {
 } from 'typeorm';
 
 export enum UserTier {
-  FREE = 'free',
-  PREMIUM = 'premium',
-  VIP = 'vip',
+  SILVER = 'silver',
+  GOLD = 'gold',
+  BLACK = 'black',
 }
 
 @Entity('users')
@@ -39,6 +39,8 @@ export class User {
   @Column({ type: 'text', nullable: true })
   bio!: string | null;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  preferredLocale!: string | null;
   @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
   @Index('idx_users_referral_code')
   referralCode!: string | null;
@@ -46,7 +48,7 @@ export class User {
   @Column({
     type: 'enum',
     enum: UserTier,
-    default: UserTier.FREE,
+    default: UserTier.SILVER,
   })
   tier!: UserTier;
 

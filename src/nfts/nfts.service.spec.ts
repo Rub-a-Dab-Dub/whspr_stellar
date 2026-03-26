@@ -7,6 +7,7 @@ import { Wallet, WalletNetwork } from '../wallets/entities/wallet.entity';
 import { NFT } from './entities/nft.entity';
 import { NFTsRepository } from './repositories/nfts.repository';
 import { NFTsService } from './nfts.service';
+import { TranslationService } from '../i18n/services/translation.service';
 
 const mockRedis = {
   get: jest.fn(),
@@ -102,6 +103,14 @@ describe('NFTsService', () => {
           provide: getRepositoryToken(Wallet),
           useValue: {
             findOne: jest.fn(),
+          },
+        },
+        {
+          provide: TranslationService,
+          useValue: {
+            translate: jest.fn((key: string, options?: { args?: Record<string, unknown> }) =>
+              options?.args ? `${key}:${JSON.stringify(options.args)}` : key,
+            ),
           },
         },
       ],

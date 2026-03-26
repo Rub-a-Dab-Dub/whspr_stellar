@@ -9,7 +9,6 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
@@ -21,6 +20,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { LocalizedParseUUIDPipe } from '../i18n/pipes/localized-parse-uuid.pipe';
 
 @ApiTags('users')
 @Controller('users')
@@ -108,7 +108,7 @@ export class UsersController {
   @ApiParam({ name: 'id', description: 'User UUID' })
   @ApiResponse({ status: 200, type: UserResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponseDto> {
+  async findById(@Param('id', LocalizedParseUUIDPipe) id: string): Promise<UserResponseDto> {
     return this.usersService.findById(id);
   }
 }

@@ -16,6 +16,8 @@ import { UsersService } from '../../users/users.service';
 import { SessionsService } from '../../sessions/sessions.service';
 import { ChallengeResponseDto } from '../dto/challenge-response.dto';
 import { AuthResponseDto } from '../dto/auth-response.dto';
+import { UserResponseDto } from '../../users/dto/user-response.dto';
+import { TranslationService } from '../../i18n/services/translation.service';
 import { AuthAttempt } from '../entities/auth-attempt.entity';
 import { AuthChallenge } from '../entities/auth-challenge.entity';
 import { CryptoService } from './crypto.service';
@@ -46,6 +48,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly cryptoService: CryptoService,
+    private readonly translationService: TranslationService,
     private readonly sessionsService: SessionsService,
   ) {}
 
@@ -91,7 +94,9 @@ export class AuthService {
 
     if (!challenge) {
       await this.recordFailedAttempt(walletAddress, ipAddress);
-      throw new UnauthorizedException('Challenge not found or expired');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.challengeNotFoundOrExpired'),
+      );
     }
 
     const message = this.cryptoService.createSignMessage(challenge.nonce);
@@ -99,7 +104,9 @@ export class AuthService {
 
     if (!isValid) {
       await this.recordFailedAttempt(walletAddress, ipAddress);
-      throw new UnauthorizedException('Invalid signature');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidSignature'),
+      );
     }
 
     await this.challengeRepository.delete({ id: challenge.id });
@@ -108,7 +115,7 @@ export class AuthService {
     const user = await this.findOrCreateUser(walletAddress);
 
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
     }
 
     const tokens = await this.generateTokens(user, {
@@ -133,6 +140,33 @@ export class AuthService {
     userAgent?: string,
     deviceInfo?: string,
   ): Promise<AuthResponseDto> {
+    // Verify refresh token JWT
+    let payload: JwtPayload;
+    try {
+      payload = this.jwtService.verify(refreshTokenString, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+    } catch (error) {
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidOrExpiredRefreshToken'),
+      );
+    }
+
+    // Find refresh token in database
+    const storedToken = await this.refreshTokenRepository.findOne({
+      where: {
+        userId: payload.sub,
+        isRevoked: false,
+        expiresAt: MoreThan(new Date()),
+      },
+      relations: ['user'],
+    });
+
+    if (!storedToken) {
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.refreshTokenNotFoundOrExpired'),
+      );
+    }
     const payload = this.verifyJwt(refreshTokenString);
     const storedSession = await this.sessionsService.validateRefreshSession(
       payload.sub,
@@ -145,12 +179,14 @@ export class AuthService {
     );
 
     if (!isValid) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidRefreshToken'),
+      );
     }
 
     const user = await this.usersService.findById(payload.sub);
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
     }
 
     const tokens = await this.generateTokens(
@@ -186,7 +222,7 @@ export class AuthService {
     const user = await this.usersService.findById(payload.sub);
 
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
     }
 
     await this.sessionsService.validateActiveSession(payload.sub, payload.sessionId);
@@ -336,7 +372,7 @@ export class AuthService {
     if (recentAttempts >= this.MAX_FAILED_ATTEMPTS) {
       this.logger.warn(`Brute force detected for wallet ${walletAddress} from IP ${ipAddress}`);
       throw new HttpException(
-        'Too many failed attempts. Please try again later.',
+        this.translationService.translate('errors.auth.tooManyFailedAttempts'),
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }

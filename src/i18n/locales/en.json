@@ -1,0 +1,95 @@
+{
+  "fallback": {
+    "example": "Fallback example"
+  },
+  "validation": {
+    "string": "{property} must be a string",
+    "notEmpty": "{property} should not be empty",
+    "email": "{property} must be a valid email address",
+    "url": "{property} must be a valid URL",
+    "minLength": "{property} must be at least {min} characters",
+    "maxLength": "{property} must be at most {max} characters",
+    "exactLength": "{property} must be exactly {length} characters",
+    "usernamePattern": "Username can only contain letters, numbers, and underscores",
+    "stellarAddressFormat": "Invalid Stellar address format",
+    "ethereumAddress": "{property} must be a valid Ethereum address",
+    "integer": "{property} must be an integer",
+    "min": "{property} must not be less than {min}",
+    "max": "{property} must not be greater than {max}",
+    "enum": "{property} must be one of: {allowed}",
+    "booleanString": "{property} must be a boolean string",
+    "uuid": "Invalid UUID format",
+    "whitelist": "Property {property} should not exist"
+  },
+  "errors": {
+    "common": {
+      "internalServerError": "Internal server error"
+    },
+    "auth": {
+      "authenticationRequired": "Authentication required",
+      "invalidToken": "Invalid token",
+      "challengeNotFoundOrExpired": "Challenge not found or expired",
+      "invalidSignature": "Invalid signature",
+      "userDeactivated": "User account is deactivated",
+      "invalidOrExpiredRefreshToken": "Invalid or expired refresh token",
+      "refreshTokenNotFoundOrExpired": "Refresh token not found or expired",
+      "invalidRefreshToken": "Invalid refresh token",
+      "tooManyFailedAttempts": "Too many failed attempts. Please try again later.",
+      "wsTokenNotFound": "Authentication token not found",
+      "wsInvalidOrExpiredToken": "Invalid or expired token"
+    },
+    "users": {
+      "walletAlreadyRegistered": "Wallet address already registered",
+      "usernameTaken": "Username already taken",
+      "emailRegistered": "Email already registered",
+      "notFoundById": "User with ID {id} not found",
+      "notFoundByUsername": "User with username {username} not found",
+      "notFoundByWallet": "User with wallet address {walletAddress} not found",
+      "alreadyDeactivated": "User is already deactivated",
+      "invalidPreferredLocale": "Preferred locale is not supported"
+    },
+    "wallets": {
+      "invalidStellarWalletAddress": "Invalid Stellar wallet address",
+      "maxWalletsExceeded": "Maximum of {maxWallets} wallets per user",
+      "alreadyLinked": "Wallet already linked to your account",
+      "signatureVerificationFailed": "Wallet signature verification failed",
+      "notFound": "Wallet not found",
+      "cannotRemovePrimary": "Cannot remove primary wallet while other wallets exist. Designate a new primary first.",
+      "unfundedAccount": "Stellar account {walletAddress} not found on {network}. Fund it with at least 1 XLM to activate."
+    },
+    "nfts": {
+      "userNotFound": "User not found",
+      "notFound": "NFT not found",
+      "ownershipVerificationFailed": "NFT ownership could not be verified on Stellar",
+      "syncFailed": "Failed to sync NFTs from Stellar Horizon",
+      "unsupportedNetwork": "Unsupported Stellar network: {network}",
+      "walletNotConfigured": "User does not have a linked Stellar wallet configured"
+    }
+  },
+  "notifications": {
+    "walletLinked": {
+      "title": "Wallet linked",
+      "body": "{walletLabel} ({walletAddress}) was linked successfully."
+    },
+    "nftAvatarUpdated": {
+      "title": "Avatar updated",
+      "body": "Your profile avatar now uses NFT {nftName}."
+    },
+    "nftSyncComplete": {
+      "title": "NFT sync complete",
+      "body": "{count} NFTs are ready for gated features."
+    }
+  },
+  "emails": {
+    "welcome": {
+      "subject": "Welcome to WHSPR Stellar",
+      "preview": "Your account is ready to use.",
+      "body": "Hi {displayName}, your account is ready. Connect wallets, verify ownership, and start using gated features."
+    },
+    "walletLinked": {
+      "subject": "Wallet linked successfully",
+      "preview": "A new Stellar wallet was linked to your account.",
+      "body": "Your Stellar wallet {walletAddress} is now linked to your account."
+    }
+  }
+}
