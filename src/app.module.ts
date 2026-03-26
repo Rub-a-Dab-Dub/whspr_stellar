@@ -36,6 +36,7 @@ import { RedisCacheModule } from './cache/redis-cache.module';
 import { StellarEventsModule } from './stellar-events/stellar-events.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReactionsModule } from './reactions/reactions.module';
+import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { ReactionsModule } from './reactions/reactions.module';
     TransactionsModule,
     NotificationsModule,
     ReactionsModule,
+    PinnedMessagesModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,
