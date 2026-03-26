@@ -15,6 +15,7 @@ import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { NFTsModule } from './nfts/nfts.module';
 import { AppI18nModule } from './i18n/app-i18n.module';
+import { InChatTransfersModule } from './in-chat-transfers/in-chat-transfers.module';
 
 @Module({
   imports: [
@@ -44,8 +45,9 @@ import { AppI18nModule } from './i18n/app-i18n.module';
     WalletsModule,
     NFTsModule,
     ScheduledJobsModule,
+    InChatTransfersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
