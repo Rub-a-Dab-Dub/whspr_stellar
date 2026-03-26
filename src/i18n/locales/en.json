@@ -1,0 +1,98 @@
+{
+  "fallback": {
+    "example": "Fallback example"
+  },
+  "validation": {
+    "string": "{property} must be a string",
+    "notEmpty": "{property} should not be empty",
+    "email": "{property} must be a valid email address",
+    "minLength": "{property} must be at least {min} characters",
+    "maxLength": "{property} must be at most {max} characters",
+    "enum": "{property} must be one of: {allowed}",
+    "passwordStrength": "Password must contain uppercase, lowercase, and number or special character",
+    "uuid": "Invalid UUID format",
+    "whitelist": "Property {property} should not exist"
+  },
+  "errors": {
+    "common": {
+      "internalServerError": "Internal server error"
+    },
+    "auth": {
+      "invalidCredentials": "Invalid credentials",
+      "invalidRefreshToken": "Invalid refresh token",
+      "refreshTokenMismatch": "Refresh token mismatch",
+      "tokenRevoked": "Token has been revoked",
+      "accountLocked": "Account is locked",
+      "accountBanned": "Account is banned",
+      "accountSuspended": "Account is suspended",
+      "invalidOrExpiredVerificationToken": "Invalid or expired verification token",
+      "invalidOrExpiredResetToken": "Invalid or expired reset token",
+      "registrationDisabled": "New user registrations are currently disabled.",
+      "registrationSuccess": "Registration successful. Please check your email to verify your account.",
+      "logoutSuccess": "Logout successful",
+      "passwordResetRequested": "If the email exists, a reset link has been sent.",
+      "passwordResetSuccess": "Password reset successful",
+      "emailVerifiedSuccess": "Email verified successfully"
+    },
+    "users": {
+      "notFound": "User not found",
+      "emailAlreadyExists": "Email already exists",
+      "preferredLocaleNotSupported": "Preferred locale is not supported"
+    },
+    "notifications": {
+      "notFound": "Notification not found",
+      "notFoundOrAlreadyRead": "Notification not found or already read"
+    }
+  },
+  "notifications": {
+    "mention": {
+      "title": "{username} mentioned you"
+    },
+    "reaction": {
+      "addedTitle": "New reaction",
+      "removedTitle": "Reaction removed",
+      "message": "Someone {action} a {reactionType} reaction to your message",
+      "actions": {
+        "added": "added",
+        "removed": "removed"
+      }
+    },
+    "roomInvitation": {
+      "title": "Room Invitation",
+      "message": "You've been invited to join \"{roomName}\""
+    },
+    "rewardGranted": {
+      "title": "Reward Received!",
+      "message": "You've received: {rewardName}"
+    },
+    "levelUp": {
+      "title": "Level Up!",
+      "message": "Congratulations! You've reached level {newLevel}"
+    },
+    "achievement": {
+      "title": "Achievement Unlocked!",
+      "message": "You've unlocked: {achievementName}"
+    },
+    "email": {
+      "mentionSubject": "You were mentioned in Whspr Stellar",
+      "replySubject": "New reply to your message",
+      "roomInviteSubject": "You've been invited to join a room",
+      "reactionSubject": "Someone reacted to your message",
+      "rewardSubject": "You've received a new reward!",
+      "digestSubject": "Your {period} notification digest - Whspr Stellar",
+      "welcomeSubject": "Welcome to Whspr Stellar - Set up your notifications"
+    }
+  },
+  "emails": {
+    "auth": {
+      "verifyEmail": {
+        "subject": "Verify your email",
+        "body": "<h1>Email Verification</h1><p>Click the link below to verify your email:</p><a href=\"{verificationUrl}\">Verify Email</a><p>This link will expire in 24 hours.</p>"
+      },
+      "resetPassword": {
+        "subject": "Password Reset Request",
+        "body": "<h1>Password Reset</h1><p>Click the link below to reset your password:</p><a href=\"{resetUrl}\">Reset Password</a><p>This link will expire in 1 hour.</p>"
+      }
+    }
+  }
+}

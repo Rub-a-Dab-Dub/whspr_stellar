@@ -26,6 +26,8 @@ import {
 import { ADMIN_STREAM_EVENTS } from '../admin/gateways/admin-event-stream.gateway';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Request } from 'express';
+import { TranslationService } from '../i18n/services/translation.service';
+import { EmailContentService } from '../i18n/services/email-content.service';
 
 @Injectable()
 export class AuthService {
@@ -43,9 +45,15 @@ export class AuthService {
     private readonly auditLogService: AuditLogService,
     private readonly adminService: AdminService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly translationService: TranslationService,
+    private readonly emailContentService: EmailContentService,
   ) {}
 
-  async register(email: string, password: string) {
+  async register(
+    email: string,
+    password: string,
+    preferredLocale?: string | null,
+  ) {
     const isRegistrationEnabled =
       await this.adminService.getConfigValue<boolean>(
         'registration_enabled',
@@ -54,11 +62,17 @@ export class AuthService {
 
     if (!isRegistrationEnabled) {
       throw new ServiceUnavailableException(
-        'New user registrations are currently disabled.',
+        this.translationService.translate('errors.auth.registrationDisabled', {
+          lang: preferredLocale,
+        }),
       );
     }
 
-    const user = await this.usersService.create(email, password);
+    const user = await this.usersService.create(
+      email,
+      password,
+      preferredLocale,
+    );
 
     // Generate email verification token
     const verificationToken = randomBytes(32).toString('hex');
@@ -68,7 +82,11 @@ export class AuthService {
     );
 
     // Send verification email
-    await this.sendVerificationEmail(email, verificationToken);
+    await this.sendVerificationEmail(
+      email,
+      verificationToken,
+      user.preferredLocale,
+    );
 
     this.eventEmitter.emit(ADMIN_STREAM_EVENTS.USER_REGISTERED, {
       type: 'user.registered',
@@ -77,8 +95,12 @@ export class AuthService {
     });
 
     return {
-      message:
-        'Registration successful. Please check your email to verify your account.',
+      message: this.translationService.translate(
+        'errors.auth.registrationSuccess',
+        {
+          lang: user.preferredLocale,
+        },
+      ),
       userId: user.id,
     };
   }
@@ -98,7 +120,9 @@ export class AuthService {
         metadata: { email },
         req,
       });
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidCredentials'),
+      );
     }
 
     if (user.isLocked) {
@@ -117,7 +141,7 @@ export class AuthService {
         req,
       });
       throw new UnauthorizedException(
-        `Account is locked. Try again in ${lockoutRemaining} minutes.`,
+        `${this.translationService.translate('errors.auth.accountLocked')} (${lockoutRemaining} minutes)`,
       );
     }
 
@@ -136,7 +160,9 @@ export class AuthService {
         metadata: { email },
         req,
       });
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidCredentials'),
+      );
     }
 
     // Reset login attempts on successful login
@@ -200,7 +226,9 @@ export class AuthService {
       const user = await this.usersService.findById(payload.sub);
 
       if (!user || user.refreshToken !== refreshToken) {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new UnauthorizedException(
+          this.translationService.translate('errors.auth.invalidRefreshToken'),
+        );
       }
 
       // Blacklist old access token if jti exists
@@ -224,7 +252,9 @@ export class AuthService {
 
       return token;
     } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidRefreshToken'),
+      );
     }
   }
 
@@ -259,7 +289,11 @@ export class AuthService {
       req,
     });
 
-    return { message: 'Logout successful' };
+    return {
+      message: this.translationService.translate('errors.auth.logoutSuccess', {
+        lang: sessionToken ? undefined : null,
+      }),
+    };
   }
 
   async forgotPassword(email: string, req?: Request) {
@@ -278,13 +312,17 @@ export class AuthService {
         req,
       });
       // Don't reveal if user exists
-      return { message: 'If the email exists, a reset link has been sent.' };
+      return {
+        message: this.translationService.translate(
+          'errors.auth.passwordResetRequested',
+        ),
+      };
     }
 
     const resetToken = randomBytes(32).toString('hex');
     await this.usersService.setPasswordResetToken(user.id || '', resetToken);
 
-    await this.sendPasswordResetEmail(email, resetToken);
+    await this.sendPasswordResetEmail(email, resetToken, user.preferredLocale);
 
     await this.safeAuditLog({
       actorUserId: user.id || null,
@@ -298,7 +336,14 @@ export class AuthService {
       req,
     });
 
-    return { message: 'If the email exists, a reset link has been sent.' };
+    return {
+      message: this.translationService.translate(
+        'errors.auth.passwordResetRequested',
+        {
+          lang: user.preferredLocale,
+        },
+      ),
+    };
   }
 
   async resetPassword(token: string, newPassword: string, req?: Request) {
@@ -314,7 +359,14 @@ export class AuthService {
       details: 'Password reset completed',
       req,
     });
-    return { message: 'Password reset successful' };
+    return {
+      message: this.translationService.translate(
+        'errors.auth.passwordResetSuccess',
+        {
+          lang: user.preferredLocale,
+        },
+      ),
+    };
   }
 
   async verifyEmail(token: string, req?: Request) {
@@ -330,7 +382,14 @@ export class AuthService {
       details: 'Email verified',
       req,
     });
-    return { message: 'Email verified successfully' };
+    return {
+      message: this.translationService.translate(
+        'errors.auth.emailVerifiedSuccess',
+        {
+          lang: user.preferredLocale,
+        },
+      ),
+    };
   }
 
   private async generateTokens(userId: string, email: string) {
@@ -356,33 +415,39 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private async sendVerificationEmail(email: string, token: string) {
+  private async sendVerificationEmail(
+    email: string,
+    token: string,
+    preferredLocale?: string | null,
+  ) {
     const url = `${this.configService.get('APP_URL')}/auth/verify-email?token=${token}`;
+    const content = this.emailContentService.buildVerificationEmail({
+      preferredLocale,
+      verificationUrl: url,
+    });
 
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Verify Your Email',
-      html: `
-        <h1>Email Verification</h1>
-        <p>Click the link below to verify your email:</p>
-        <a href="${url}">Verify Email</a>
-        <p>This link will expire in 24 hours.</p>
-      `,
+      subject: content.subject,
+      html: content.body,
     });
   }
 
-  private async sendPasswordResetEmail(email: string, token: string) {
+  private async sendPasswordResetEmail(
+    email: string,
+    token: string,
+    preferredLocale?: string | null,
+  ) {
     const url = `${this.configService.get('APP_URL')}/auth/reset-password?token=${token}`;
+    const content = this.emailContentService.buildPasswordResetEmail({
+      preferredLocale,
+      resetUrl: url,
+    });
 
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Password Reset Request',
-      html: `
-        <h1>Password Reset</h1>
-        <p>Click the link below to reset your password:</p>
-        <a href="${url}">Reset Password</a>
-        <p>This link will expire in 1 hour.</p>
-      `,
+      subject: content.subject,
+      html: content.body,
     });
   }
 

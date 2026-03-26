@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../user/user.service';
 import { RedisService } from '../../redis/redis.service';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 export interface JwtPayload {
   sub: string;
@@ -17,6 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
     private usersService: UsersService,
     private redisService: RedisService,
+    private translationService: TranslationService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -31,30 +33,41 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       `blacklist:${payload.jti}`,
     );
     if (isBlacklisted) {
-      throw new UnauthorizedException('Token has been revoked');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.tokenRevoked'),
+      );
     }
 
     const user = await this.usersService.findById(payload.sub);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.users.notFound'),
+      );
     }
 
     if (user.isLocked) {
-      throw new UnauthorizedException('Account is locked');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.accountLocked'),
+      );
     }
 
     // Check if user is banned or suspended
     if (user.isBanned) {
-      throw new UnauthorizedException('Account is banned');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.accountBanned'),
+      );
     }
 
     if (user.suspendedUntil && user.suspendedUntil > new Date()) {
-      throw new UnauthorizedException('Account is suspended');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.accountSuspended'),
+      );
     }
 
     return {
       userId: payload.sub,
       email: payload.email,
+      preferredLocale: user.preferredLocale,
       user, // Include full user object with roles
     };
   }

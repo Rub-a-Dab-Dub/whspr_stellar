@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Notification } from '../entities/notification.entity';
 import { NotificationType } from '../enums/notification-type.enum';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 export interface EmailNotificationData {
   recipientEmail: string;
@@ -24,6 +25,7 @@ export class EmailNotificationService {
     private readonly configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly translationService: TranslationService,
   ) {}
 
   /**
@@ -100,7 +102,11 @@ export class EmailNotificationService {
 
       await this.mailerService.sendMail({
         to: recipientEmail,
-        subject: `Your ${period} notification digest - Whspr Stellar`,
+        subject: this.translationService.translateForLocale(
+          user?.preferredLocale,
+          'notifications.email.digestSubject',
+          { period },
+        ),
         template: 'notification-digest',
         context: {
           userName: user?.email?.split('@')[0] || 'User',
@@ -135,7 +141,9 @@ export class EmailNotificationService {
     try {
       await this.mailerService.sendMail({
         to: recipientEmail,
-        subject: 'Welcome to Whspr Stellar - Set up your notifications',
+        subject: this.translationService.translate(
+          'notifications.email.welcomeSubject',
+        ),
         template: 'welcome-notifications',
         context: {
           userName: recipientEmail.split('@')[0],
@@ -165,6 +173,7 @@ export class EmailNotificationService {
     notification: Notification,
     recipientEmail: string,
   ): EmailNotificationData {
+    const preferredLocale = notification.recipient?.preferredLocale ?? null;
     const baseContext = {
       userName: recipientEmail.split('@')[0],
       notificationTitle: notification.title,
@@ -178,7 +187,10 @@ export class EmailNotificationService {
       case NotificationType.MENTION:
         return {
           recipientEmail,
-          subject: `You were mentioned in Whspr Stellar`,
+          subject: this.translationService.translateForLocale(
+            preferredLocale,
+            'notifications.email.mentionSubject',
+          ),
           template: 'mention-notification',
           context: {
             ...baseContext,
@@ -191,7 +203,10 @@ export class EmailNotificationService {
       case NotificationType.REPLY:
         return {
           recipientEmail,
-          subject: `New reply to your message`,
+          subject: this.translationService.translateForLocale(
+            preferredLocale,
+            'notifications.email.replySubject',
+          ),
           template: 'reply-notification',
           context: {
             ...baseContext,
@@ -204,7 +219,10 @@ export class EmailNotificationService {
       case NotificationType.ROOM_INVITE:
         return {
           recipientEmail,
-          subject: `You've been invited to join a room`,
+          subject: this.translationService.translateForLocale(
+            preferredLocale,
+            'notifications.email.roomInviteSubject',
+          ),
           template: 'room-invite-notification',
           context: {
             ...baseContext,
@@ -217,7 +235,10 @@ export class EmailNotificationService {
       case NotificationType.REACTION:
         return {
           recipientEmail,
-          subject: `Someone reacted to your message`,
+          subject: this.translationService.translateForLocale(
+            preferredLocale,
+            'notifications.email.reactionSubject',
+          ),
           template: 'reaction-notification',
           context: {
             ...baseContext,
@@ -231,7 +252,10 @@ export class EmailNotificationService {
       case NotificationType.REWARD_GRANTED:
         return {
           recipientEmail,
-          subject: `You've received a new reward!`,
+          subject: this.translationService.translateForLocale(
+            preferredLocale,
+            'notifications.email.rewardSubject',
+          ),
           template: 'reward-notification',
           context: {
             ...baseContext,

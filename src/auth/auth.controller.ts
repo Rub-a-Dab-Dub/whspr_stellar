@@ -35,6 +35,7 @@ export class AuthController {
     return await this.authService.register(
       registerDto.email || '',
       registerDto.password || '',
+      registerDto.preferredLocale,
     );
   }
 

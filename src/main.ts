@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AdminModule } from './admin/admin.module';
@@ -8,12 +7,6 @@ import { LoggingInterceptor } from './logger/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-    }),
-  );
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   app.useGlobalInterceptors(new LoggingInterceptor());
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -29,7 +22,9 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('Admin API')
-      .setDescription('Admin dashboard API for user management, audit logs, and platform configuration')
+      .setDescription(
+        'Admin dashboard API for user management, audit logs, and platform configuration',
+      )
       .setVersion('1.0')
       .addBearerAuth()
       .build();

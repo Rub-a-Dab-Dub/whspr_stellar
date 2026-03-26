@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { NotificationService } from './notification.service';
 import { NotificationPreferenceService } from './notification-preference.service';
 import { NotificationType } from '../enums/notification-type.enum';
+import { User } from '../../user/entities/user.entity';
+import { NotificationContentService } from '../../i18n/services/notification-content.service';
 
 /**
  * Service to integrate notifications with existing systems
@@ -14,6 +18,9 @@ export class NotificationIntegrationService {
   constructor(
     private readonly notificationService: NotificationService,
     private readonly preferenceService: NotificationPreferenceService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly notificationContentService: NotificationContentService,
   ) {}
 
   /**
@@ -44,12 +51,19 @@ export class NotificationIntegrationService {
     inviteUrl?: string,
   ): Promise<void> {
     try {
+      const preferredLocale = await this.resolveUserLocale(recipientId);
+      const content =
+        this.notificationContentService.buildRoomInvitationNotification({
+          preferredLocale,
+          roomName,
+        });
+
       await this.notificationService.createNotification({
         recipientId,
         senderId,
         type: NotificationType.ROOM_INVITE,
-        title: 'Room Invitation',
-        message: `You've been invited to join "${roomName}"`,
+        title: content.title,
+        message: content.message,
         data: {
           roomId,
           roomName,
@@ -71,11 +85,18 @@ export class NotificationIntegrationService {
     rewardDescription?: string,
   ): Promise<void> {
     try {
+      const preferredLocale = await this.resolveUserLocale(recipientId);
+      const content =
+        this.notificationContentService.buildRewardGrantedNotification({
+          preferredLocale,
+          rewardName,
+        });
+
       await this.notificationService.createNotification({
         recipientId,
         type: NotificationType.REWARD_GRANTED,
-        title: 'Reward Received!',
-        message: `You've received: ${rewardName}`,
+        title: content.title,
+        message: content.message,
         data: {
           rewardName,
           rewardValue,
@@ -97,11 +118,17 @@ export class NotificationIntegrationService {
     xpGained: number,
   ): Promise<void> {
     try {
+      const preferredLocale = await this.resolveUserLocale(recipientId);
+      const content = this.notificationContentService.buildLevelUpNotification({
+        preferredLocale,
+        newLevel,
+      });
+
       await this.notificationService.createNotification({
         recipientId,
         type: NotificationType.LEVEL_UP,
-        title: 'Level Up!',
-        message: `Congratulations! You've reached level ${newLevel}`,
+        title: content.title,
+        message: content.message,
         data: {
           newLevel,
           xpGained,
@@ -122,11 +149,18 @@ export class NotificationIntegrationService {
     achievementDescription: string,
   ): Promise<void> {
     try {
+      const preferredLocale = await this.resolveUserLocale(recipientId);
+      const content =
+        this.notificationContentService.buildAchievementNotification({
+          preferredLocale,
+          achievementName,
+        });
+
       await this.notificationService.createNotification({
         recipientId,
         type: NotificationType.ACHIEVEMENT,
-        title: 'Achievement Unlocked!',
-        message: `You've unlocked: ${achievementName}`,
+        title: content.title,
+        message: content.message,
         data: {
           achievementName,
           achievementDescription,
@@ -190,5 +224,14 @@ export class NotificationIntegrationService {
     } catch (error) {
       this.logger.error('Failed to send bulk notifications:', error);
     }
+  }
+
+  private async resolveUserLocale(userId: string): Promise<string | null> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'preferredLocale'],
+    });
+
+    return user?.preferredLocale ?? null;
   }
 }

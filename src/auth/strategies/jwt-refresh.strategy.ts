@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../user/user.service';
 import { JwtPayload } from './jwt.strategy';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
@@ -13,6 +14,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
+    private translationService: TranslationService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
@@ -27,11 +29,15 @@ export class JwtRefreshStrategy extends PassportStrategy(
     const user = await this.usersService.findById(payload.sub);
 
     if (!user || !user.refreshToken) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidRefreshToken'),
+      );
     }
 
     if (user.refreshToken !== refreshToken) {
-      throw new UnauthorizedException('Refresh token mismatch');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.refreshTokenMismatch'),
+      );
     }
 
     return { userId: payload.sub, email: payload.email };

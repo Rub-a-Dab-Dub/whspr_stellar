@@ -38,15 +38,24 @@ import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './admin/admin.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
+import { AppI18nModule } from './i18n/app-i18n.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, evmConfig, redisConfig, pinataConfig, adminConfig],
+      load: [
+        databaseConfig,
+        jwtConfig,
+        evmConfig,
+        redisConfig,
+        pinataConfig,
+        adminConfig,
+      ],
       validationSchema,
     }),
     EventEmitterModule.forRoot(),
+    AppI18nModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

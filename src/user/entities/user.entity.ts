@@ -34,6 +34,9 @@ export class User {
   @Index()
   email: string | undefined;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  preferredLocale: string | null;
+
   @Column({ unique: true, nullable: true })
   @Index()
   walletAddress: string | undefined;

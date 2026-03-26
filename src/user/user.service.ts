@@ -3,31 +3,43 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
+import { TranslationService } from '../i18n/services/translation.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private readonly translationService: TranslationService,
   ) {}
 
-  async create(email: string, password: string): Promise<User> {
+  async create(
+    email: string,
+    password: string,
+    preferredLocale?: string | null,
+  ): Promise<User> {
     const existingUser = await this.usersRepository.findOne({
       where: { email },
     });
     if (existingUser) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException(
+        this.translationService.translate('errors.users.emailAlreadyExists'),
+      );
     }
 
+    const normalizedPreferredLocale =
+      this.normalizePreferredLocale(preferredLocale);
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = this.usersRepository.create({
       email,
       password: hashedPassword,
+      preferredLocale: normalizedPreferredLocale,
     });
 
     return await this.usersRepository.save(user);
@@ -134,5 +146,25 @@ export class UsersService {
     user.passwordResetExpires = undefined;
 
     return await this.usersRepository.save(user);
+  }
+
+  private normalizePreferredLocale(
+    preferredLocale?: string | null,
+  ): string | null {
+    if (!preferredLocale) {
+      return null;
+    }
+
+    const normalizedLocale =
+      this.translationService.normalizeSupportedLocale(preferredLocale);
+    if (!normalizedLocale) {
+      throw new BadRequestException(
+        this.translationService.translate(
+          'errors.users.preferredLocaleNotSupported',
+        ),
+      );
+    }
+
+    return normalizedLocale;
   }
 }

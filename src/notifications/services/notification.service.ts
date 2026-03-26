@@ -12,6 +12,8 @@ import {
 import { QueueService } from '../../queue/queue.service';
 import { NotificationGateway } from '../gateways/notification.gateway';
 import { MentionDetectionService } from './mention-detection.service';
+import { TranslationService } from '../../i18n/services/translation.service';
+import { User } from '../../user/entities/user.entity';
 
 @Injectable()
 export class NotificationService {
@@ -22,9 +24,12 @@ export class NotificationService {
     private readonly notificationRepository: Repository<Notification>,
     @InjectRepository(NotificationPreference)
     private readonly preferenceRepository: Repository<NotificationPreference>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly queueService: QueueService,
     private readonly notificationGateway: NotificationGateway,
     private readonly mentionDetectionService: MentionDetectionService,
+    private readonly translationService: TranslationService,
   ) {}
 
   /**
@@ -152,7 +157,11 @@ export class NotificationService {
     );
 
     if (result.affected === 0) {
-      throw new NotFoundException('Notification not found or already read');
+      throw new NotFoundException(
+        this.translationService.translate(
+          'errors.notifications.notFoundOrAlreadyRead',
+        ),
+      );
     }
 
     // Emit real-time update
@@ -200,7 +209,9 @@ export class NotificationService {
     );
 
     if (result.affected === 0) {
-      throw new NotFoundException('Notification not found');
+      throw new NotFoundException(
+        this.translationService.translate('errors.notifications.notFound'),
+      );
     }
   }
 
@@ -219,11 +230,17 @@ export class NotificationService {
       await this.mentionDetectionService.extractMentions(content);
 
     for (const mention of mentions) {
+      const recipientLocale = await this.resolveUserLocale(mention.userId);
+
       await this.createNotification({
         recipientId: mention.userId,
         senderId: authorId,
         type: NotificationType.MENTION,
-        title: `${mention.username} mentioned you`,
+        title: this.translationService.translateForLocale(
+          recipientLocale,
+          'notifications.mention.title',
+          { username: mention.username },
+        ),
         message:
           content.length > 100 ? `${content.substring(0, 100)}...` : content,
         data: {
@@ -257,12 +274,29 @@ export class NotificationService {
       return; // Don't notify about own reactions
     }
 
+    const recipientLocale = await this.resolveUserLocale(messageAuthorId);
+
     await this.createNotification({
       recipientId: messageAuthorId,
       senderId: reactingUserId,
       type: NotificationType.REACTION,
-      title: action === 'added' ? 'New reaction' : 'Reaction removed',
-      message: `Someone ${action} a ${reactionType} reaction to your message`,
+      title: this.translationService.translateForLocale(
+        recipientLocale,
+        action === 'added'
+          ? 'notifications.reaction.addedTitle'
+          : 'notifications.reaction.removedTitle',
+      ),
+      message: this.translationService.translateForLocale(
+        recipientLocale,
+        'notifications.reaction.message',
+        {
+          action: this.translationService.translateForLocale(
+            recipientLocale,
+            `notifications.reaction.actions.${action}`,
+          ),
+          reactionType,
+        },
+      ),
       data: {
         messageId,
         reactionType,
@@ -376,6 +410,15 @@ export class NotificationService {
     }
 
     return false;
+  }
+
+  private async resolveUserLocale(userId: string): Promise<string | null> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'preferredLocale'],
+    });
+
+    return user?.preferredLocale ?? null;
   }
 
   /**

@@ -1,0 +1,95 @@
+{
+  "validation": {
+    "string": "{property} deve ser uma string",
+    "notEmpty": "{property} nao pode estar vazio",
+    "email": "{property} deve ser um e-mail valido",
+    "minLength": "{property} deve ter pelo menos {min} caracteres",
+    "maxLength": "{property} deve ter no maximo {max} caracteres",
+    "enum": "{property} deve ser um destes valores: {allowed}",
+    "passwordStrength": "A senha deve conter letras maiusculas, minusculas e um numero ou caractere especial",
+    "uuid": "Formato de UUID invalido",
+    "whitelist": "A propriedade {property} nao deve existir"
+  },
+  "errors": {
+    "common": {
+      "internalServerError": "Erro interno do servidor"
+    },
+    "auth": {
+      "invalidCredentials": "Credenciais invalidas",
+      "invalidRefreshToken": "Token de atualizacao invalido",
+      "refreshTokenMismatch": "O token de atualizacao nao corresponde",
+      "tokenRevoked": "O token foi revogado",
+      "accountLocked": "A conta esta bloqueada",
+      "accountBanned": "A conta foi banida",
+      "accountSuspended": "A conta esta suspensa",
+      "invalidOrExpiredVerificationToken": "Token de verificacao invalido ou expirado",
+      "invalidOrExpiredResetToken": "Token de redefinicao invalido ou expirado",
+      "registrationDisabled": "Novos registros estao desativados no momento.",
+      "registrationSuccess": "Registro concluido. Verifique seu e-mail.",
+      "logoutSuccess": "Logout realizado com sucesso",
+      "passwordResetRequested": "Se o e-mail existir, um link de redefinicao foi enviado.",
+      "passwordResetSuccess": "Redefinicao de senha concluida",
+      "emailVerifiedSuccess": "E-mail verificado com sucesso"
+    },
+    "users": {
+      "notFound": "Usuario nao encontrado",
+      "emailAlreadyExists": "O e-mail ja existe",
+      "preferredLocaleNotSupported": "O idioma preferido nao e suportado"
+    },
+    "notifications": {
+      "notFound": "Notificacao nao encontrada",
+      "notFoundOrAlreadyRead": "Notificacao nao encontrada ou ja lida"
+    }
+  },
+  "notifications": {
+    "mention": {
+      "title": "{username} mencionou voce"
+    },
+    "reaction": {
+      "addedTitle": "Nova reacao",
+      "removedTitle": "Reacao removida",
+      "message": "Alguem {action} uma reacao {reactionType} a sua mensagem",
+      "actions": {
+        "added": "adicionou",
+        "removed": "removeu"
+      }
+    },
+    "roomInvitation": {
+      "title": "Convite para sala",
+      "message": "Voce foi convidado para entrar em \"{roomName}\""
+    },
+    "rewardGranted": {
+      "title": "Recompensa recebida!",
+      "message": "Voce recebeu: {rewardName}"
+    },
+    "levelUp": {
+      "title": "Subiu de nivel!",
+      "message": "Parabens! Voce alcancou o nivel {newLevel}"
+    },
+    "achievement": {
+      "title": "Conquista desbloqueada!",
+      "message": "Voce desbloqueou: {achievementName}"
+    },
+    "email": {
+      "mentionSubject": "Voce foi mencionado no Whspr Stellar",
+      "replySubject": "Nova resposta a sua mensagem",
+      "roomInviteSubject": "Voce foi convidado para entrar em uma sala",
+      "reactionSubject": "Alguem reagiu a sua mensagem",
+      "rewardSubject": "Voce recebeu uma nova recompensa!",
+      "digestSubject": "Seu resumo de notificacoes {period} - Whspr Stellar",
+      "welcomeSubject": "Bem-vindo ao Whspr Stellar - Configure suas notificacoes"
+    }
+  },
+  "emails": {
+    "auth": {
+      "verifyEmail": {
+        "subject": "Verifique seu e-mail",
+        "body": "<h1>Verificacao de e-mail</h1><p>Clique no link abaixo para verificar seu e-mail:</p><a href=\"{verificationUrl}\">Verificar e-mail</a><p>Este link expirara em 24 horas.</p>"
+      },
+      "resetPassword": {
+        "subject": "Solicitacao de redefinicao de senha",
+        "body": "<h1>Redefinicao de senha</h1><p>Clique no link abaixo para redefinir sua senha:</p><a href=\"{resetUrl}\">Redefinir senha</a><p>Este link expirara em 1 hora.</p>"
+      }
+    }
+  }
+}
