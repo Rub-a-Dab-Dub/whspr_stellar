@@ -1,0 +1,11 @@
+[package]
+name = "integration-tests"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+messaging  = { path = "../messaging" }
+payments   = { path = "../payments" }
+rooms      = { path = "../rooms" }
+xp         = { path = "../xp" }

@@ -16,7 +16,10 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ReportsModule } from './reports/reports.module';
+import { SessionsModule } from './sessions/sessions.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { TransactionsModule } from './transactions/transactions.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
@@ -33,10 +36,15 @@ import { CacheModule } from './cache/cache.module';
       isGlobal: true,
       envFilePath: '.env',
       validationSchema: envValidationSchema,
-      validationOptions: {
-        abortEarly: true,
-      },
+      validationOptions: { abortEarly: true },
     }),
+    TypeOrmModule.forRootAsync({ useFactory: typeOrmConfig }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
+    RedisCacheModule,
+    HealthModule,
+    UsersModule,
+    AuthModule,
+    StellarEventsModule,
     TypeOrmModule.forRootAsync({
       useFactory: typeOrmConfig,
     }),
@@ -56,6 +64,7 @@ import { CacheModule } from './cache/cache.module';
     SessionsModule,
     WalletsModule,
     AnalyticsModule,
+    TransactionsModule,
     ScheduledJobsModule,
     WebhooksModule,
     ObservabilityModule,
@@ -71,4 +80,4 @@ import { CacheModule } from './cache/cache.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}
