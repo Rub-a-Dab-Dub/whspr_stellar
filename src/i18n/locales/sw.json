@@ -35,6 +35,13 @@
       "wsTokenNotFound": "Token ya uthibitishaji haijapatikana",
       "wsInvalidOrExpiredToken": "Token si sahihi au muda wake umeisha"
     },
+    "twoFactor": {
+      "alreadyEnabled": "Uthibitishaji wa hatua mbili tayari umewashwa",
+      "notEnabled": "Uthibitishaji wa hatua mbili haujawashwa",
+      "invalidCode": "Nambari ya uthibitishaji si sahihi au muda wake umeisha",
+      "codeRequired": "Nambari ya 2FA inahitajika (kichwa x-2fa-code)",
+      "setupRequired": "Anza na POST /2fa/setup"
+    },
     "users": {
       "walletAlreadyRegistered": "Anwani ya wallet tayari imesajiliwa",
       "usernameTaken": "Jina la mtumiaji tayari limetumika",

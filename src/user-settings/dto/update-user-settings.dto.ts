@@ -76,17 +76,3 @@ export class UpdateUserSettingsDto {
   @Length(2, 60)
   timezone?: string;
 }
-
-export class TwoFactorEnableDto {
-  @IsOptional()
-  @IsString()
-  @Length(6, 6)
-  code?: string;
-}
-
-export class TwoFactorDisableDto {
-  @IsOptional()
-  @IsString()
-  @Length(6, 6)
-  code?: string;
-}
