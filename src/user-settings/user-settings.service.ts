@@ -1,16 +1,12 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { createHmac, randomBytes } from 'crypto';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { UserSettingsRepository } from './user-settings.repository';
 import {
   NotificationPreferences,
   PrivacySettings,
   UserSettings,
 } from './entities/user-settings.entity';
-import {
-  TwoFactorDisableDto,
-  TwoFactorEnableDto,
-  UpdateUserSettingsDto,
-} from './dto/update-user-settings.dto';
+import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
+import { TwoFactorService } from '../two-factor/two-factor.service';
 import { UserSettingsResponseDto } from './dto/user-settings-response.dto';
 
 const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -27,7 +23,11 @@ const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
 
 @Injectable()
 export class UserSettingsService {
-  constructor(private readonly repository: UserSettingsRepository) {}
+  constructor(
+    private readonly repository: UserSettingsRepository,
+    @Inject(forwardRef(() => TwoFactorService))
+    private readonly twoFactorService: TwoFactorService,
+  ) {}
 
   async ensureSettingsForUser(userId: string): Promise<UserSettings> {
     const existing = await this.repository.findByUserId(userId);
@@ -50,7 +50,8 @@ export class UserSettingsService {
 
   async getSettings(userId: string): Promise<UserSettingsResponseDto> {
     const settings = await this.ensureSettingsForUser(userId);
-    return this.toResponse(settings);
+    const twoFactorEnabled = await this.twoFactorService.isEnabled(userId);
+    return this.toResponse(settings, twoFactorEnabled);
   }
 
   async updateSettings(
@@ -61,7 +62,8 @@ export class UserSettingsService {
 
     Object.assign(settings, updateDto);
     const saved = await this.repository.save(settings);
-    return this.toResponse(saved);
+    const twoFactorEnabled = await this.twoFactorService.isEnabled(userId);
+    return this.toResponse(saved, twoFactorEnabled);
   }
 
   async resetSettings(userId: string): Promise<UserSettingsResponseDto> {
@@ -74,57 +76,10 @@ export class UserSettingsService {
     settings.twoFactorEnabled = false;
     settings.twoFactorSecret = null;
 
-    return this.toResponse(await this.repository.save(settings));
-  }
+    await this.twoFactorService.removeAllForUser(userId);
 
-  async enable2FA(
-    userId: string,
-    dto: TwoFactorEnableDto,
-  ): Promise<{ secret?: string; otpauthUrl?: string; twoFactorEnabled: boolean }> {
-    const settings = await this.ensureSettingsForUser(userId);
-
-    if (!settings.twoFactorSecret) {
-      const secret = this.generateTotpSecret();
-      settings.twoFactorSecret = secret;
-      settings.twoFactorEnabled = false;
-      await this.repository.save(settings);
-      return {
-        secret,
-        otpauthUrl: `otpauth://totp/GaslessGossip:${userId}?secret=${secret}&issuer=GaslessGossip`,
-        twoFactorEnabled: false,
-      };
-    }
-
-    if (!dto.code) {
-      throw new BadRequestException('TOTP code is required to enable 2FA');
-    }
-
-    if (!this.verifyTotpCode(settings.twoFactorSecret, dto.code)) {
-      throw new UnauthorizedException('Invalid TOTP code');
-    }
-
-    settings.twoFactorEnabled = true;
-    await this.repository.save(settings);
-    return { twoFactorEnabled: true };
-  }
-
-  async disable2FA(userId: string, dto: TwoFactorDisableDto): Promise<void> {
-    const settings = await this.ensureSettingsForUser(userId);
-    if (!settings.twoFactorEnabled) {
-      return;
-    }
-
-    if (!settings.twoFactorSecret || !dto.code) {
-      throw new BadRequestException('TOTP code is required to disable 2FA');
-    }
-
-    if (!this.verifyTotpCode(settings.twoFactorSecret, dto.code)) {
-      throw new UnauthorizedException('Invalid TOTP code');
-    }
-
-    settings.twoFactorEnabled = false;
-    settings.twoFactorSecret = null;
-    await this.repository.save(settings);
+    const saved = await this.repository.save(settings);
+    return this.toResponse(saved, false);
   }
 
   async isNotificationEnabled(
@@ -141,7 +96,7 @@ export class UserSettingsService {
     return settings.privacySettings;
   }
 
-  private toResponse(settings: UserSettings): UserSettingsResponseDto {
+  private toResponse(settings: UserSettings, twoFactorEnabled: boolean): UserSettingsResponseDto {
     return {
       userId: settings.userId,
       notificationPreferences: settings.notificationPreferences,
@@ -149,38 +104,8 @@ export class UserSettingsService {
       theme: settings.theme,
       language: settings.language,
       timezone: settings.timezone,
-      twoFactorEnabled: settings.twoFactorEnabled,
+      twoFactorEnabled,
       updatedAt: settings.updatedAt,
     };
-  }
-
-  private generateTotpSecret(): string {
-    return randomBytes(20).toString('hex').toUpperCase();
-  }
-
-  private verifyTotpCode(secret: string, code: string): boolean {
-    const now = Math.floor(Date.now() / 1000);
-    const window = 1;
-    for (let offset = -window; offset <= window; offset += 1) {
-      const candidate = this.generateTotp(secret, now + offset * 30);
-      if (candidate === code) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private generateTotp(secret: string, timestamp: number): string {
-    const counter = Math.floor(timestamp / 30);
-    const counterBuffer = Buffer.alloc(8);
-    counterBuffer.writeBigUInt64BE(BigInt(counter));
-    const hmac = createHmac('sha1', Buffer.from(secret, 'hex')).update(counterBuffer).digest();
-    const offset = hmac[hmac.length - 1] & 0xf;
-    const binary =
-      ((hmac[offset] & 0x7f) << 24) |
-      ((hmac[offset + 1] & 0xff) << 16) |
-      ((hmac[offset + 2] & 0xff) << 8) |
-      (hmac[offset + 3] & 0xff);
-    return String(binary % 1_000_000).padStart(6, '0');
   }
 }
