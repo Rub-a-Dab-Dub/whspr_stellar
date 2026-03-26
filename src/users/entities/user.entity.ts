@@ -7,15 +7,10 @@ import {
   Index,
 } from 'typeorm';
 
-export enum UserStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-}
-
-export enum UserVisibility {
-  PUBLIC = 'public',
-  PRIVATE = 'private',
-  FRIENDS = 'friends',
+export enum UserTier {
+  SILVER = 'silver',
+  GOLD = 'gold',
+  BLACK = 'black',
 }
 
 @Entity('users')
@@ -23,61 +18,50 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ unique: true, length: 50 })
-  @Index()
-  username!: string;
+  @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
+  @Index('idx_users_username')
+  username!: string | null;
 
-  @Column({ unique: true, nullable: true })
-  email!: string;
+  @Column({ type: 'varchar', length: 42, unique: true })
+  @Index('idx_users_wallet_address')
+  walletAddress!: string;
 
-  @Column({ length: 100, nullable: true })
-  displayName!: string;
+  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
+  @Index('idx_users_email')
+  email!: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  displayName!: string | null;
 
   @Column({ type: 'text', nullable: true })
-  bio!: string;
+  avatarUrl!: string | null;
 
-  @Column({ nullable: true })
-  avatarCid!: string;
+  @Column({ type: 'text', nullable: true })
+  bio!: string | null;
 
-  @Column({ nullable: true })
-  avatarUrl!: string;
-
-  @Column({
-    type: 'enum',
-    enum: UserStatus,
-    default: UserStatus.ACTIVE,
-  })
-  status!: UserStatus;
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  preferredLocale!: string | null;
+  @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
+  @Index('idx_users_referral_code')
+  referralCode!: string | null;
 
   @Column({
     type: 'enum',
-    enum: UserVisibility,
-    default: UserVisibility.PUBLIC,
+    enum: UserTier,
+    default: UserTier.SILVER,
   })
-  visibility!: UserVisibility;
+  tier!: UserTier;
 
-  @CreateDateColumn()
-  createdAt!: Date;
-
-  @UpdateDateColumn()
-  updatedAt!: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  lastActiveAt!: Date;
-
-  @Column({ type: 'int', default: 0 })
-  currentXp!: number;
-
-  @Column({ type: 'int', default: 1 })
-  @Index()
-  level!: number;
+  @Column({ type: 'boolean', default: true })
+  @Index('idx_users_is_active')
+  isActive!: boolean;
 
   @Column({ type: 'boolean', default: false })
-  isPremium!: boolean;
+  isVerified!: boolean;
 
-  @Column({ type: 'decimal', precision: 3, scale: 2, default: 1.0 })
-  xpMultiplier!: number;
+  @CreateDateColumn({ type: 'timestamp' })
+  createdAt!: Date;
 
-  @Column({ name: 'preferred_chain', nullable: true, default: null })
-  preferredChain!: string;
+  @UpdateDateColumn({ type: 'timestamp' })
+  updatedAt!: Date;
 }

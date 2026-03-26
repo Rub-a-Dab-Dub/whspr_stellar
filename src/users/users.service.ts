@@ -3,155 +3,237 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Inject,
+  Logger,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, ILike } from 'typeorm';
-import { User, UserStatus } from './entities/user.entity';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { SearchUsersDto } from './dto/search-users.dto';
-import { PinataService } from './services/pinata.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UserResponseDto } from './dto/user-response.dto';
+import { User } from './entities/user.entity';
+import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
+import { plainToInstance } from 'class-transformer';
+import { TranslationService } from '../i18n/services/translation.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    private readonly pinataService: PinataService,
+    private readonly usersRepository: UsersRepository,
+    private readonly translationService: TranslationService,
+    private readonly userSettingsService: UserSettingsService,
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const existingUser = await this.userRepository.findOne({
-      where: [
-        { username: createUserDto.username },
-        { email: createUserDto.email },
-      ],
-    });
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    const { walletAddress, username, email } = createUserDto;
+    const preferredLocale = this.normalizePreferredLocale(createUserDto.preferredLocale) ?? null;
 
-    if (existingUser) {
-      if (existingUser.username === createUserDto.username) {
-        throw new ConflictException('Username already exists');
-      }
-      if (existingUser.email === createUserDto.email) {
-        throw new ConflictException('Email already exists');
-      }
-    }
-
-    const user = this.userRepository.create(createUserDto);
-    return await this.userRepository.save(user);
-  }
-
-  async findAll(
-    searchDto: SearchUsersDto,
-  ): Promise<{ users: User[]; total: number; page: number; limit: number }> {
-    const { search, page = 1, limit = 10 } = searchDto;
-    const skip = (page - 1) * limit;
-
-    const queryBuilder = this.userRepository
-      .createQueryBuilder('user')
-      .where('user.status = :status', { status: UserStatus.ACTIVE });
-
-    if (search) {
-      queryBuilder.andWhere(
-        '(user.username ILIKE :search OR user.displayName ILIKE :search)',
-        { search: `%${search}%` },
+    // Check wallet address uniqueness
+    const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
+    if (existingWallet) {
+      throw new ConflictException(
+        this.translationService.translate('errors.users.walletAlreadyRegistered'),
       );
     }
 
-    const [users, total] = await queryBuilder
-      .skip(skip)
-      .take(limit)
-      .orderBy('user.createdAt', 'DESC')
-      .getManyAndCount();
+    // Check username uniqueness if provided
+    if (username) {
+      const existingUsername = await this.usersRepository.findByUsername(username);
+      if (existingUsername) {
+        throw new ConflictException(this.translationService.translate('errors.users.usernameTaken'));
+      }
+    }
+
+    // Check email uniqueness if provided
+    if (email) {
+      const existingEmail = await this.usersRepository.findByEmail(email);
+      if (existingEmail) {
+        throw new ConflictException(
+          this.translationService.translate('errors.users.emailRegistered'),
+        );
+      }
+    }
+
+    const user = this.usersRepository.create({
+      ...createUserDto,
+      walletAddress: walletAddress.toLowerCase(),
+      email: email?.toLowerCase(),
+      preferredLocale,
+    });
+
+    const savedUser = await this.usersRepository.save(user);
+    await this.userSettingsService.ensureSettingsForUser(savedUser.id);
+    return this.toResponseDto(savedUser);
+  }
+
+  async findById(id: string, viewerId?: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundById', {
+          args: { id },
+        }),
+      );
+    }
+
+    const dto = this.toResponseDto(user);
+    return this.applyPrivacy(dto, viewerId);
+  }
+
+  async findByUsername(username: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findByUsername(username);
+
+    if (!user) {
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundByUsername', {
+          args: { username },
+        }),
+      );
+    }
+
+    return this.applyPrivacy(this.toResponseDto(user));
+  }
+
+  async findByWalletAddress(walletAddress: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findByWalletAddress(walletAddress);
+
+    if (!user) {
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundByWallet', {
+          args: { walletAddress },
+        }),
+      );
+    }
+
+    return this.applyPrivacy(this.toResponseDto(user));
+  }
+
+  async updateProfile(id: string, updateProfileDto: UpdateProfileDto): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundById', {
+          args: { id },
+        }),
+      );
+    }
+
+    // Validate username uniqueness if being updated
+    if (updateProfileDto.username && updateProfileDto.username !== user.username) {
+      const isAvailable = await this.usersRepository.isUsernameAvailable(
+        updateProfileDto.username,
+        id,
+      );
+      if (!isAvailable) {
+        throw new ConflictException(this.translationService.translate('errors.users.usernameTaken'));
+      }
+    }
+
+    // Validate email uniqueness if being updated
+    if (updateProfileDto.email && updateProfileDto.email !== user.email) {
+      const isAvailable = await this.usersRepository.isEmailAvailable(updateProfileDto.email, id);
+      if (!isAvailable) {
+        throw new ConflictException(
+          this.translationService.translate('errors.users.emailRegistered'),
+        );
+      }
+    }
+
+    const preferredLocale = this.normalizePreferredLocale(updateProfileDto.preferredLocale, true);
+
+    // Update user fields
+    Object.assign(user, {
+      ...updateProfileDto,
+      email: updateProfileDto.email?.toLowerCase(),
+      ...(preferredLocale !== undefined ? { preferredLocale } : {}),
+    });
+
+    const updatedUser = await this.usersRepository.save(user);
+    return this.toResponseDto(updatedUser);
+  }
+
+  async deactivate(id: string): Promise<void> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundById', {
+          args: { id },
+        }),
+      );
+    }
+
+    if (!user.isActive) {
+      throw new BadRequestException(
+        this.translationService.translate('errors.users.alreadyDeactivated'),
+      );
+    }
+
+    user.isActive = false;
+    await this.usersRepository.save(user);
+  }
+
+  async paginate(pagination: PaginationDto): Promise<PaginatedResponse<UserResponseDto>> {
+    const { page = 1, limit = 10 } = pagination;
+
+    const [users, total] = await this.usersRepository.findActiveUsers(pagination);
 
     return {
-      users,
-      total,
-      page,
-      limit,
+      data: await Promise.all(users.map(async (user) => this.applyPrivacy(this.toResponseDto(user)))),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
-  async findOne(id: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id } });
+  private toResponseDto(user: User): UserResponseDto {
+    return plainToInstance(UserResponseDto, user, {
+      excludeExtraneousValues: true,
+    });
+  }
 
-    if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+  private normalizePreferredLocale(
+    preferredLocale?: string | null,
+    preserveUndefined = false,
+  ): string | null | undefined {
+    if (preferredLocale === undefined) {
+      return preserveUndefined ? undefined : null;
     }
 
+    if (preferredLocale === null) {
+      return null;
+    }
+
+    const trimmedLocale = preferredLocale.trim();
+    if (!trimmedLocale) {
+      return null;
+    }
+
+    const normalizedLocale = this.translationService.normalizeSupportedLocale(trimmedLocale);
+    if (!normalizedLocale) {
+      throw new BadRequestException(
+        this.translationService.translate('errors.users.invalidPreferredLocale'),
+      );
+    }
+
+    return normalizedLocale;
+  private async applyPrivacy(user: UserResponseDto, viewerId?: string): Promise<UserResponseDto> {
+    if (viewerId && viewerId === user.id) {
+      return user;
+    }
+
+    const privacy = await this.userSettingsService.getPrivacySettings(user.id);
+    if (!privacy.onlineStatusVisible) {
+      user.isActive = false;
+    }
     return user;
-  }
-
-  async findByUsername(username: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { username } });
-
-    if (!user) {
-      throw new NotFoundException(`User with username ${username} not found`);
-    }
-
-    return user;
-  }
-
-  async findByEmail(email: string): Promise<User | null> {
-    return await this.userRepository.findOne({ where: { email } });
-  }
-
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
-
-    if (updateUserDto.username && updateUserDto.username !== user.username) {
-      const existingUser = await this.userRepository.findOne({
-        where: { username: updateUserDto.username },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('Username already exists');
-      }
-    }
-
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.userRepository.findOne({
-        where: { email: updateUserDto.email },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('Email already exists');
-      }
-    }
-
-    Object.assign(user, updateUserDto);
-    user.updatedAt = new Date();
-
-    return await this.userRepository.save(user);
-  }
-
-  async uploadAvatar(id: string, file: Express.Multer.File): Promise<User> {
-    const user = await this.findOne(id);
-
-    const { cid, url } = await this.pinataService.uploadAvatar(file);
-
-    user.avatarCid = cid;
-    user.avatarUrl = url;
-    user.updatedAt = new Date();
-
-    return await this.userRepository.save(user);
-  }
-
-  async deactivate(id: string): Promise<User> {
-    const user = await this.findOne(id);
-
-    user.status = UserStatus.INACTIVE;
-    user.updatedAt = new Date();
-
-    return await this.userRepository.save(user);
-  }
-
-  async updateLastActive(id: string): Promise<void> {
-    await this.userRepository.update(id, { lastActiveAt: new Date() });
-  }
-
-  async remove(id: string): Promise<void> {
-    const user = await this.findOne(id);
-    await this.userRepository.remove(user);
   }
 }

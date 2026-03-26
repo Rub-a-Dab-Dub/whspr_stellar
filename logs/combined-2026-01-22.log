@@ -1,5 +1,0 @@
-{"context":"RoutesResolver","level":"info","message":"AppController {/}:","timestamp":"2026-01-22T00:44:55.792Z"}
-{"context":"RouterExplorer","level":"info","message":"Mapped {/, GET} route","timestamp":"2026-01-22T00:44:55.797Z"}
-{"context":"NestApplication","level":"info","message":"Nest application successfully started","timestamp":"2026-01-22T00:44:55.801Z"}
-{"context":"HTTP","correlationId":"139d1395-ee59-4661-93b3-1820dc89622d","ip":"::1","level":"info","message":"Incoming Request: GET /","method":"GET","params":{},"query":{},"timestamp":"2026-01-22T00:45:14.818Z","url":"/","userAgent":"curl/8.5.0"}
-{"context":"HTTP","correlationId":"139d1395-ee59-4661-93b3-1820dc89622d","duration":"4ms","level":"info","message":"Outgoing Response: GET / 200 - 4ms","method":"GET","statusCode":200,"timestamp":"2026-01-22T00:45:14.821Z","url":"/"}

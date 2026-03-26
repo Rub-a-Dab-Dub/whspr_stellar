@@ -1,5 +1,5 @@
 use crate::types::{ActionType, Badge};
-use soroban_sdk::{contracttype, Address, String, Symbol, Vec};
+use soroban_sdk::{contracttype, Address, BytesN, String, Symbol, Vec};
 
 #[derive(Clone)]
 #[contracttype]
@@ -41,6 +41,59 @@ pub enum DataKey {
     ClaimsByRecipient(Address),
     NextClaimId,
     ClaimConfig,
+    UserRatingContext(Address, Address, Symbol),
+    ReputationHistory(Address),
+    ChatTransfer(BytesN<32>),
+    MessageTip(BytesN<32>),
+    SplitBill(BytesN<32>),
+    // Multi-token support
+    RegisteredToken(Address),
+    TokenList,
+    TokenMetadata(Address),
+    TokenWhitelist(Address),
+    TokenBlacklist(Address),
+    // Tip tracking
+    TipCount,
+    TipById(u64),
+    TipsSentByUser(Address),
+    TipsReceivedByUser(Address),
+    TotalTippedByUser(Address),
+    // Transaction tracking
+    TransactionCount,
+    TransactionById(u64),
+    TransactionsByUser(Address),
+    // Analytics
+    AnalyticsDashboard,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct ChatTransfer {
+    pub from: Address,
+    pub to: Address,
+    pub amount: i128,
+    pub conversation_id: BytesN<32>,
+    pub timestamp: u64,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct TipRecord {
+    pub from: Address,
+    pub to: Address,
+    pub amount: i128,
+    pub message_id: BytesN<32>,
+    pub timestamp: u64,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct BillSplit {
+    pub from: Address,
+    pub recipients: Vec<Address>,
+    pub amounts: Vec<i128>,
+    pub conversation_id: BytesN<32>,
+    pub timestamp: u64,
 }
 
 #[contracttype]

@@ -1,77 +1,20 @@
-import {
-  Module,
-  forwardRef,
-  MiddlewareConsumer,
-  RequestMethod,
-} from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ScheduleModule } from '@nestjs/schedule';
-import { JwtModule } from '@nestjs/jwt';
-import { AdminConfigService } from '../config/admin-config.service';
-import { AdminController } from './controllers/admin.controller';
-import { IpWhitelistController } from './controllers/ip-whitelist.controller';
-import { AdminService } from './services/admin.service';
-import { IpWhitelistService } from './services/ip-whitelist.service';
-import { User } from '../user/entities/user.entity';
-import { AuditLog } from './entities/audit-log.entity';
-import { AuditLogArchive } from './entities/audit-log-archive.entity';
-import { DataAccessLog } from './entities/data-access-log.entity';
-import { AuditAlert } from './entities/audit-alert.entity';
-import { IpWhitelist } from './entities/ip-whitelist.entity';
-import { AuditLogService } from './services/audit-log.service';
-import { AuditLogRetentionJob } from './jobs/audit-log-retention.job';
-import { Transfer } from '../transfer/entities/transfer.entity';
-import { Session } from '../sessions/entities/session.entity';
-import { Message } from '../message/entities/message.entity';
-import { AdminEventStreamGateway } from './gateways/admin-event-stream.gateway';
-import { Room } from '../room/entities/room.entity';
-import { RoomMember } from '../room/entities/room-member.entity';
-import { RoomPayment } from '../room/entities/room-payment.entity';
-import { TransferModule } from '../transfer/transfer.module';
-import { PlatformConfig } from './entities/platform-config.entity';
-import { LeaderboardModule } from '../leaderboard/leaderboard.module';
-import { IpWhitelistMiddleware } from './middleware/ip-whitelist.middleware';
+import { User } from '../users/entities/user.entity';
+import { Message } from '../../Conversation Module/src/conversations/entities/message.entity';
+import { SystemSetting } from './entities/system-setting.entity';
+import { AdminUsersController } from './controllers/admin-users.controller';
+import { AdminUsersService } from './services/admin-users.service';
+import { AdminContentController } from './controllers/admin-content.controller';
+import { AdminContentService } from './services/admin-content.service';
+import { AdminSettingsController } from './controllers/admin-settings.controller';
+import { AdminSettingsService } from './services/admin-settings.service';
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
-    JwtModule.register({}),
-    forwardRef(() => TransferModule),
-    forwardRef(() => AdminAuthModule),
-    LeaderboardModule,
-    TypeOrmModule.forFeature([
-      User,
-      AuditLog,
-      AuditLogArchive,
-      DataAccessLog,
-      AuditAlert,
-      IpWhitelist,
-      Transfer,
-      Session,
-      Message,
-      Room,
-      RoomMember,
-      RoomPayment,
-      PlatformConfig,
-      ModerationQueue,   
-      FlaggedMessage,
-    ]),
+    TypeOrmModule.forFeature([User, Message, SystemSetting]),
   ],
-  controllers: [AdminController, IpWhitelistController],
-  providers: [
-    AdminConfigService,
-    AdminService,
-    IpWhitelistService,
-    AuditLogService,
-    AuditLogRetentionJob,
-    AdminEventStreamGateway,
-  ],
-  exports: [AdminConfigService, AdminService, AuditLogService],
+  controllers: [AdminUsersController, AdminContentController, AdminSettingsController],
+  providers: [AdminUsersService, AdminContentService, AdminSettingsService],
 })
-export class AdminModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(IpWhitelistMiddleware)
-      .forRoutes({ path: 'admin/*', method: RequestMethod.ALL });
-  }
-}
+export class AdminModule {}

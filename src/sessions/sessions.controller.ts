@@ -1,113 +1,53 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-// src/sessions/controllers/session.controller.ts
 import {
   Controller,
-  Get,
   Delete,
-  Param,
-  UseGuards,
-  Req,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import type { Request } from 'express';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { SessionService } from './services/sessions.service';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrentSessionId } from './current-session-id.decorator';
+import { SessionResponseDto } from './dto/session-response.dto';
+import { SessionsService } from './sessions.service';
 
 @ApiTags('sessions')
 @ApiBearerAuth()
-@Controller('auth/sessions')
-@UseGuards(JwtAuthGuard)
-export class SessionController {
-  constructor(private readonly sessionService: SessionService) {}
+@Controller('sessions')
+export class SessionsController {
+  constructor(private readonly sessionsService: SessionsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all active sessions for current user' })
-  @ApiResponse({ status: 200, description: 'List of active sessions' })
-  async getActiveSessions(@Req() req: Request) {
-    const userId = req.user['sub']; // Extract from JWT payload
-    const sessions = await this.sessionService.getActiveSessions(userId);
-
-    return {
-      success: true,
-      data: sessions.map((session) => ({
-        id: session.id,
-        deviceType: session.deviceType,
-        deviceName: session.deviceName,
-        browser: session.browser,
-        os: session.os,
-        ipAddress: session.ipAddress,
-        location: session.location,
-        lastActivity: session.lastActivity,
-        createdAt: session.createdAt,
-        isCurrent: session.id === req.user['sessionId'], // If you store sessionId in JWT
-      })),
-      meta: {
-        total: sessions.length,
-      },
-    };
+  @ApiOperation({ summary: 'List active sessions for the current user' })
+  @ApiResponse({ status: 200, type: SessionResponseDto, isArray: true })
+  async getActiveSessions(
+    @CurrentUser('id') userId: string,
+    @CurrentSessionId() currentSessionId: string,
+  ): Promise<SessionResponseDto[]> {
+    return this.sessionsService.getActiveSessions(userId, currentSessionId);
   }
 
-  @Delete(':id/revoke')
+  @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a specific session' })
   @ApiResponse({ status: 204, description: 'Session revoked successfully' })
-  @ApiResponse({
-    status: 403,
-    description: "Cannot revoke another user's session",
-  })
-  @ApiResponse({ status: 404, description: 'Session not found' })
-  async revokeSession(@Param('id') sessionId: string, @Req() req: Request) {
-    const userId = req.user['sub'];
-    await this.sessionService.revokeSession(sessionId, userId);
-
-    return {
-      success: true,
-      message: 'Session revoked successfully',
-    };
+  async revokeSession(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) sessionId: string,
+  ): Promise<void> {
+    await this.sessionsService.revokeSession(userId, sessionId);
   }
 
-  @Delete('revoke-all')
+  @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Revoke all sessions except current' })
-  @ApiResponse({
-    status: 204,
-    description: 'All sessions revoked successfully',
-  })
-  async revokeAllSessions(@Req() req: Request) {
-    const userId = req.user['sub'];
-    const currentSessionId = req.user['sessionId']; // If you store sessionId in JWT
-
-    await this.sessionService.revokeAllSessions(userId, currentSessionId);
-
-    return {
-      success: true,
-      message: 'All other sessions revoked successfully',
-    };
-  }
-
-  @Delete('revoke-all-including-current')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({
-    summary: 'Revoke all sessions including current (logout everywhere)',
-  })
-  @ApiResponse({
-    status: 204,
-    description: 'All sessions revoked successfully',
-  })
-  async logoutEverywhere(@Req() req: Request) {
-    const userId = req.user['sub'];
-    await this.sessionService.revokeAllSessions(userId);
-
-    return {
-      success: true,
-      message: 'Logged out from all devices',
-    };
+  @ApiOperation({ summary: 'Revoke all sessions except the current one' })
+  @ApiResponse({ status: 204, description: 'All other sessions revoked successfully' })
+  async revokeAllSessions(
+    @CurrentUser('id') userId: string,
+    @CurrentSessionId() currentSessionId: string,
+  ): Promise<void> {
+    await this.sessionsService.revokeAllSessions(userId, currentSessionId);
   }
 }
