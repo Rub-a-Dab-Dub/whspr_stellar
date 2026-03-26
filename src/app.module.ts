@@ -31,6 +31,7 @@ import { CacheModule } from './cache/cache.module';
 import { RedisCacheModule } from './cache/redis-cache.module';
 import { StellarEventsModule } from './stellar-events/stellar-events.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ReactionsModule } from './reactions/reactions.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AnalyticsModule,
     TransactionsModule,
     NotificationsModule,
+    ReactionsModule,
     ScheduledJobsModule,
     WebhooksModule,
     ObservabilityModule,
