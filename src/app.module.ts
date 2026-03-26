@@ -26,9 +26,11 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 import { AdminModule } from './admin/admin.module';
-import { AnalyticsModule } from './analytics/analytics.module';
 import { MembershipTierModule } from './membership-tier/membership-tier.module';
 import { CacheModule } from './cache/cache.module';
+import { RedisCacheModule } from './cache/redis-cache.module';
+import { StellarEventsModule } from './stellar-events/stellar-events.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -65,6 +67,7 @@ import { CacheModule } from './cache/cache.module';
     WalletsModule,
     AnalyticsModule,
     TransactionsModule,
+    NotificationsModule,
     ScheduledJobsModule,
     WebhooksModule,
     ObservabilityModule,

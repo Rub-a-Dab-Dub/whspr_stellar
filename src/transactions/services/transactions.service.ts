@@ -9,6 +9,8 @@ import { Repository } from 'typeorm';
 import { NotificationType } from '../../messaging/dto/notification-events.dto';
 import { ChatGateway } from '../../messaging/gateways/chat.gateway';
 import { NotificationsGateway } from '../../messaging/gateways/notifications.gateway';
+import { InAppNotificationType } from '../../notifications/entities/notification.entity';
+import { NotificationsService } from '../../notifications/notifications.service';
 import { Wallet, WalletNetwork } from '../../wallets/entities/wallet.entity';
 import { ListTransactionsQueryDto } from '../dto/list-transactions-query.dto';
 import {
@@ -46,6 +48,7 @@ export class TransactionsService {
     private readonly transactionsRepository: TransactionsRepository,
     private readonly sorobanTransactionsService: SorobanTransactionsService,
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly notificationsService: NotificationsService,
     private readonly chatGateway: ChatGateway,
     @InjectRepository(Wallet)
     private readonly walletsRepository: Repository<Wallet>,
@@ -248,10 +251,41 @@ export class TransactionsService {
 
     if (senderId) {
       await this.notificationsGateway.sendTransferUpdate(senderId, transferPayload);
+
+      if (transaction.status === TransactionStatus.CONFIRMED) {
+        await this.notificationsService.createNotification({
+          userId: senderId,
+          type: InAppNotificationType.TRANSACTION_CONFIRMED,
+          title: 'Transaction confirmed',
+          body: 'Your transaction was confirmed on chain.',
+          data: {
+            transactionId: transaction.id,
+            txHash: transaction.txHash,
+            amount: transaction.amount,
+            tokenId: transaction.tokenId,
+          },
+        });
+      }
     }
 
     if (recipientId && recipientId !== senderId) {
       await this.notificationsGateway.sendTransferUpdate(recipientId, transferPayload);
+
+      if (transaction.status === TransactionStatus.CONFIRMED) {
+        await this.notificationsService.createNotification({
+          userId: recipientId,
+          type: InAppNotificationType.TRANSFER_RECEIVED,
+          title: 'Transfer received',
+          body: 'You received a confirmed transfer.',
+          data: {
+            transactionId: transaction.id,
+            txHash: transaction.txHash,
+            amount: transaction.amount,
+            tokenId: transaction.tokenId,
+            fromAddress: transaction.fromAddress,
+          },
+        });
+      }
     }
 
     if (
