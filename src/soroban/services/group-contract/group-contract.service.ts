@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SorobanClientService } from '../soroban-client/soroban-client.service';
-import { Networks, TransactionBuilder, nativeToScVal } from '@stellar/stellar-sdk';
+import { Networks, TransactionBuilder, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 
 @Injectable()
 export class GroupContractService {
@@ -119,6 +119,33 @@ export class GroupContractService {
       'get_members',
       [nativeToScVal(groupId, { type: 'string' })],
     );
+  }
+
+  /**
+   * View call to on-chain group member (expects `get_member_info` / equivalent on deployed WASM).
+   * `chainGroupId` may be a 64-char hex BytesN32 id or a string id, depending on deployment.
+   */
+  async getMemberInfo(chainGroupId: string, walletAddress: string): Promise<unknown> {
+    if (!this.contractId) {
+      this.logger.warn('GROUP_CONTRACT_ID is not set; cannot load member info');
+      return null;
+    }
+
+    const groupScVal = this.chainGroupIdToScVal(chainGroupId);
+    const memberScVal = nativeToScVal(walletAddress, { type: 'address' });
+
+    return this.sorobanClient.callView(this.contractId, 'get_member_info', [
+      groupScVal,
+      memberScVal,
+    ]);
+  }
+
+  private chainGroupIdToScVal(chainGroupId: string): xdr.ScVal {
+    const isHex32 = /^[0-9a-fA-F]{64}$/u;
+    if (isHex32.test(chainGroupId)) {
+      return xdr.ScVal.scvBytes(Buffer.from(chainGroupId, 'hex'));
+    }
+    return nativeToScVal(chainGroupId, { type: 'string' });
   }
 
   async sendGroupMessage(
