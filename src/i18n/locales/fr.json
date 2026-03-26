@@ -35,6 +35,13 @@
       "wsTokenNotFound": "Jeton d'authentification introuvable",
       "wsInvalidOrExpiredToken": "Jeton invalide ou expire"
     },
+    "twoFactor": {
+      "alreadyEnabled": "L'authentification a deux facteurs est deja activee",
+      "notEnabled": "L'authentification a deux facteurs n'est pas activee",
+      "invalidCode": "Code de verification invalide ou expire",
+      "codeRequired": "Code 2FA requis (en-tete x-2fa-code)",
+      "setupRequired": "Commencez par POST /2fa/setup"
+    },
     "users": {
       "walletAlreadyRegistered": "L'adresse du portefeuille est deja enregistree",
       "usernameTaken": "Le nom d'utilisateur est deja pris",

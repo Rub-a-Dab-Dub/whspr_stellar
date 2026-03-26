@@ -15,6 +15,7 @@ import { envValidationSchema } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { TwoFactorModule } from './two-factor/two-factor.module';
 import { ReportsModule } from './reports/reports.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { WalletsModule } from './wallets/wallets.module';
@@ -50,6 +51,7 @@ import { ReactionsModule } from './reactions/reactions.module';
     HealthModule,
     UsersModule,
     AuthModule,
+    TwoFactorModule,
     StellarEventsModule,
     TypeOrmModule.forRootAsync({
       useFactory: typeOrmConfig,
