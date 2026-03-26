@@ -256,6 +256,36 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(roomId).emit('message:receipt', event);
   }
 
+  async sendReactionAdded(
+    conversationId: string,
+    event: {
+      messageId: string;
+      conversationId: string;
+      userId: string;
+      emoji: string;
+      timestamp: number;
+    },
+  ): Promise<void> {
+    const roomId = `conversation:${conversationId}`;
+    await this.eventReplayService.storeEvent(roomId, 'reaction:new', event);
+    this.server.to(roomId).emit('reaction:new', event);
+  }
+
+  async sendReactionRemoved(
+    conversationId: string,
+    event: {
+      messageId: string;
+      conversationId: string;
+      userId: string;
+      emoji: string;
+      timestamp: number;
+    },
+  ): Promise<void> {
+    const roomId = `conversation:${conversationId}`;
+    await this.eventReplayService.storeEvent(roomId, 'reaction:remove', event);
+    this.server.to(roomId).emit('reaction:remove', event);
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   private extractToken(client: Socket): string | null {
