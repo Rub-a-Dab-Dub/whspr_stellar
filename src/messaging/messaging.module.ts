@@ -49,6 +49,7 @@ import { EventReplayService } from './services/event-replay.service';
   ],
   exports: [
     // Allow other modules to push notifications / check presence
+    ChatGateway,
     NotificationsGateway,
     PresenceService,
     EventReplayService,
