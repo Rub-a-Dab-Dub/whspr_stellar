@@ -38,6 +38,13 @@
       "wsTokenNotFound": "Authentication token not found",
       "wsInvalidOrExpiredToken": "Invalid or expired token"
     },
+    "twoFactor": {
+      "alreadyEnabled": "Two-factor authentication is already enabled",
+      "notEnabled": "Two-factor authentication is not enabled",
+      "invalidCode": "Invalid or expired verification code",
+      "codeRequired": "Two-factor code is required (header x-2fa-code)",
+      "setupRequired": "Start setup with POST /2fa/setup first"
+    },
     "users": {
       "walletAlreadyRegistered": "Wallet address already registered",
       "usernameTaken": "Username already taken",

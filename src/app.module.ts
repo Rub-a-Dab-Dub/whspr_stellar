@@ -15,6 +15,7 @@ import { envValidationSchema } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { TwoFactorModule } from './two-factor/two-factor.module';
 import { ReportsModule } from './reports/reports.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { WalletsModule } from './wallets/wallets.module';
@@ -28,6 +29,7 @@ import { InChatTransfersModule } from './in-chat-transfers/in-chat-transfers.mod
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
+import { AppConfigModule } from './app-config/app-config.module';
 import { AdminModule } from './admin/admin.module';
 import { MembershipTierModule } from './membership-tier/membership-tier.module';
 import { CacheModule } from './cache/cache.module';
@@ -38,6 +40,7 @@ import { ReactionsModule } from './reactions/reactions.module';
 import { StickersModule } from './stickers/stickers.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { SpamDetectionModule } from './spam-detection/spam-detection.module';
+import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
 
 @Module({
   imports: [
@@ -53,6 +56,7 @@ import { SpamDetectionModule } from './spam-detection/spam-detection.module';
     HealthModule,
     UsersModule,
     AuthModule,
+    TwoFactorModule,
     StellarEventsModule,
     TypeOrmModule.forRootAsync({
       useFactory: typeOrmConfig,
@@ -70,6 +74,7 @@ import { SpamDetectionModule } from './spam-detection/spam-detection.module';
     HealthModule,
     UsersModule,
     UserSettingsModule,
+    AppConfigModule,
     AuthModule,
     SessionsModule,
     WalletsModule,
@@ -80,6 +85,7 @@ import { SpamDetectionModule } from './spam-detection/spam-detection.module';
     StickersModule,
     PrivacyModule,
     SpamDetectionModule,
+    PinnedMessagesModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,

@@ -35,6 +35,13 @@
       "wsTokenNotFound": "Token de autenticacao nao encontrado",
       "wsInvalidOrExpiredToken": "Token invalido ou expirado"
     },
+    "twoFactor": {
+      "alreadyEnabled": "Autenticacao em dois fatores ja esta ativada",
+      "notEnabled": "Autenticacao em dois fatores nao esta ativada",
+      "invalidCode": "Codigo de verificacao invalido ou expirado",
+      "codeRequired": "Codigo 2FA obrigatorio (cabecalho x-2fa-code)",
+      "setupRequired": "Inicie com POST /2fa/setup"
+    },
     "users": {
       "walletAlreadyRegistered": "O endereco da carteira ja esta registrado",
       "usernameTaken": "O nome de usuario ja esta em uso",

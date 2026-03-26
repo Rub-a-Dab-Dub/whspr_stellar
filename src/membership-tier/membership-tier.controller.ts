@@ -1,7 +1,14 @@
-import { Controller, Get, Post, Body, UseGuards, Req, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, UseGuards, Req, Param } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { MembershipTierService } from './membership-tier.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TwoFactorAuthGuard } from '../two-factor/guards/two-factor-auth.guard';
 import { UserTier } from '../users/entities/user.entity';
 import { TierDetails } from './membership-tier.constants';
 
@@ -26,8 +33,13 @@ export class MembershipTierController {
     return this.membershipTierService.getUserTierDetails(req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, TwoFactorAuthGuard)
   @ApiBearerAuth()
+  @ApiHeader({
+    name: TwoFactorAuthGuard.headerName,
+    required: false,
+    description: 'Required when the user has 2FA enabled: TOTP or unused backup code',
+  })
   @Post('upgrade/:tier')
   @ApiOperation({ summary: 'Request a tier upgrade (Internal/Placeholder for now)' })
   @ApiResponse({ status: 200, description: 'Tier upgrade successful' })
