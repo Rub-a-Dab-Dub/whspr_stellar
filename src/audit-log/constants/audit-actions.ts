@@ -5,6 +5,10 @@ export const AuditAction = {
   GROUP_MEMBER_REMOVED: 'GROUP_MEMBER_REMOVED',
   ROLE_CHANGED: 'ROLE_CHANGED',
   KEY_ROTATED: 'KEY_ROTATED',
+  CONFIG_UPDATED: 'CONFIG_UPDATED',
+  CONFIG_DELETED: 'CONFIG_DELETED',
+  CONFIG_BULK_UPDATED: 'CONFIG_BULK_UPDATED',
+  CONFIG_RESET: 'CONFIG_RESET',
 } as const;
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction];

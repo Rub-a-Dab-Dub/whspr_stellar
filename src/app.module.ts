@@ -29,6 +29,7 @@ import { InChatTransfersModule } from './in-chat-transfers/in-chat-transfers.mod
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
+import { AppConfigModule } from './app-config/app-config.module';
 import { AdminModule } from './admin/admin.module';
 import { MembershipTierModule } from './membership-tier/membership-tier.module';
 import { CacheModule } from './cache/cache.module';
@@ -70,6 +71,7 @@ import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
     HealthModule,
     UsersModule,
     UserSettingsModule,
+    AppConfigModule,
     AuthModule,
     SessionsModule,
     WalletsModule,
