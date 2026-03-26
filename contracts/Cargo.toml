@@ -1,9 +1,14 @@
 [workspace]
-members = ["messaging", "payments", "rooms", "xp", "integration-tests"]
 resolver = "2"
+members = [
+    "gasless-common",
+    "contracts/*",
+]
 
 [workspace.dependencies]
-soroban-sdk = { version = "22.0.0", features = ["testutils"] }
+soroban-sdk = "=22.0.1"
+soroban-token-sdk = "=22.0.1"
+gasless-common = { path = "gasless-common" }
 
 [profile.release]
 opt-level = "z"
