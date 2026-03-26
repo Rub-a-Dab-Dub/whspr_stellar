@@ -61,6 +61,9 @@ export const envValidationSchema = Joi.object({
     'image/jpeg,image/png,image/webp,image/gif,video/mp4,audio/mpeg,audio/wav,application/pdf',
   ),
 
+  // Soroban RPC
+  SOROBAN_RPC_URL: Joi.string().uri().required(),
+  SOROBAN_CONTRACT_IDS: Joi.string().default(''), // comma-separated contract addresses
   // Stellar / Horizon
   STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
   STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
@@ -77,6 +80,11 @@ export const envValidationSchema = Joi.object({
   JOB_ANALYTICS_AGGREGATION_CRON: Joi.string().default('0 0 * * *'),
   JOB_AUDIT_LOG_CLEANUP_CRON: Joi.string().default('0 0 * * 0'),
   JOB_LOCK_TTL_MS: Joi.number().default(15000),
+
+  // Soroban
+  SOROBAN_RPC_URL: Joi.string().uri().default('https://soroban-testnet.stellar.org:443'),
+  SOROBAN_NETWORK_PASSPHRASE: Joi.string().default('Test SDF Network ; September 2015'),
+  SOROBAN_CONTRACT_IDS: Joi.string().required(),
 
   // Observability
   OTEL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),

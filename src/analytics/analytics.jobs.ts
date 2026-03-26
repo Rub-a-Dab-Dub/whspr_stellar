@@ -4,10 +4,14 @@ import {
   NoopScheduledJobsOperations,
 } from '../scheduled-jobs/scheduled-jobs.operations';
 import { AnalyticsService } from './analytics.service';
+import { BlockchainSyncService } from '../blockchain/services/blockchain-sync.service';
 
 @Injectable()
 export class AnalyticsScheduledJobsOperations extends NoopScheduledJobsOperations {
-  constructor(private readonly analyticsService: AnalyticsService) {
+  constructor(
+    private readonly analyticsService: AnalyticsService,
+    private readonly blockchainSyncService: BlockchainSyncService,
+  ) {
     super();
   }
 
@@ -18,6 +22,17 @@ export class AnalyticsScheduledJobsOperations extends NoopScheduledJobsOperation
       processedCount,
       metadata: {
         job: 'analytics-aggregation',
+      },
+    };
+  }
+
+  override async pollBlockchainEvents(): Promise<JobExecutionResult> {
+    const processedCount = await this.blockchainSyncService.syncEvents();
+
+    return {
+      processedCount,
+      metadata: {
+        job: 'blockchain-event-polling',
       },
     };
   }
