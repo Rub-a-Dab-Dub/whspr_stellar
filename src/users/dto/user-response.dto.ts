@@ -38,6 +38,7 @@ export class UserResponseDto {
 
   @Expose()
   @ApiProperty({ enum: UserTier, example: UserTier.FREE })
+  @ApiProperty({ enum: UserTier, example: UserTier.SILVER })
   tier!: UserTier;
 
   @Expose()

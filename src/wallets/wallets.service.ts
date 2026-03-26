@@ -145,7 +145,11 @@ export class WalletsService {
     }
 
     const message = this.horizonService.buildVerificationMessage(wallet.walletAddress, userId);
-    const valid = this.cryptoService.verifyStellarSignature(wallet.walletAddress, message, signature);
+    const valid = this.cryptoService.verifyStellarSignature(
+      wallet.walletAddress,
+      message,
+      signature,
+    );
 
     if (!valid) {
       throw new UnauthorizedException(
@@ -158,10 +162,7 @@ export class WalletsService {
     return this.toDto(saved);
   }
 
-  async getBalance(
-    userId: string,
-    walletId: string,
-  ): Promise<BalanceResponseDto> {
+  async getBalance(userId: string, walletId: string): Promise<BalanceResponseDto> {
     const wallet = await this.walletsRepository.findByUserAndId(userId, walletId);
     if (!wallet) {
       throw new NotFoundException(this.translationService.translate('errors.wallets.notFound'));

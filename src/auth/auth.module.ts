@@ -16,6 +16,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { AuthAttempt } from './entities/auth-attempt.entity';
 
 import { UsersModule } from '../users/users.module';
+import { SessionsModule } from '../sessions/sessions.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { UsersModule } from '../users/users.module';
       }),
     }),
     UsersModule,
+    SessionsModule,
   ],
   controllers: [AuthController],
   providers: [

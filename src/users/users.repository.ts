@@ -65,10 +65,7 @@ export class UsersRepository extends Repository<User> {
     return count === 0;
   }
 
-  async isWalletAddressAvailable(
-    walletAddress: string,
-    excludeUserId?: string,
-  ): Promise<boolean> {
+  async isWalletAddressAvailable(walletAddress: string, excludeUserId?: string): Promise<boolean> {
     const query = this.createQueryBuilder('user').where(
       'LOWER(user.walletAddress) = LOWER(:walletAddress)',
       { walletAddress },

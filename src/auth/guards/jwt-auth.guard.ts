@@ -26,6 +26,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handleRequest<TUser = any>(err: any, user: any, info: any): TUser {
     if (err || !user) {
       throw (
@@ -35,6 +36,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         )
       );
     }
+
     return user;
   }
 }
