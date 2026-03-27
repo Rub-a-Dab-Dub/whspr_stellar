@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { LeaderboardEntry, LeaderboardPeriod, LeaderboardType, LeaderboardSnapshot } from './entities/leaderboard-entry.entity';
 import { LeaderboardEntriesRepository, LeaderboardSnapshotsRepository } from './leaderboard.repository';
+import { RedisLeaderboardService } from './redis-leaderboard.service';
 import {
   UpdateLeaderboardScoreDto,
   LeaderboardEntryResponseDto,
@@ -28,6 +29,7 @@ export class LeaderboardService {
     private snapshotsRepo: LeaderboardSnapshotsRepository,
     @InjectRepository(User)
     private usersRepo: Repository<User>,
+    private redisService: RedisLeaderboardService,
   ) {}
 
   async updateUserScore(
