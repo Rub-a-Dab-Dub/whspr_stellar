@@ -28,6 +28,8 @@ import { TwoFactorService } from '../../two-factor/two-factor.service';
 import { AuthAttempt } from '../entities/auth-attempt.entity';
 import { AuthChallenge } from '../entities/auth-challenge.entity';
 import { CryptoService } from './crypto.service';
+import { FraudDetectionService } from '../../fraud-detection/fraud-detection.service';
+import { LoginAction } from '../../fraud-detection/entities/login-attempt.entity';
 
 export interface JwtPayload {
   sub: string;
@@ -147,6 +149,17 @@ export class AuthService {
         tokenType: 'Bearer',
         expiresIn: 300,
       };
+    }
+
+    // Fraud / geo analysis
+    const fraud = await this.fraudDetection.analyzeLogin({
+      userId: user.id,
+      ipAddress,
+      twoFaEnabled: false, // extend when 2FA module is added
+    });
+
+    if (fraud.action === LoginAction.BLOCKED) {
+      throw new HttpException('Login blocked due to suspicious activity', HttpStatus.FORBIDDEN);
     }
 
     const tokens = await this.generateTokens(user, {

@@ -42,7 +42,9 @@ import { PrivacyModule } from './privacy/privacy.module';
 import { SpamDetectionModule } from './spam-detection/spam-detection.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
-import { VoiceMessagesModule } from './voice-messages/voice-messages.module';
+import { Sep10Module } from './sep10/sep10.module';
+import { RampModule } from './ramp/ramp.module';
+import { QrCodeModule } from './qr-code/qr-code.module';
 
 @Module({
   imports: [
@@ -70,6 +72,7 @@ import { VoiceMessagesModule } from './voice-messages/voice-messages.module';
       },
     ]),
     CacheModule,
+    FraudDetectionModule,
     LoggingModule,
     ScheduleModule.forRoot(),
     AppI18nModule,
@@ -89,7 +92,9 @@ import { VoiceMessagesModule } from './voice-messages/voice-messages.module';
     SpamDetectionModule,
     LeaderboardModule,
     PinnedMessagesModule,
-    VoiceMessagesModule,
+    Sep10Module,
+    RampModule,
+    QrCodeModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,
