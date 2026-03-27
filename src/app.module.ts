@@ -69,6 +69,7 @@ import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
       },
     ]),
     CacheModule,
+    FraudDetectionModule,
     LoggingModule,
     ScheduleModule.forRoot(),
     AppI18nModule,
