@@ -42,6 +42,9 @@ import { PrivacyModule } from './privacy/privacy.module';
 import { SpamDetectionModule } from './spam-detection/spam-detection.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
+import { Sep10Module } from './sep10/sep10.module';
+import { RampModule } from './ramp/ramp.module';
+import { QrCodeModule } from './qr-code/qr-code.module';
 
 @Module({
   imports: [
@@ -88,6 +91,9 @@ import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
     SpamDetectionModule,
     LeaderboardModule,
     PinnedMessagesModule,
+    Sep10Module,
+    RampModule,
+    QrCodeModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,
