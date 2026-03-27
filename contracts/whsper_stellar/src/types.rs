@@ -97,6 +97,11 @@ pub enum ContractError {
     RatingAlreadySubmitted = 32,
     InsufficientAllowance = 33,
     MinimumThresholdNotMet = 34,
+    TokenNotRegistered = 35,
+    TokenAlreadyRegistered = 36,
+    TokenBlacklisted = 37,
+    TokenNotWhitelisted = 38,
+    InvalidTokenContract = 39,
 }
 
 #[derive(Clone)]
@@ -301,3 +306,26 @@ pub struct ReputationEvent {
     pub timestamp: u64,
 }
 
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TokenMetadata {
+    pub address: Address,
+    pub symbol: Symbol,
+    pub name: String,
+    pub decimals: u32,
+    pub is_whitelisted: bool,
+    pub is_blacklisted: bool,
+    pub registered_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TokenTransferRecord {
+    pub token: Address,
+    pub from: Address,
+    pub to: Address,
+    pub amount: i128,
+    pub conversation_id: BytesN<32>,
+    pub timestamp: u64,
+}

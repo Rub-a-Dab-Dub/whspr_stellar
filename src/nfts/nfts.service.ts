@@ -12,6 +12,7 @@ import { createHash } from 'crypto';
 import Redis from 'ioredis';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Repository } from 'typeorm';
+import { TranslationService } from '../i18n/services/translation.service';
 import { User } from '../users/entities/user.entity';
 import { NFT } from './entities/nft.entity';
 import { NFTQueryFilters, NFTsRepository } from './repositories/nfts.repository';
@@ -71,6 +72,7 @@ export class NFTsService implements OnModuleDestroy {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Wallet)
     private readonly walletRepository: Repository<Wallet>,
+    private readonly translationService: TranslationService,
   ) {
     this.servers = {
       [WalletNetwork.STELLAR_MAINNET]: new StellarSdk.Horizon.Server(
@@ -104,7 +106,7 @@ export class NFTsService implements OnModuleDestroy {
     ]);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.translationService.translate('errors.nfts.userNotFound'));
     }
 
     const discoveredNFTs = await this.fetchWalletNFTs(
@@ -173,7 +175,7 @@ export class NFTsService implements OnModuleDestroy {
       : await this.nftsRepository.findOneById(id);
 
     if (!nft) {
-      throw new NotFoundException('NFT not found');
+      throw new NotFoundException(this.translationService.translate('errors.nfts.notFound'));
     }
 
     return nft;
@@ -194,7 +196,7 @@ export class NFTsService implements OnModuleDestroy {
     ]);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.translationService.translate('errors.nfts.userNotFound'));
     }
 
     const isOwner = await this.verifyOwnership(
@@ -206,7 +208,7 @@ export class NFTsService implements OnModuleDestroy {
 
     if (!isOwner) {
       throw new ForbiddenException(
-        'NFT ownership could not be verified on Stellar',
+        this.translationService.translate('errors.nfts.ownershipVerificationFailed'),
       );
     }
 
@@ -285,7 +287,7 @@ export class NFTsService implements OnModuleDestroy {
       this.logger.error(
         `Failed to fetch Stellar NFTs for wallet ${walletAddress}: ${this.getErrorMessage(error)}`,
       );
-      throw new BadRequestException('Failed to sync NFTs from Stellar Horizon');
+      throw new BadRequestException(this.translationService.translate('errors.nfts.syncFailed'));
     }
   }
 
@@ -527,7 +529,11 @@ export class NFTsService implements OnModuleDestroy {
     const server = this.servers[network];
 
     if (!server) {
-      throw new BadRequestException(`Unsupported Stellar network: ${network}`);
+      throw new BadRequestException(
+        this.translationService.translate('errors.nfts.unsupportedNetwork', {
+          args: { network },
+        }),
+      );
     }
 
     return server;
@@ -578,7 +584,7 @@ export class NFTsService implements OnModuleDestroy {
 
     if (!wallet) {
       throw new BadRequestException(
-        'User does not have a linked Stellar wallet configured',
+        this.translationService.translate('errors.nfts.walletNotConfigured'),
       );
     }
 

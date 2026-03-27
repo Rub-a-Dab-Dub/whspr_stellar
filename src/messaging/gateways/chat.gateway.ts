@@ -234,6 +234,68 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  /**
+   * Emit a receipt when an on-chain transfer linked to a message is confirmed.
+   */
+  async sendMessageReceipt(
+    conversationId: string,
+    messageId: string,
+    transactionId: string,
+    txHash: string,
+  ): Promise<void> {
+    const roomId = `conversation:${conversationId}`;
+    const event = {
+      messageId,
+      transactionId,
+      txHash,
+      status: 'CONFIRMED',
+      timestamp: Date.now(),
+    };
+
+    await this.eventReplayService.storeEvent(roomId, 'message:receipt', event);
+    this.server.to(roomId).emit('message:receipt', event);
+  }
+
+  async sendReactionAdded(
+    conversationId: string,
+    event: {
+      messageId: string;
+      conversationId: string;
+      userId: string;
+      emoji: string;
+      timestamp: number;
+    },
+  ): Promise<void> {
+    const roomId = `conversation:${conversationId}`;
+    await this.eventReplayService.storeEvent(roomId, 'reaction:new', event);
+    this.server.to(roomId).emit('reaction:new', event);
+  }
+
+  async sendReactionRemoved(
+    conversationId: string,
+    event: {
+      messageId: string;
+      conversationId: string;
+      userId: string;
+      emoji: string;
+      timestamp: number;
+    },
+  ): Promise<void> {
+    const roomId = `conversation:${conversationId}`;
+    await this.eventReplayService.storeEvent(roomId, 'reaction:remove', event);
+    this.server.to(roomId).emit('reaction:remove', event);
+  }
+
+  emitMessagePinned(conversationId: string, payload: Record<string, unknown>): void {
+    const roomId = `conversation:${conversationId}`;
+    this.server.to(roomId).emit('message:pinned', payload);
+  }
+
+  emitMessageUnpinned(conversationId: string, payload: Record<string, unknown>): void {
+    const roomId = `conversation:${conversationId}`;
+    this.server.to(roomId).emit('message:unpinned', payload);
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   private extractToken(client: Socket): string | null {

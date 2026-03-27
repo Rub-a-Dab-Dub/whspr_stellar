@@ -12,6 +12,7 @@ import { HorizonService } from './services/horizon.service';
 import { CryptoService } from '../auth/services/crypto.service';
 import { Wallet, WalletNetwork } from './entities/wallet.entity';
 import { AddWalletDto } from './dto/add-wallet.dto';
+import { TranslationService } from '../i18n/services/translation.service';
 
 const USER_ID = 'user-uuid-1';
 const WALLET_ID = 'wallet-uuid-1';
@@ -69,6 +70,14 @@ describe('WalletsService', () => {
         {
           provide: CryptoService,
           useValue: { verifyStellarSignature: jest.fn() },
+        },
+        {
+          provide: TranslationService,
+          useValue: {
+            translate: jest.fn((key: string, options?: { args?: Record<string, unknown> }) =>
+              options?.args ? `${key}:${JSON.stringify(options.args)}` : key,
+            ),
+          },
         },
         { provide: CACHE_MANAGER, useValue: cache },
       ],

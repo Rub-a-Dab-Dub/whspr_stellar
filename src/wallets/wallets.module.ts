@@ -8,6 +8,7 @@ import { WalletsRepository } from './wallets.repository';
 import { HorizonService } from './services/horizon.service';
 import { Wallet } from './entities/wallet.entity';
 import { AuthModule } from '../auth/auth.module';
+import { TwoFactorModule } from '../two-factor/two-factor.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthModule } from '../auth/auth.module';
       }),
     }),
     AuthModule,
+    TwoFactorModule,
   ],
   controllers: [WalletsController],
   providers: [WalletsService, WalletsRepository, HorizonService],

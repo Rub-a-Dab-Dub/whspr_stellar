@@ -23,7 +23,7 @@ describe('AttachmentsService', () => {
     displayName: null,
     avatarUrl: null,
     bio: null,
-    tier: UserTier.FREE,
+    tier: UserTier.SILVER,
     isActive: true,
     isVerified: false,
     createdAt: new Date(),
@@ -79,9 +79,9 @@ describe('AttachmentsService', () => {
               const values: Record<string, unknown> = {
                 ATTACHMENT_ALLOWED_MIME_TYPES: 'image/jpeg,image/png,video/mp4',
                 ATTACHMENT_PRESIGN_EXPIRY_SECONDS: 300,
-                ATTACHMENT_MAX_SIZE_FREE_BYTES: 10 * 1024 * 1024,
-                ATTACHMENT_MAX_SIZE_PREMIUM_BYTES: 25 * 1024 * 1024,
-                ATTACHMENT_MAX_SIZE_VIP_BYTES: 50 * 1024 * 1024,
+                ATTACHMENT_MAX_SIZE_SILVER_BYTES: 10 * 1024 * 1024,
+                ATTACHMENT_MAX_SIZE_GOLD_BYTES: 25 * 1024 * 1024,
+                ATTACHMENT_MAX_SIZE_BLACK_BYTES: 50 * 1024 * 1024,
               };
               return values[key] ?? defaultValue;
             }),

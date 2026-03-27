@@ -4,10 +4,11 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  Inject,
+  Injectable,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { LoggerService } from '../logging/logger.service';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 interface ErrorResponse {
   statusCode: number;
@@ -20,8 +21,12 @@ interface ErrorResponse {
 }
 
 @Catch()
+@Injectable()
 export class HttpExceptionFilter implements ExceptionFilter {
-  constructor(private readonly logger?: LoggerService) { }
+  constructor(
+    private readonly translationService: TranslationService,
+    private readonly logger: LoggerService,
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -54,14 +59,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     // Log error
-    if (this.logger) {
-      this.logger.error(
-        `${request.method} ${request.url}`,
-        exception instanceof Error ? exception.stack : JSON.stringify(exception),
-        'HttpException',
-        { statusCode: status },
-      );
-    }
+    this.logger.error(
+      `${request.method} ${request.url}`,
+      exception instanceof Error ? exception.stack : JSON.stringify(exception),
+      'HttpException',
+      { statusCode: status },
+    );
 
     response.status(status).json(errorResponse);
   }
@@ -76,9 +79,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
         return (response as any).message;
       }
     }
-    if (exception instanceof Error) {
-      return exception.message;
-    }
-    return 'Internal server error';
+    return this.translationService.translate('errors.common.internalServerError');
   }
 }

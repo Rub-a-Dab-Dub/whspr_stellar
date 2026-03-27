@@ -15,15 +15,33 @@ import { envValidationSchema } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { TwoFactorModule } from './two-factor/two-factor.module';
 import { ReportsModule } from './reports/reports.module';
+import { SessionsModule } from './sessions/sessions.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { TransactionsModule } from './transactions/transactions.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
+import { NFTsModule } from './nfts/nfts.module';
+import { AppI18nModule } from './i18n/app-i18n.module';
+import { InChatTransfersModule } from './in-chat-transfers/in-chat-transfers.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
+import { AppConfigModule } from './app-config/app-config.module';
+import { AdminModule } from './admin/admin.module';
+import { MembershipTierModule } from './membership-tier/membership-tier.module';
 import { CacheModule } from './cache/cache.module';
-import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
+import { RedisCacheModule } from './cache/redis-cache.module';
+import { StellarEventsModule } from './stellar-events/stellar-events.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ReactionsModule } from './reactions/reactions.module';
+import { StickersModule } from './stickers/stickers.module';
+import { PrivacyModule } from './privacy/privacy.module';
+import { SpamDetectionModule } from './spam-detection/spam-detection.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
 
 @Module({
   imports: [
@@ -39,6 +57,7 @@ import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
     HealthModule,
     UsersModule,
     AuthModule,
+    TwoFactorModule,
     StellarEventsModule,
     TypeOrmModule.forRootAsync({
       useFactory: typeOrmConfig,
@@ -53,16 +72,29 @@ import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
     FraudDetectionModule,
     LoggingModule,
     ScheduleModule.forRoot(),
+    AppI18nModule,
     HealthModule,
     UsersModule,
     UserSettingsModule,
+    AppConfigModule,
     AuthModule,
     SessionsModule,
     WalletsModule,
     AnalyticsModule,
+    TransactionsModule,
+    NotificationsModule,
+    ReactionsModule,
+    StickersModule,
+    PrivacyModule,
+    SpamDetectionModule,
+    LeaderboardModule,
+    PinnedMessagesModule,
     ScheduledJobsModule,
+    InChatTransfersModule,
     WebhooksModule,
     ObservabilityModule,
+    AdminModule,
+    MembershipTierModule,
   ],
   controllers: [AppController],
   providers: [

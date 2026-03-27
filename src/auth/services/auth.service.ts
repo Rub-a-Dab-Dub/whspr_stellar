@@ -1,10 +1,12 @@
 import {
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -16,6 +18,13 @@ import { UsersService } from '../../users/users.service';
 import { SessionsService } from '../../sessions/sessions.service';
 import { ChallengeResponseDto } from '../dto/challenge-response.dto';
 import { AuthResponseDto } from '../dto/auth-response.dto';
+import { TranslationService } from '../../i18n/services/translation.service';
+import {
+  TWO_FACTOR_LOGIN_PURPOSE,
+  TWO_FACTOR_PENDING_TOKEN_TTL,
+} from '../../two-factor/constants';
+import { TwoFactorPendingJwtPayload } from '../../two-factor/two-factor-pending-jwt.interface';
+import { TwoFactorService } from '../../two-factor/two-factor.service';
 import { AuthAttempt } from '../entities/auth-attempt.entity';
 import { AuthChallenge } from '../entities/auth-challenge.entity';
 import { CryptoService } from './crypto.service';
@@ -48,8 +57,10 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly cryptoService: CryptoService,
+    private readonly translationService: TranslationService,
     private readonly sessionsService: SessionsService,
-    private readonly fraudDetection: FraudDetectionService,
+    @Inject(forwardRef(() => TwoFactorService))
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   async generateChallenge(walletAddress: string): Promise<ChallengeResponseDto> {
@@ -94,7 +105,9 @@ export class AuthService {
 
     if (!challenge) {
       await this.recordFailedAttempt(walletAddress, ipAddress);
-      throw new UnauthorizedException('Challenge not found or expired');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.challengeNotFoundOrExpired'),
+      );
     }
 
     const message = this.cryptoService.createSignMessage(challenge.nonce);
@@ -102,7 +115,9 @@ export class AuthService {
 
     if (!isValid) {
       await this.recordFailedAttempt(walletAddress, ipAddress);
-      throw new UnauthorizedException('Invalid signature');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidSignature'),
+      );
     }
 
     await this.challengeRepository.delete({ id: challenge.id });
@@ -111,7 +126,29 @@ export class AuthService {
     const user = await this.findOrCreateUser(walletAddress);
 
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
+    }
+
+    if (await this.twoFactorService.isEnabled(user.id)) {
+      const pendingToken = this.jwtService.sign(
+        {
+          sub: user.id,
+          walletAddress: user.walletAddress,
+          purpose: TWO_FACTOR_LOGIN_PURPOSE,
+        },
+        {
+          secret: this.configService.get<string>('JWT_SECRET'),
+          expiresIn: TWO_FACTOR_PENDING_TOKEN_TTL,
+        },
+      );
+
+      return {
+        requiresTwoFactor: true,
+        pendingToken,
+        user,
+        tokenType: 'Bearer',
+        expiresIn: 300,
+      };
     }
 
     // Fraud / geo analysis
@@ -141,13 +178,74 @@ export class AuthService {
     };
   }
 
+  async completeTwoFactorLogin(
+    pendingToken: string,
+    code: string,
+    ipAddress: string,
+    userAgent?: string,
+    deviceInfo?: string,
+  ): Promise<AuthResponseDto> {
+    let payload: TwoFactorPendingJwtPayload;
+    try {
+      payload = this.jwtService.verify<TwoFactorPendingJwtPayload>(pendingToken, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidToken'),
+      );
+    }
+
+    if (payload.purpose !== TWO_FACTOR_LOGIN_PURPOSE) {
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidToken'),
+      );
+    }
+
+    await this.twoFactorService.assertValidLoginCode(payload.sub, code);
+
+    const user = await this.usersService.findById(payload.sub);
+    if (!user.isActive) {
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
+    }
+
+    if (user.walletAddress !== payload.walletAddress) {
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.invalidToken'));
+    }
+
+    const tokens = await this.generateTokens(user, {
+      ipAddress,
+      userAgent: userAgent ?? null,
+      deviceInfo: this.resolveDeviceInfo(deviceInfo, userAgent),
+    });
+
+    this.logger.log(`User authenticated (2FA): ${user.id}`);
+
+    return {
+      ...tokens,
+      user,
+      tokenType: 'Bearer',
+      expiresIn: 900,
+    };
+  }
+
   async refreshAccessToken(
     refreshTokenString: string,
     ipAddress: string,
     userAgent?: string,
     deviceInfo?: string,
   ): Promise<AuthResponseDto> {
-    const payload = this.verifyJwt(refreshTokenString);
+    let payload: JwtPayload;
+    try {
+      payload = this.jwtService.verify<JwtPayload>(refreshTokenString, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidOrExpiredRefreshToken'),
+      );
+    }
+
     const storedSession = await this.sessionsService.validateRefreshSession(
       payload.sub,
       payload.sessionId,
@@ -159,12 +257,14 @@ export class AuthService {
     );
 
     if (!isValid) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.auth.invalidRefreshToken'),
+      );
     }
 
     const user = await this.usersService.findById(payload.sub);
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
     }
 
     const tokens = await this.generateTokens(
@@ -200,7 +300,7 @@ export class AuthService {
     const user = await this.usersService.findById(payload.sub);
 
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is deactivated');
+      throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
     }
 
     await this.sessionsService.validateActiveSession(payload.sub, payload.sessionId);
@@ -257,16 +357,6 @@ export class AuthService {
         expiresIn: `${this.REFRESH_TOKEN_EXPIRY_DAYS}d`,
       }),
     };
-  }
-
-  private verifyJwt(token: string): JwtPayload {
-    try {
-      return this.jwtService.verify<JwtPayload>(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-      });
-    } catch (_error) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
-    }
   }
 
   private async findOrCreateUser(walletAddress: string): Promise<UserResponseDto> {
@@ -350,7 +440,7 @@ export class AuthService {
     if (recentAttempts >= this.MAX_FAILED_ATTEMPTS) {
       this.logger.warn(`Brute force detected for wallet ${walletAddress} from IP ${ipAddress}`);
       throw new HttpException(
-        'Too many failed attempts. Please try again later.',
+        this.translationService.translate('errors.auth.tooManyFailedAttempts'),
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }

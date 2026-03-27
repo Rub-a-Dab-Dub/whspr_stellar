@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,7 +16,9 @@ import {
   ApiOperation,
   ApiResponse,
   ApiParam,
+  ApiHeader,
 } from '@nestjs/swagger';
+import { TwoFactorAuthGuard } from '../two-factor/guards/two-factor-auth.guard';
 import { EncryptionKeysService } from './encryption-keys.service';
 import { RegisterKeyDto } from './dto/register-key.dto';
 import { RotateKeyDto } from './dto/rotate-key.dto';
@@ -73,6 +76,12 @@ export class EncryptionKeysController {
   }
 
   @Post('rotate')
+  @UseGuards(TwoFactorAuthGuard)
+  @ApiHeader({
+    name: TwoFactorAuthGuard.headerName,
+    required: false,
+    description: 'Required when the user has 2FA enabled: TOTP or unused backup code',
+  })
   @ApiOperation({ summary: 'Rotate the active encryption key (atomic deactivate old / activate new)' })
   @ApiResponse({ status: 201, type: EncryptionKeyResponseDto })
   @ApiResponse({ status: 404, description: 'No active key to rotate' })

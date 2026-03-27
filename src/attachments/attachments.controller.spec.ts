@@ -16,7 +16,7 @@ describe('AttachmentsController', () => {
     displayName: null,
     avatarUrl: null,
     bio: null,
-    tier: UserTier.FREE,
+    tier: UserTier.SILVER,
     isActive: true,
     isVerified: false,
     createdAt: new Date(),

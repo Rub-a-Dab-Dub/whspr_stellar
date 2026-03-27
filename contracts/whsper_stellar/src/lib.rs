@@ -4,6 +4,8 @@ mod ratelimit;
 mod storage;
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+mod token_tests;
 mod types;
 
 use crate::ratelimit::{check_can_act, record_action};
@@ -2463,4 +2465,293 @@ fn validate_username(env: &Env, username: Symbol) -> Result<(), ContractError> {
 fn calculate_level(xp: u64) -> u32 {
     let level = (xp / 100).saturating_add(1);
     level as u32
+}
+
+// ============================================================================
+// MULTI-TOKEN SUPPORT - SAC & CUSTOM TOKENS
+// ============================================================================
+
+impl BaseContract {
+    /// Register a new token (SAC or custom) for use in the platform
+    /// Admin-only function with SAC interface compliance check
+    pub fn register_token(
+        env: Env,
+        token_address: Address,
+        symbol: Symbol,
+        name: String,
+        decimals: u32,
+    ) -> Result<(), ContractError> {
+        let admin = require_admin(&env)?;
+
+        // Check if token already registered
+        if env.storage().instance().has(&DataKey::RegisteredToken(token_address.clone())) {
+            return Err(ContractError::TokenAlreadyRegistered);
+        }
+
+        // Verify SAC interface compliance by checking token contract
+        let token_client = token::Client::new(&env, &token_address);
+        let _ = token_client.symbol(); // Will panic if not a valid token contract
+
+        let metadata = TokenMetadata {
+            address: token_address.clone(),
+            symbol: symbol.clone(),
+            name: name.clone(),
+            decimals,
+            is_whitelisted: true, // Auto-whitelist on registration
+            is_blacklisted: false,
+            registered_at: env.ledger().timestamp(),
+        };
+
+        // Store token metadata
+        env.storage().instance().set(
+            &DataKey::TokenMetadata(token_address.clone()),
+            &metadata,
+        );
+        env.storage().instance().set(
+            &DataKey::RegisteredToken(token_address.clone()),
+            &true,
+        );
+        env.storage().instance().set(
+            &DataKey::TokenWhitelist(token_address.clone()),
+            &true,
+        );
+
+        // Add to token list
+        let mut token_list: Vec<Address> = env
+            .storage()
+            .instance()
+            .get(&DataKey::TokenList)
+            .unwrap_or(Vec::new(&env));
+        token_list.push_back(token_address.clone());
+        env.storage().instance().set(&DataKey::TokenList, &token_list);
+
+        // Emit token registration event
+        env.events().publish(
+            (Symbol::new(&env, "token_registered"), admin, token_address),
+            (symbol, name, decimals, env.ledger().timestamp()),
+        );
+
+        Ok(())
+    }
+
+    /// Transfer tokens of any registered type
+    pub fn transfer_token(
+        env: Env,
+        token: Address,
+        from: Address,
+        to: Address,
+        amount: i128,
+        conversation_id: BytesN<32>,
+    ) -> Result<(), ContractError> {
+        from.require_auth();
+
+        if amount <= 0 {
+            return Err(ContractError::InvalidAmount);
+        }
+
+        // Verify token is registered
+        if !env.storage().instance().has(&DataKey::RegisteredToken(token.clone())) {
+            return Err(ContractError::TokenNotRegistered);
+        }
+
+        // Check token is not blacklisted
+        if env.storage().instance().get(&DataKey::TokenBlacklist(token.clone())).unwrap_or(false) {
+            return Err(ContractError::TokenBlacklisted);
+        }
+
+        // Rate limiting
+        check_can_act(&env, &from, ActionType::Transfer);
+
+        // Execute transfer
+        let token_client = token::Client::new(&env, &token);
+        token_client.transfer(&from, &to, &amount);
+
+        // Record action
+        record_action(&env, &from, ActionType::Transfer);
+
+        // Store transfer record
+        let record = TokenTransferRecord {
+            token: token.clone(),
+            from: from.clone(),
+            to: to.clone(),
+            amount,
+            conversation_id: conversation_id.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        // Emit transfer event
+        env.events().publish(
+            (Symbol::new(&env, "token_transfer"), from, to),
+            (token, amount, conversation_id),
+        );
+
+        Ok(())
+    }
+
+    /// Get list of all supported tokens
+    pub fn get_supported_tokens(env: Env) -> Vec<TokenMetadata> {
+        let token_list: Vec<Address> = env
+            .storage()
+            .instance()
+            .get(&DataKey::TokenList)
+            .unwrap_or(Vec::new(&env));
+
+        let mut metadata_list = Vec::new(&env);
+        for token_addr in token_list.iter() {
+            if let Some(metadata) = env
+                .storage()
+                .instance()
+                .get::<_, TokenMetadata>(&DataKey::TokenMetadata(token_addr))
+            {
+                // Only include non-blacklisted tokens
+                if !metadata.is_blacklisted {
+                    metadata_list.push_back(metadata);
+                }
+            }
+        }
+
+        metadata_list
+    }
+
+    /// Add token to whitelist (admin only)
+    pub fn whitelist_token(env: Env, token: Address) -> Result<(), ContractError> {
+        let admin = require_admin(&env)?;
+
+        if !env.storage().instance().has(&DataKey::RegisteredToken(token.clone())) {
+            return Err(ContractError::TokenNotRegistered);
+        }
+
+        env.storage().instance().set(&DataKey::TokenWhitelist(token.clone()), &true);
+
+        // Update metadata
+        if let Some(mut metadata) = env
+            .storage()
+            .instance()
+            .get::<_, TokenMetadata>(&DataKey::TokenMetadata(token.clone()))
+        {
+            metadata.is_whitelisted = true;
+            env.storage().instance().set(&DataKey::TokenMetadata(token.clone()), &metadata);
+        }
+
+        env.events().publish(
+            (Symbol::new(&env, "token_whitelisted"), admin),
+            token,
+        );
+
+        Ok(())
+    }
+
+    /// Remove token from whitelist (admin only)
+    pub fn remove_from_whitelist(env: Env, token: Address) -> Result<(), ContractError> {
+        let admin = require_admin(&env)?;
+
+        if !env.storage().instance().has(&DataKey::RegisteredToken(token.clone())) {
+            return Err(ContractError::TokenNotRegistered);
+        }
+
+        env.storage().instance().remove(&DataKey::TokenWhitelist(token.clone()));
+
+        // Update metadata
+        if let Some(mut metadata) = env
+            .storage()
+            .instance()
+            .get::<_, TokenMetadata>(&DataKey::TokenMetadata(token.clone()))
+        {
+            metadata.is_whitelisted = false;
+            env.storage().instance().set(&DataKey::TokenMetadata(token.clone()), &metadata);
+        }
+
+        env.events().publish(
+            (Symbol::new(&env, "token_removed_from_whitelist"), admin),
+            token,
+        );
+
+        Ok(())
+    }
+
+    /// Add token to blacklist (admin only)
+    pub fn blacklist_token(env: Env, token: Address) -> Result<(), ContractError> {
+        let admin = require_admin(&env)?;
+
+        if !env.storage().instance().has(&DataKey::RegisteredToken(token.clone())) {
+            return Err(ContractError::TokenNotRegistered);
+        }
+
+        env.storage().instance().set(&DataKey::TokenBlacklist(token.clone()), &true);
+
+        // Update metadata
+        if let Some(mut metadata) = env
+            .storage()
+            .instance()
+            .get::<_, TokenMetadata>(&DataKey::TokenMetadata(token.clone()))
+        {
+            metadata.is_blacklisted = true;
+            env.storage().instance().set(&DataKey::TokenMetadata(token.clone()), &metadata);
+        }
+
+        env.events().publish(
+            (Symbol::new(&env, "token_blacklisted"), admin),
+            token,
+        );
+
+        Ok(())
+    }
+
+    /// Remove token from blacklist (admin only)
+    pub fn remove_from_blacklist(env: Env, token: Address) -> Result<(), ContractError> {
+        let admin = require_admin(&env)?;
+
+        if !env.storage().instance().has(&DataKey::RegisteredToken(token.clone())) {
+            return Err(ContractError::TokenNotRegistered);
+        }
+
+        env.storage().instance().remove(&DataKey::TokenBlacklist(token.clone()));
+
+        // Update metadata
+        if let Some(mut metadata) = env
+            .storage()
+            .instance()
+            .get::<_, TokenMetadata>(&DataKey::TokenMetadata(token.clone()))
+        {
+            metadata.is_blacklisted = false;
+            env.storage().instance().set(&DataKey::TokenMetadata(token.clone()), &metadata);
+        }
+
+        env.events().publish(
+            (Symbol::new(&env, "token_removed_from_blacklist"), admin),
+            token,
+        );
+
+        Ok(())
+    }
+
+    /// Query token balance for a user
+    pub fn get_balance(env: Env, token: Address, user: Address) -> i128 {
+        let token_client = token::Client::new(&env, &token);
+        token_client.balance(&user)
+    }
+
+    /// Get token metadata
+    pub fn get_token_metadata(env: Env, token: Address) -> Result<TokenMetadata, ContractError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::TokenMetadata(token))
+            .ok_or(ContractError::TokenNotRegistered)
+    }
+
+    /// Check if token is whitelisted
+    pub fn is_token_whitelisted(env: Env, token: Address) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::TokenWhitelist(token))
+            .unwrap_or(false)
+    }
+
+    /// Check if token is blacklisted
+    pub fn is_token_blacklisted(env: Env, token: Address) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::TokenBlacklist(token))
+            .unwrap_or(false)
+    }
 }

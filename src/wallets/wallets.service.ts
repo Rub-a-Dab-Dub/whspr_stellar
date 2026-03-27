@@ -17,6 +17,7 @@ import { AddWalletDto } from './dto/add-wallet.dto';
 import { WalletResponseDto } from './dto/wallet-response.dto';
 import { BalanceResponseDto } from './dto/balance-response.dto';
 import { Wallet, WalletNetwork } from './entities/wallet.entity';
+import { TranslationService } from '../i18n/services/translation.service';
 
 const BALANCE_CACHE_TTL_MS = 30_000; // 30 seconds
 const MAX_WALLETS_PER_USER = 10;
@@ -29,6 +30,7 @@ export class WalletsService {
     private readonly walletsRepository: WalletsRepository,
     private readonly horizonService: HorizonService,
     private readonly cryptoService: CryptoService,
+    private readonly translationService: TranslationService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -42,19 +44,25 @@ export class WalletsService {
 
     // Validate Stellar address format
     if (!this.horizonService.isValidAddress(walletAddress)) {
-      throw new BadRequestException('Invalid Stellar wallet address');
+      throw new BadRequestException(
+        this.translationService.translate('errors.wallets.invalidStellarWalletAddress'),
+      );
     }
 
     // Enforce per-user wallet cap
     const count = await this.walletsRepository.countByUserId(userId);
     if (count >= MAX_WALLETS_PER_USER) {
-      throw new BadRequestException(`Maximum of ${MAX_WALLETS_PER_USER} wallets per user`);
+      throw new BadRequestException(
+        this.translationService.translate('errors.wallets.maxWalletsExceeded', {
+          args: { maxWallets: MAX_WALLETS_PER_USER },
+        }),
+      );
     }
 
     // Prevent duplicate wallet per user
     const existing = await this.walletsRepository.findByUserAndAddress(userId, walletAddress);
     if (existing) {
-      throw new ConflictException('Wallet already linked to your account');
+      throw new ConflictException(this.translationService.translate('errors.wallets.alreadyLinked'));
     }
 
     // Verify ownership via signature if provided
@@ -63,7 +71,9 @@ export class WalletsService {
       const message = this.horizonService.buildVerificationMessage(walletAddress, userId);
       isVerified = this.cryptoService.verifyStellarSignature(walletAddress, message, signature);
       if (!isVerified) {
-        throw new UnauthorizedException('Wallet signature verification failed');
+        throw new UnauthorizedException(
+          this.translationService.translate('errors.wallets.signatureVerificationFailed'),
+        );
       }
     }
 
@@ -87,14 +97,14 @@ export class WalletsService {
   async removeWallet(userId: string, walletId: string): Promise<void> {
     const wallet = await this.walletsRepository.findByUserAndId(userId, walletId);
     if (!wallet) {
-      throw new NotFoundException('Wallet not found');
+      throw new NotFoundException(this.translationService.translate('errors.wallets.notFound'));
     }
 
     if (wallet.isPrimary) {
       const total = await this.walletsRepository.countByUserId(userId);
       if (total > 1) {
         throw new BadRequestException(
-          'Cannot remove primary wallet while other wallets exist. Designate a new primary first.',
+          this.translationService.translate('errors.wallets.cannotRemovePrimary'),
         );
       }
     }
@@ -107,7 +117,7 @@ export class WalletsService {
   async setPrimary(userId: string, walletId: string): Promise<WalletResponseDto> {
     const wallet = await this.walletsRepository.findByUserAndId(userId, walletId);
     if (!wallet) {
-      throw new NotFoundException('Wallet not found');
+      throw new NotFoundException(this.translationService.translate('errors.wallets.notFound'));
     }
 
     if (wallet.isPrimary) {
@@ -127,7 +137,7 @@ export class WalletsService {
   ): Promise<WalletResponseDto> {
     const wallet = await this.walletsRepository.findByUserAndId(userId, walletId);
     if (!wallet) {
-      throw new NotFoundException('Wallet not found');
+      throw new NotFoundException(this.translationService.translate('errors.wallets.notFound'));
     }
 
     if (wallet.isVerified) {
@@ -142,7 +152,9 @@ export class WalletsService {
     );
 
     if (!valid) {
-      throw new UnauthorizedException('Wallet signature verification failed');
+      throw new UnauthorizedException(
+        this.translationService.translate('errors.wallets.signatureVerificationFailed'),
+      );
     }
 
     wallet.isVerified = true;
@@ -153,7 +165,7 @@ export class WalletsService {
   async getBalance(userId: string, walletId: string): Promise<BalanceResponseDto> {
     const wallet = await this.walletsRepository.findByUserAndId(userId, walletId);
     if (!wallet) {
-      throw new NotFoundException('Wallet not found');
+      throw new NotFoundException(this.translationService.translate('errors.wallets.notFound'));
     }
 
     const cacheKey = this.balanceCacheKey(wallet.walletAddress, wallet.network);

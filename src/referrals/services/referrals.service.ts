@@ -97,10 +97,10 @@ export class ReferralsService {
       return;
     }
 
-    let rewardAmount = 10; // BASE / FREE
-    if (referrer.tier === UserTier.PREMIUM) {
+    let rewardAmount = 10; // BASE / SILVER
+    if (referrer.tier === UserTier.GOLD) {
       rewardAmount = 25;
-    } else if (referrer.tier === UserTier.VIP) {
+    } else if (referrer.tier === UserTier.BLACK) {
       rewardAmount = 50;
     }
 

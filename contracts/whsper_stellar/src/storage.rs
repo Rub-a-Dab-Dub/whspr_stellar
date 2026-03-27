@@ -46,6 +46,24 @@ pub enum DataKey {
     ChatTransfer(BytesN<32>),
     MessageTip(BytesN<32>),
     SplitBill(BytesN<32>),
+    // Multi-token support
+    RegisteredToken(Address),
+    TokenList,
+    TokenMetadata(Address),
+    TokenWhitelist(Address),
+    TokenBlacklist(Address),
+    // Tip tracking
+    TipCount,
+    TipById(u64),
+    TipsSentByUser(Address),
+    TipsReceivedByUser(Address),
+    TotalTippedByUser(Address),
+    // Transaction tracking
+    TransactionCount,
+    TransactionById(u64),
+    TransactionsByUser(Address),
+    // Analytics
+    AnalyticsDashboard,
 }
 
 #[derive(Clone)]
