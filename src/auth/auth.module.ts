@@ -34,6 +34,7 @@ import { TwoFactorModule } from '../two-factor/two-factor.module';
     }),
     UsersModule,
     SessionsModule,
+    FraudDetectionModule,
   ],
   controllers: [AuthController],
   providers: [
