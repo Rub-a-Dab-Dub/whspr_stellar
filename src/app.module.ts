@@ -42,6 +42,7 @@ import { PrivacyModule } from './privacy/privacy.module';
 import { SpamDetectionModule } from './spam-detection/spam-detection.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
+import { VoiceMessagesModule } from './voice-messages/voice-messages.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
     SpamDetectionModule,
     LeaderboardModule,
     PinnedMessagesModule,
+    VoiceMessagesModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,
