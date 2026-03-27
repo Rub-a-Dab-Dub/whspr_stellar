@@ -17,6 +17,7 @@ import { AuthAttempt } from './entities/auth-attempt.entity';
 
 import { UsersModule } from '../users/users.module';
 import { SessionsModule } from '../sessions/sessions.module';
+import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SessionsModule } from '../sessions/sessions.module';
     }),
     UsersModule,
     SessionsModule,
+    FraudDetectionModule,
   ],
   controllers: [AuthController],
   providers: [

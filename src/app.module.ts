@@ -23,6 +23,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 import { CacheModule } from './cache/cache.module';
+import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { CacheModule } from './cache/cache.module';
       },
     ]),
     CacheModule,
+    FraudDetectionModule,
     LoggingModule,
     ScheduleModule.forRoot(),
     HealthModule,
