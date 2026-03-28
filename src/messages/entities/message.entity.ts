@@ -16,6 +16,8 @@ export enum MessageType {
   TEXT = 'text',
   TRANSFER = 'transfer',
   SYSTEM = 'system',
+  STICKER = 'sticker',
+  GIF = 'gif',
 }
 
 @Entity('messages')

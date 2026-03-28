@@ -8,8 +8,17 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiHeader,
+} from '@nestjs/swagger';
+import { TwoFactorAuthGuard } from '../two-factor/guards/two-factor-auth.guard';
 import { WalletsService } from './wallets.service';
 import { AddWalletDto } from './dto/add-wallet.dto';
 import { WalletResponseDto } from './dto/wallet-response.dto';
@@ -45,7 +54,13 @@ export class WalletsController {
   }
 
   @Delete(':id')
+  @UseGuards(TwoFactorAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiHeader({
+    name: TwoFactorAuthGuard.headerName,
+    required: false,
+    description: 'Required when the user has 2FA enabled: TOTP or unused backup code',
+  })
   @ApiOperation({ summary: 'Remove a linked wallet' })
   @ApiParam({ name: 'id', description: 'Wallet UUID' })
   @ApiResponse({ status: 204, description: 'Wallet removed' })

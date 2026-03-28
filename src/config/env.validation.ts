@@ -68,6 +68,15 @@ export const envValidationSchema = Joi.object({
   STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
   STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
 
+  // SEP-10 Web Authentication
+  SEP10_SERVER_SECRET: Joi.string().required(),
+  SEP10_HOME_DOMAIN: Joi.string().default('localhost'),
+  SEP10_WEB_AUTH_ENDPOINT: Joi.string().uri().optional(),
+
+  // SEP-24 Fiat On/Off Ramp
+  SEP24_ANCHOR_URL: Joi.string().uri().optional(),
+  SEP24_ANCHOR_API_KEY: Joi.string().allow('').optional(),
+
   // Scheduled Jobs
   JOB_BLOCKCHAIN_EVENT_POLLING_MS: Joi.number().default(5000),
   JOB_TRANSACTION_STATUS_SYNC_MS: Joi.number().default(30000),

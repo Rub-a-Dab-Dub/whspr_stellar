@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -17,10 +17,12 @@ import { AuthAttempt } from './entities/auth-attempt.entity';
 
 import { UsersModule } from '../users/users.module';
 import { SessionsModule } from '../sessions/sessions.module';
+import { TwoFactorModule } from '../two-factor/two-factor.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([AuthChallenge, RefreshToken, AuthAttempt]),
+    forwardRef(() => TwoFactorModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -32,6 +34,7 @@ import { SessionsModule } from '../sessions/sessions.module';
     }),
     UsersModule,
     SessionsModule,
+    FraudDetectionModule,
   ],
   controllers: [AuthController],
   providers: [

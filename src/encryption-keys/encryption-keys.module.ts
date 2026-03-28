@@ -8,11 +8,13 @@ import { SorobanKeyRegistryService } from './soroban-key-registry.service';
 import { EncryptionKey } from './entities/encryption-key.entity';
 import { PreKeyBundle } from './entities/pre-key-bundle.entity';
 import { AuthModule } from '../auth/auth.module';
+import { TwoFactorModule } from '../two-factor/two-factor.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([EncryptionKey, PreKeyBundle]),
     AuthModule,
+    TwoFactorModule,
   ],
   controllers: [EncryptionKeysController],
   providers: [

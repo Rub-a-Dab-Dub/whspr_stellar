@@ -286,6 +286,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(roomId).emit('reaction:remove', event);
   }
 
+  emitMessagePinned(conversationId: string, payload: Record<string, unknown>): void {
+    const roomId = `conversation:${conversationId}`;
+    this.server.to(roomId).emit('message:pinned', payload);
+  }
+
+  emitMessageUnpinned(conversationId: string, payload: Record<string, unknown>): void {
+    const roomId = `conversation:${conversationId}`;
+    this.server.to(roomId).emit('message:unpinned', payload);
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   private extractToken(client: Socket): string | null {

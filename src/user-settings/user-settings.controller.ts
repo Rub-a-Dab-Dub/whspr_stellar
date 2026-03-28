@@ -1,12 +1,8 @@
-import { Body, Controller, Delete, Get, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserSettingsResponseDto } from './dto/user-settings-response.dto';
-import {
-  TwoFactorDisableDto,
-  TwoFactorEnableDto,
-  UpdateUserSettingsDto,
-} from './dto/update-user-settings.dto';
+import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 import { UserSettingsService } from './user-settings.service';
 
 @ApiTags('settings')
@@ -37,24 +33,5 @@ export class UserSettingsController {
   @ApiResponse({ status: 200, type: UserSettingsResponseDto })
   resetSettings(@CurrentUser('id') userId: string): Promise<UserSettingsResponseDto> {
     return this.service.resetSettings(userId);
-  }
-
-  @Post('2fa/enable')
-  @ApiOperation({ summary: 'Generate/enable TOTP 2FA' })
-  enableTwoFactor(
-    @CurrentUser('id') userId: string,
-    @Body() dto: TwoFactorEnableDto,
-  ): Promise<{ secret?: string; otpauthUrl?: string; twoFactorEnabled: boolean }> {
-    return this.service.enable2FA(userId, dto);
-  }
-
-  @Delete('2fa')
-  @ApiOperation({ summary: 'Disable 2FA' })
-  @ApiResponse({ status: 204 })
-  async disableTwoFactor(
-    @CurrentUser('id') userId: string,
-    @Body() dto: TwoFactorDisableDto,
-  ): Promise<void> {
-    await this.service.disable2FA(userId, dto);
   }
 }
