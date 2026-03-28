@@ -55,6 +55,9 @@ import { ConversationExportModule } from './conversation-export/conversation-exp
 import { AddressBookModule } from './address-book/address-book.module';
 import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
 import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
+import { StoriesModule } from './stories/stories.module';
+import { PaymentsModule } from './payments/payments.module';
+import { LinkPreviewsModule } from './link-previews/link-previews.module';
 
 @Module({
   imports: [
@@ -113,7 +116,11 @@ import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.mo
     AddressBookModule,
     UsernameDiscoveryModule,
     DeveloperSandboxModule,
+    StoriesModule,
+    PaymentsModule,
+    LinkPreviewsModule,
   ],
+
   controllers: [AppController],
   providers: [
     AppService,
