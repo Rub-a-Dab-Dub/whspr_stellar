@@ -52,6 +52,7 @@ import { MessageForwardingModule } from './message-forwarding/message-forwarding
 import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { AppVersionModule } from './app-version/app-version.module';
 import { RecurringPaymentsModule } from './recurring-payments/recurring-payments.module';
 import { AnchorModule } from './anchor/anchor.module';
 import { MessageDraftsModule } from './message-drafts/message-drafts.module';
@@ -109,6 +110,7 @@ import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.mo
     ObservabilityModule,
     UserSettingsModule,
     AppConfigModule,
+    AppVersionModule,
     AdminModule,
     MembershipTierModule,
     CacheModule,
