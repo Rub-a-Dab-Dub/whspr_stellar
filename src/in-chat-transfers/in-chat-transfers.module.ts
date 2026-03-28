@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AddressBookModule } from '../address-book/address-book.module';
 import { Conversation } from '../conversations/entities/conversation.entity';
 import { ConversationParticipant } from '../conversations/entities/conversation-participant.entity';
 import { Message } from '../messages/entities/message.entity';
@@ -23,6 +24,7 @@ import { TransfersGateway } from './transfers.gateway';
       Wallet,
     ]),
     UsersModule,
+    AddressBookModule,
   ],
   controllers: [InChatTransfersController],
   providers: [InChatTransfersService, SorobanTransfersService, TransfersGateway],

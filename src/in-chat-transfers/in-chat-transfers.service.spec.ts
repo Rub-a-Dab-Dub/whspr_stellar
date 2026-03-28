@@ -13,6 +13,7 @@ import {
 } from './entities/in-chat-transfer.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { UsersRepository } from '../users/users.repository';
+import { SavedAddressesService } from '../address-book/saved-addresses.service';
 import { SorobanTransfersService } from './soroban-transfers.service';
 import { InChatTransfersService } from './in-chat-transfers.service';
 
@@ -35,6 +36,7 @@ describe('InChatTransfersService', () => {
   let walletsRepository: MockRepository<Wallet>;
   let usersRepository: jest.Mocked<UsersRepository>;
   let sorobanTransfersService: jest.Mocked<SorobanTransfersService>;
+  let savedAddressesService: jest.Mocked<SavedAddressesService>;
 
   const senderId = '00000000-0000-0000-0000-000000000001';
   const recipientId = '00000000-0000-0000-0000-000000000002';
@@ -89,12 +91,19 @@ describe('InChatTransfersService', () => {
             submitTransfer: jest.fn(),
           },
         },
+        {
+          provide: SavedAddressesService,
+          useValue: {
+            trackUsageByWalletAddress: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get(InChatTransfersService);
     usersRepository = module.get(UsersRepository);
     sorobanTransfersService = module.get(SorobanTransfersService);
+    savedAddressesService = module.get(SavedAddressesService);
 
     jest.clearAllMocks();
   });
@@ -216,6 +225,10 @@ describe('InChatTransfersService', () => {
 
     expect(result.status).toBe(TransferStatus.COMPLETED);
     expect(result.sorobanTxHash).toBe('soroban_hash_1');
+    expect(savedAddressesService.trackUsageByWalletAddress).toHaveBeenCalledWith(
+      senderId,
+      'GALICE',
+    );
     expect(messagesRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationId,

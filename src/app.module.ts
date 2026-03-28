@@ -50,9 +50,13 @@ import { BlockchainTransactionsModule } from './blockchain-transactions/blockcha
 import { MessageForwardingModule } from './message-forwarding/message-forwarding.module';
 import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
-import { PollsModule } from './polls/polls.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { MessageDraftsModule } from './message-drafts/message-drafts.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
+import { ConversationExportModule } from './conversation-export/conversation-export.module';
+import { AddressBookModule } from './address-book/address-book.module';
+import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
+import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
 
 @Module({
   imports: [
@@ -66,6 +70,7 @@ import { MessageDraftsModule } from './message-drafts/message-drafts.module';
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     RedisCacheModule,
     ScheduleModule.forRoot(),
+    WaitlistModule,
     LoggingModule,
     HealthModule,
     UsersModule,
@@ -108,6 +113,10 @@ import { MessageDraftsModule } from './message-drafts/message-drafts.module';
     MessageForwardingModule,
     PollsModule,
     MentionsModule,
+    ConversationExportModule,
+    AddressBookModule,
+    UsernameDiscoveryModule,
+    DeveloperSandboxModule,
   ],
   controllers: [AppController],
   providers: [
@@ -118,4 +127,4 @@ import { MessageDraftsModule } from './message-drafts/message-drafts.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
