@@ -52,6 +52,7 @@ import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { PollsModule } from './polls/polls.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     RedisCacheModule,
     ScheduleModule.forRoot(),
+    WaitlistModule,
     LoggingModule,
     HealthModule,
     UsersModule,
@@ -116,4 +118,4 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
