@@ -31,7 +31,6 @@ export const envValidationSchema = Joi.object({
   REDIS_PORT: Joi.number().default(6379),
   REDIS_PASSWORD: Joi.string().allow('').optional(),
   REDIS_DB: Joi.number().default(0),
-  ADMIN_USER_IDS: Joi.string().allow('').optional(),
   ADMIN_WALLET_ADDRESSES: Joi.string().allow('').optional(),
 
   // Rate Limiting
@@ -62,8 +61,8 @@ export const envValidationSchema = Joi.object({
   ),
 
   // Soroban RPC
-  SOROBAN_RPC_URL: Joi.string().uri().required(),
-  SOROBAN_CONTRACT_IDS: Joi.string().default(''), // comma-separated contract addresses
+  SOROBAN_RPC_URL: Joi.string().uri().default('https://soroban-testnet.stellar.org:443'),
+  SOROBAN_CONTRACT_IDS: Joi.string().required(),
   // Stellar / Horizon
   STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
   STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
@@ -91,9 +90,7 @@ export const envValidationSchema = Joi.object({
   JOB_LOCK_TTL_MS: Joi.number().default(15000),
 
   // Soroban
-  SOROBAN_RPC_URL: Joi.string().uri().default('https://soroban-testnet.stellar.org:443'),
   SOROBAN_NETWORK_PASSPHRASE: Joi.string().default('Test SDF Network ; September 2015'),
-  SOROBAN_CONTRACT_IDS: Joi.string().required(),
 
   // Observability
   OTEL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
