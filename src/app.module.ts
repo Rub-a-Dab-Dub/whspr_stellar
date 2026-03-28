@@ -50,9 +50,15 @@ import { BlockchainTransactionsModule } from './blockchain-transactions/blockcha
 import { MessageForwardingModule } from './message-forwarding/message-forwarding.module';
 import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
-import { PollsModule } from './polls/polls.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { RecurringPaymentsModule } from './recurring-payments/recurring-payments.module';
+import { AnchorModule } from './anchor/anchor.module';
+import { MessageDraftsModule } from './message-drafts/message-drafts.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
+import { ConversationExportModule } from './conversation-export/conversation-export.module';
+import { AddressBookModule } from './address-book/address-book.module';
+import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
+import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
 
 @Module({
   imports: [
@@ -66,6 +72,7 @@ import { RecurringPaymentsModule } from './recurring-payments/recurring-payments
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     RedisCacheModule,
     ScheduleModule.forRoot(),
+    WaitlistModule,
     LoggingModule,
     HealthModule,
     UsersModule,
@@ -92,6 +99,7 @@ import { RecurringPaymentsModule } from './recurring-payments/recurring-payments
     QrCodeModule,
     PollsModule,
     OnboardingModule,
+    MessageDraftsModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     BotsModule,
@@ -108,6 +116,11 @@ import { RecurringPaymentsModule } from './recurring-payments/recurring-payments
     PollsModule,
     MentionsModule,
     RecurringPaymentsModule,
+    AnchorModule,
+    ConversationExportModule,
+    AddressBookModule,
+    UsernameDiscoveryModule,
+    DeveloperSandboxModule,
   ],
   controllers: [AppController],
   providers: [
@@ -118,4 +131,4 @@ import { RecurringPaymentsModule } from './recurring-payments/recurring-payments
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
