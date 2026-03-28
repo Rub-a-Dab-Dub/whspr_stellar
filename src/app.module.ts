@@ -45,6 +45,7 @@ import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
 import { Sep10Module } from './sep10/sep10.module';
 import { RampModule } from './ramp/ramp.module';
 import { QrCodeModule } from './qr-code/qr-code.module';
+import { BotsModule } from './bots/bots.module';
 import { BlockchainTransactionsModule } from './blockchain-transactions/blockchain-transactions.module';
 import { MessageForwardingModule } from './message-forwarding/message-forwarding.module';
 import { PollsModule } from './polls/polls.module';
@@ -90,6 +91,7 @@ import { PollsModule } from './polls/polls.module';
     PollsModule,
     ScheduledJobsModule,
     InChatTransfersModule,
+    BotsModule,
     WebhooksModule,
     ObservabilityModule,
     UserSettingsModule,
