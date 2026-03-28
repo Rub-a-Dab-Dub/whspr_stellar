@@ -54,6 +54,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
 import { AddressBookModule } from './address-book/address-book.module';
 import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
+import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { UsernameDiscoveryModule } from './username-discovery/username-discovery
     ConversationExportModule,
     AddressBookModule,
     UsernameDiscoveryModule,
+    DeveloperSandboxModule,
   ],
   controllers: [AppController],
   providers: [
