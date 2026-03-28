@@ -52,6 +52,7 @@ import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { PollsModule } from './polls/polls.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { RecurringPaymentsModule } from './recurring-payments/recurring-payments.module';
 
 @Module({
   imports: [
@@ -106,6 +107,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     MessageForwardingModule,
     PollsModule,
     MentionsModule,
+    RecurringPaymentsModule,
   ],
   controllers: [AppController],
   providers: [
