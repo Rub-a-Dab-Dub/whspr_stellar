@@ -5,6 +5,7 @@ import { UsersRepository } from './users.repository';
 import { User, UserTier } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
 import { TranslationService } from '../i18n/services/translation.service';
 import { UserSettingsService } from '../user-settings/user-settings.service';
 
@@ -42,6 +43,10 @@ describe('UsersService', () => {
     isWalletAddressAvailable: jest.fn(),
   };
 
+  const mockModerationQueueService = {
+    enqueueProfileModeration: jest.fn(),
+    enqueueUserModeration: jest.fn(),
+    enqueueImageModeration: jest.fn(),
   const mockUserSettingsService = {
     ensureSettingsForUser: jest.fn(),
     getPrivacySettings: jest.fn().mockResolvedValue({
@@ -60,6 +65,8 @@ describe('UsersService', () => {
           useValue: mockRepository,
         },
         {
+          provide: ModerationQueueService,
+          useValue: mockModerationQueueService,
           provide: TranslationService,
           useValue: {
             translate: jest.fn((key: string) => key),
@@ -109,6 +116,7 @@ describe('UsersService', () => {
       expect(repository.findByUsername).toHaveBeenCalledWith(createUserDto.username);
       expect(repository.findByEmail).toHaveBeenCalledWith(createUserDto.email);
       expect(repository.save).toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueUserModeration).toHaveBeenCalled();
       expect(mockUserSettingsService.ensureSettingsForUser).toHaveBeenCalled();
     });
 
@@ -153,6 +161,7 @@ describe('UsersService', () => {
       expect(result).toBeDefined();
       expect(repository.findByUsername).not.toHaveBeenCalled();
       expect(repository.findByEmail).not.toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueUserModeration).toHaveBeenCalled();
       expect(mockUserSettingsService.ensureSettingsForUser).toHaveBeenCalled();
     });
   });
@@ -240,6 +249,7 @@ describe('UsersService', () => {
       expect(result.displayName).toBe(updateDto.displayName);
       expect(result.bio).toBe(updateDto.bio);
       expect(repository.save).toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueProfileModeration).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if user not found', async () => {
