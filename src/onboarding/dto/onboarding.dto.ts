@@ -22,7 +22,7 @@ export class GetOnboardingProgressDto {
 export class OnboardingProgressResponseDto {
   id!: string;
   userId!: string;
-  currentStep!: OnboardingStep;
+  currentStep!: OnboardingStep | null;
   completedSteps!: OnboardingStep[];
   skippedSteps!: OnboardingStep[];
   isCompleted!: boolean;

@@ -46,6 +46,7 @@ import { Sep10Module } from './sep10/sep10.module';
 import { RampModule } from './ramp/ramp.module';
 import { QrCodeModule } from './qr-code/qr-code.module';
 import { PollsModule } from './polls/polls.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { PollsModule } from './polls/polls.module';
     RampModule,
     QrCodeModule,
     PollsModule,
+    OnboardingModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,

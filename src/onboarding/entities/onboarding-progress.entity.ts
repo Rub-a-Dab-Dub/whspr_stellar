@@ -37,8 +37,9 @@ export class OnboardingProgress {
     type: 'enum',
     enum: OnboardingStep,
     default: OnboardingStep.WALLET_CONNECTED,
+    nullable: true,
   })
-  currentStep!: OnboardingStep;
+  currentStep!: OnboardingStep | null;
 
   @Column({
     type: 'simple-array',
