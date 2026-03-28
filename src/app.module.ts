@@ -23,6 +23,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
+import { AIModerationModule } from './ai-moderation/ai-moderation.module';
 import { NFTsModule } from './nfts/nfts.module';
 import { AppI18nModule } from './i18n/app-i18n.module';
 import { InChatTransfersModule } from './in-chat-transfers/in-chat-transfers.module';
@@ -101,6 +102,7 @@ import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.mo
     OnboardingModule,
     MessageDraftsModule,
     ScheduledJobsModule,
+    AIModerationModule,
     InChatTransfersModule,
     BotsModule,
     WebhooksModule,

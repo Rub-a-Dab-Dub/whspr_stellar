@@ -90,6 +90,15 @@ export const envValidationSchema = Joi.object({
   JOB_AUDIT_LOG_CLEANUP_CRON: Joi.string().default('0 0 * * 0'),
   JOB_LOCK_TTL_MS: Joi.number().default(15000),
 
+  // AI Moderation
+  AI_MODERATION_PROVIDER: Joi.string().valid('mock', 'openai', 'perspective').default('mock'),
+  OPENAI_API_KEY: Joi.string().allow('').optional(),
+  OPENAI_BASE_URL: Joi.string().uri().default('https://api.openai.com'),
+  OPENAI_MODERATION_MODEL: Joi.string().default('omni-moderation-latest'),
+  PERSPECTIVE_API_KEY: Joi.string().allow('').optional(),
+  PERSPECTIVE_BASE_URL: Joi.string()
+    .uri()
+    .default('https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze'),
   // Soroban
   SOROBAN_RPC_URL: Joi.string().uri().default('https://soroban-testnet.stellar.org:443'),
   SOROBAN_NETWORK_PASSPHRASE: Joi.string().default('Test SDF Network ; September 2015'),
