@@ -183,5 +183,116 @@ describe('LeaderboardController', () => {
 
       expect(result).toEqual([]);
     });
+
+    it('should accept custom limit for history', async () => {
+      service.getUserHistory.mockResolvedValue([]);
+
+      await controller.getHistory(LeaderboardType.REFERRALS, 5, mockUser);
+
+      expect(service.getUserHistory).toHaveBeenCalledWith('user-1', LeaderboardType.REFERRALS, 5);
+    });
+
+    it('should work with all board types', async () => {
+      service.getUserHistory.mockResolvedValue([]);
+
+      const boardTypes = Object.values(LeaderboardType);
+      for (const boardType of boardTypes) {
+        await controller.getHistory(boardType, 10, mockUser);
+        expect(service.getUserHistory).toHaveBeenCalledWith(
+          'user-1',
+          boardType,
+          10,
+        );
+      }
+    });
+  });
+
+  describe('Integration Tests', () => {
+    it('should handle all board types in getLeaderboard', async () => {
+      service.getLeaderboard.mockResolvedValue({
+        entries: [],
+        total: 0,
+        lastUpdated: new Date(),
+        nextResetAt: new Date(),
+      });
+
+      const boardTypes = Object.values(LeaderboardType);
+      for (const boardType of boardTypes) {
+        await controller.getLeaderboard(boardType);
+        expect(service.getLeaderboard).toHaveBeenCalledWith(
+          boardType,
+          LeaderboardPeriod.WEEKLY,
+          100,
+        );
+      }
+    });
+
+    it('should handle all periods in getLeaderboard', async () => {
+      service.getLeaderboard.mockResolvedValue({
+        entries: [],
+        total: 0,
+        lastUpdated: new Date(),
+        nextResetAt: new Date(),
+      });
+
+      const periods = Object.values(LeaderboardPeriod);
+      for (const period of periods) {
+        await controller.getLeaderboard(LeaderboardType.TRANSFER_VOLUME, period);
+        expect(service.getLeaderboard).toHaveBeenCalledWith(
+          LeaderboardType.TRANSFER_VOLUME,
+          period,
+          100,
+        );
+      }
+    });
+
+    it('should handle large limit values', async () => {
+      service.getLeaderboard.mockResolvedValue({
+        entries: [],
+        total: 0,
+        lastUpdated: new Date(),
+        nextResetAt: new Date(),
+      });
+
+      await controller.getLeaderboard(
+        LeaderboardType.TRANSFER_VOLUME,
+        LeaderboardPeriod.WEEKLY,
+        500,
+      );
+
+      expect(service.getLeaderboard).toHaveBeenCalledWith(
+        LeaderboardType.TRANSFER_VOLUME,
+        LeaderboardPeriod.WEEKLY,
+        500,
+      );
+    });
+
+    it('should handle getUserRank for all board types', async () => {
+      service.getUserRank.mockResolvedValue({
+        rank: 1,
+        percentile: 99,
+        score: 5000,
+        user: {
+          id: 'user-1',
+          username: 'testuser',
+          avatarUrl: 'https://example.com/avatar.jpg',
+        },
+        nearbyUsers: [],
+      });
+
+      const boardTypes = Object.values(LeaderboardType);
+      for (const boardType of boardTypes) {
+        await controller.getUserRank(
+          boardType,
+          LeaderboardPeriod.WEEKLY,
+          mockUser,
+        );
+        expect(service.getUserRank).toHaveBeenCalledWith(
+          'user-1',
+          boardType,
+          LeaderboardPeriod.WEEKLY,
+        );
+      }
+    });
   });
 });

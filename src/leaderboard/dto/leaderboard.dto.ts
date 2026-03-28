@@ -47,8 +47,6 @@ export class GetLeaderboardDto {
 }
 
 export class LeaderboardResponseDto {
-  boardType: LeaderboardType;
-  period: LeaderboardPeriod;
   entries: LeaderboardEntryResponseDto[];
   total: number;
   lastUpdated: Date;
@@ -56,36 +54,42 @@ export class LeaderboardResponseDto {
 }
 
 export class UserRankResponseDto {
-  userId: string;
-  username: string;
-  rank: number; // User's rank (null = not ranked)
-  score: number;
-  boardType: LeaderboardType;
-  period: LeaderboardPeriod;
+  rank: number | null; // User's rank (null = not ranked)
   percentile: number; // Top X% of active users
-  nearbyUsers: LeaderboardEntryResponseDto[]; // Users ranked ±5 around this user
+  score: number;
+  user: {
+    id: string;
+    username: string;
+    avatarUrl: string;
+  };
+  nearbyUsers: Array<{
+    rank: number;
+    score: number;
+    user: {
+      id: string;
+      username: string;
+      avatarUrl: string;
+    };
+    changeFromLastPeriod?: number;
+  }>; // Users ranked ±5 around this user
 }
 
 export class LeaderboardStatsResponseDto {
-  boardType: LeaderboardType;
   totalParticipants: number;
   topScore: number;
-  topUser: { userId: string; username: string; score: number };
-  averageScore: number;
+  topUser: {
+    id: string;
+    username: string;
+    avatarUrl: string;
+  } | null;
+  avgScore: number;
   medianScore: number;
-  lastComputedAt: Date;
-  nextResetAt: Date;
 }
 
 export class LeaderboardHistoryResponseDto {
-  userId: string;
-  username: string;
-  boardType: LeaderboardType;
-  history: Array<{
-    period: LeaderboardPeriod;
-    rank: number;
-    score: number;
-    snapshotDate: Date;
-    rankChange: number;
-  }>;
+  period: LeaderboardPeriod;
+  rank: number;
+  score: number;
+  rankChange: number;
+  snapshotDate: Date;
 }

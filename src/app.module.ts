@@ -46,6 +46,11 @@ import { Sep10Module } from './sep10/sep10.module';
 import { RampModule } from './ramp/ramp.module';
 import { QrCodeModule } from './qr-code/qr-code.module';
 import { BotsModule } from './bots/bots.module';
+import { BlockchainTransactionsModule } from './blockchain-transactions/blockchain-transactions.module';
+import { MessageForwardingModule } from './message-forwarding/message-forwarding.module';
+import { PollsModule } from './polls/polls.module';
+import { MentionsModule } from './mentions/mentions.module';
+import { PollsModule } from './polls/polls.module';
 
 @Module({
   imports: [
@@ -58,34 +63,21 @@ import { BotsModule } from './bots/bots.module';
     TypeOrmModule.forRootAsync({ useFactory: typeOrmConfig }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     RedisCacheModule,
+    ScheduleModule.forRoot(),
+    LoggingModule,
     HealthModule,
     UsersModule,
     AuthModule,
     TwoFactorModule,
-    StellarEventsModule,
-    TypeOrmModule.forRootAsync({
-      useFactory: typeOrmConfig,
-    }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 10,
-      },
-    ]),
-    CacheModule,
-    FraudDetectionModule,
-    LoggingModule,
-    ScheduleModule.forRoot(),
-    AppI18nModule,
-    HealthModule,
-    UsersModule,
-    UserSettingsModule,
-    AppConfigModule,
-    AuthModule,
     SessionsModule,
     WalletsModule,
     AnalyticsModule,
     TransactionsModule,
+    LoggingModule,
+    ScheduledJobsModule,
+    NFTsModule,
+    AppI18nModule,
+    StellarEventsModule,
     NotificationsModule,
     ReactionsModule,
     StickersModule,
@@ -96,13 +88,22 @@ import { BotsModule } from './bots/bots.module';
     Sep10Module,
     RampModule,
     QrCodeModule,
+    PollsModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     BotsModule,
     WebhooksModule,
     ObservabilityModule,
+    UserSettingsModule,
+    AppConfigModule,
     AdminModule,
     MembershipTierModule,
+    CacheModule,
+    ReportsModule,
+    BlockchainTransactionsModule,
+    MessageForwardingModule,
+    PollsModule,
+    MentionsModule,
   ],
   controllers: [AppController],
   providers: [
