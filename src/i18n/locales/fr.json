@@ -1,0 +1,99 @@
+{
+  "validation": {
+    "string": "{property} doit etre une chaine de caracteres",
+    "notEmpty": "{property} ne doit pas etre vide",
+    "email": "{property} doit etre une adresse e-mail valide",
+    "url": "{property} doit etre une URL valide",
+    "minLength": "{property} doit contenir au moins {min} caracteres",
+    "maxLength": "{property} doit contenir au plus {max} caracteres",
+    "exactLength": "{property} doit contenir exactement {length} caracteres",
+    "usernamePattern": "Le nom d'utilisateur ne peut contenir que des lettres, des chiffres et des tirets bas",
+    "stellarAddressFormat": "Format d'adresse Stellar invalide",
+    "ethereumAddress": "{property} doit etre une adresse Ethereum valide",
+    "integer": "{property} doit etre un entier",
+    "min": "{property} ne peut pas etre inferieur a {min}",
+    "max": "{property} ne peut pas etre superieur a {max}",
+    "enum": "{property} doit etre l'une des valeurs suivantes : {allowed}",
+    "booleanString": "{property} doit etre une chaine booleenne",
+    "uuid": "Format UUID invalide",
+    "whitelist": "La propriete {property} ne doit pas exister"
+  },
+  "errors": {
+    "common": {
+      "internalServerError": "Erreur interne du serveur"
+    },
+    "auth": {
+      "authenticationRequired": "Authentification requise",
+      "invalidToken": "Jeton invalide",
+      "challengeNotFoundOrExpired": "Defi introuvable ou expire",
+      "invalidSignature": "Signature invalide",
+      "userDeactivated": "Le compte utilisateur est desactive",
+      "invalidOrExpiredRefreshToken": "Jeton de rafraichissement invalide ou expire",
+      "refreshTokenNotFoundOrExpired": "Jeton de rafraichissement introuvable ou expire",
+      "invalidRefreshToken": "Jeton de rafraichissement invalide",
+      "tooManyFailedAttempts": "Trop de tentatives echouees. Veuillez reessayer plus tard.",
+      "wsTokenNotFound": "Jeton d'authentification introuvable",
+      "wsInvalidOrExpiredToken": "Jeton invalide ou expire"
+    },
+    "twoFactor": {
+      "alreadyEnabled": "L'authentification a deux facteurs est deja activee",
+      "notEnabled": "L'authentification a deux facteurs n'est pas activee",
+      "invalidCode": "Code de verification invalide ou expire",
+      "codeRequired": "Code 2FA requis (en-tete x-2fa-code)",
+      "setupRequired": "Commencez par POST /2fa/setup"
+    },
+    "users": {
+      "walletAlreadyRegistered": "L'adresse du portefeuille est deja enregistree",
+      "usernameTaken": "Le nom d'utilisateur est deja pris",
+      "emailRegistered": "L'adresse e-mail est deja enregistree",
+      "notFoundById": "Utilisateur avec l'ID {id} introuvable",
+      "notFoundByUsername": "Utilisateur avec le nom {username} introuvable",
+      "notFoundByWallet": "Utilisateur avec l'adresse de portefeuille {walletAddress} introuvable",
+      "alreadyDeactivated": "L'utilisateur est deja desactive",
+      "invalidPreferredLocale": "La langue preferee n'est pas prise en charge"
+    },
+    "wallets": {
+      "invalidStellarWalletAddress": "Adresse de portefeuille Stellar invalide",
+      "maxWalletsExceeded": "Maximum de {maxWallets} portefeuilles par utilisateur",
+      "alreadyLinked": "Le portefeuille est deja lie a votre compte",
+      "signatureVerificationFailed": "La verification de signature du portefeuille a echoue",
+      "notFound": "Portefeuille introuvable",
+      "cannotRemovePrimary": "Impossible de supprimer le portefeuille principal tant que d'autres portefeuilles existent. Definissez d'abord un nouveau portefeuille principal.",
+      "unfundedAccount": "Le compte Stellar {walletAddress} est introuvable sur {network}. Financez-le avec au moins 1 XLM pour l'activer."
+    },
+    "nfts": {
+      "userNotFound": "Utilisateur introuvable",
+      "notFound": "NFT introuvable",
+      "ownershipVerificationFailed": "La propriete du NFT n'a pas pu etre verifiee sur Stellar",
+      "syncFailed": "Echec de la synchronisation des NFT depuis Stellar Horizon",
+      "unsupportedNetwork": "Reseau Stellar non pris en charge : {network}",
+      "walletNotConfigured": "L'utilisateur n'a pas de portefeuille Stellar lie"
+    }
+  },
+  "notifications": {
+    "walletLinked": {
+      "title": "Portefeuille lie",
+      "body": "{walletLabel} ({walletAddress}) a ete lie avec succes."
+    },
+    "nftAvatarUpdated": {
+      "title": "Avatar mis a jour",
+      "body": "Votre avatar de profil utilise maintenant le NFT {nftName}."
+    },
+    "nftSyncComplete": {
+      "title": "Synchronisation NFT terminee",
+      "body": "{count} NFT sont prets pour les fonctionnalites a acces conditionnel."
+    }
+  },
+  "emails": {
+    "welcome": {
+      "subject": "Bienvenue sur WHSPR Stellar",
+      "preview": "Votre compte est pret a etre utilise.",
+      "body": "Bonjour {displayName}, votre compte est pret. Connectez vos portefeuilles, verifiez la propriete et commencez a utiliser les fonctionnalites protegees."
+    },
+    "walletLinked": {
+      "subject": "Portefeuille lie avec succes",
+      "preview": "Un nouveau portefeuille Stellar a ete lie a votre compte.",
+      "body": "Votre portefeuille Stellar {walletAddress} est maintenant lie a votre compte."
+    }
+  }
+}

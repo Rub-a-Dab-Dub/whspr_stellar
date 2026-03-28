@@ -2,10 +2,14 @@ import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/com
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { TranslationService } from '../../i18n/services/translation.service';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor(private reflector: Reflector) {
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly translationService: TranslationService,
+  ) {
     super();
   }
 
@@ -22,10 +26,17 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handleRequest<TUser = any>(err: any, user: any, info: any): TUser {
     if (err || !user) {
-      throw err || new UnauthorizedException('Authentication required');
+      throw (
+        err ||
+        new UnauthorizedException(
+          this.translationService.translate('errors.auth.authenticationRequired'),
+        )
+      );
     }
+
     return user;
   }
 }

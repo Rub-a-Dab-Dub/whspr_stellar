@@ -12,6 +12,7 @@ import { HorizonService } from './services/horizon.service';
 import { CryptoService } from '../auth/services/crypto.service';
 import { Wallet, WalletNetwork } from './entities/wallet.entity';
 import { AddWalletDto } from './dto/add-wallet.dto';
+import { TranslationService } from '../i18n/services/translation.service';
 
 const USER_ID = 'user-uuid-1';
 const WALLET_ID = 'wallet-uuid-1';
@@ -29,7 +30,7 @@ const makeWallet = (overrides: Partial<Wallet> = {}): Wallet =>
     createdAt: new Date('2024-01-01'),
     user: {} as any,
     ...overrides,
-  } as Wallet);
+  }) as Wallet;
 
 describe('WalletsService', () => {
   let service: WalletsService;
@@ -69,6 +70,14 @@ describe('WalletsService', () => {
         {
           provide: CryptoService,
           useValue: { verifyStellarSignature: jest.fn() },
+        },
+        {
+          provide: TranslationService,
+          useValue: {
+            translate: jest.fn((key: string, options?: { args?: Record<string, unknown> }) =>
+              options?.args ? `${key}:${JSON.stringify(options.args)}` : key,
+            ),
+          },
         },
         { provide: CACHE_MANAGER, useValue: cache },
       ],
@@ -147,14 +156,18 @@ describe('WalletsService', () => {
       repo.save.mockResolvedValue(makeWallet({ isVerified: true }));
       const result = await service.addWallet(USER_ID, { ...dto, signature: 'valid-sig' });
       expect(result.isVerified).toBe(true);
-      expect(crypto.verifyStellarSignature).toHaveBeenCalledWith(ADDRESS, 'verify-msg', 'valid-sig');
+      expect(crypto.verifyStellarSignature).toHaveBeenCalledWith(
+        ADDRESS,
+        'verify-msg',
+        'valid-sig',
+      );
     });
 
     it('throws UnauthorizedException for bad signature', async () => {
       crypto.verifyStellarSignature.mockReturnValue(false);
-      await expect(
-        service.addWallet(USER_ID, { ...dto, signature: 'bad-sig' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.addWallet(USER_ID, { ...dto, signature: 'bad-sig' })).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -180,9 +193,7 @@ describe('WalletsService', () => {
     it('throws BadRequestException when removing primary with siblings', async () => {
       repo.findByUserAndId.mockResolvedValue(makeWallet({ isPrimary: true }));
       repo.countByUserId.mockResolvedValue(3);
-      await expect(service.removeWallet(USER_ID, WALLET_ID)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.removeWallet(USER_ID, WALLET_ID)).rejects.toThrow(BadRequestException);
       expect(repo.remove).not.toHaveBeenCalled();
     });
 
@@ -199,7 +210,7 @@ describe('WalletsService', () => {
       const wallet = makeWallet({ isPrimary: false });
       const updated = makeWallet({ isPrimary: true });
       repo.findByUserAndId
-        .mockResolvedValueOnce(wallet)   // first call — existence check
+        .mockResolvedValueOnce(wallet) // first call — existence check
         .mockResolvedValueOnce(updated); // second call — re-fetch after update
       repo.transferPrimary.mockResolvedValue(undefined);
 

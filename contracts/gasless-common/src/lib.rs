@@ -149,6 +149,7 @@ pub mod registry {
     }
 }
 
+pub mod access_control;
 pub mod migration;
 pub mod upgrade;
 

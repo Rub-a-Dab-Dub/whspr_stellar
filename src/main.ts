@@ -1,5 +1,6 @@
+import './observability/tracing';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
@@ -7,7 +8,6 @@ import compression from 'compression';
 import { AppModule } from './app.module';
 import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './config/winston.config';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingMiddleware } from './common/logging/logging.middleware';
 import { LoggerService } from './common/logging/logger.service';
 
@@ -19,32 +19,25 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Global prefix
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: 'health/live', method: RequestMethod.GET },
+      { path: 'health/ready', method: RequestMethod.GET },
+      { path: 'metrics', method: RequestMethod.GET },
+    ],
+  });
 
   // Security
   app.use(helmet());
   app.use(compression());
+  app.use(requestIdMiddleware);
+  app.useGlobalInterceptors(app.get(RequestMetricsInterceptor));
 
   // CORS
   app.enableCors({
     origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
     credentials: true,
   });
-
-  // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
-
-  // Global exception filter
-  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Logging middleware
   const loggerService = app.get(LoggerService);
@@ -58,6 +51,7 @@ async function bootstrap() {
     .addBearerAuth()
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User management')
+    .addTag('attachments', 'Message attachment upload and metadata')
     .addTag('rooms', 'Chat rooms')
     .addTag('health', 'Health check endpoints')
     .build();

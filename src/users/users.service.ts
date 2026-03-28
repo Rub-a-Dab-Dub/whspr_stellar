@@ -4,7 +4,12 @@ import {
   ConflictException,
   BadRequestException,
   Logger,
+  Inject,
+  Logger,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -21,22 +26,36 @@ export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly moderationQueueService: ModerationQueueService,
+import { TranslationService } from '../i18n/services/translation.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';
+import { OnboardingService } from '../onboarding/onboarding.service';
+
+@Injectable()
+export class UsersService {
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly translationService: TranslationService,
+    private readonly userSettingsService: UserSettingsService,
+    @Optional() private readonly onboardingService?: OnboardingService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const { walletAddress, username, email } = createUserDto;
+    const preferredLocale = this.normalizePreferredLocale(createUserDto.preferredLocale) ?? null;
 
     // Check wallet address uniqueness
     const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
     if (existingWallet) {
-      throw new ConflictException('Wallet address already registered');
+      throw new ConflictException(
+        this.translationService.translate('errors.users.walletAlreadyRegistered'),
+      );
     }
 
     // Check username uniqueness if provided
     if (username) {
       const existingUsername = await this.usersRepository.findByUsername(username);
       if (existingUsername) {
-        throw new ConflictException('Username already taken');
+        throw new ConflictException(this.translationService.translate('errors.users.usernameTaken'));
       }
     }
 
@@ -44,7 +63,9 @@ export class UsersService {
     if (email) {
       const existingEmail = await this.usersRepository.findByEmail(email);
       if (existingEmail) {
-        throw new ConflictException('Email already registered');
+        throw new ConflictException(
+          this.translationService.translate('errors.users.emailRegistered'),
+        );
       }
     }
 
@@ -52,48 +73,67 @@ export class UsersService {
       ...createUserDto,
       walletAddress: walletAddress.toLowerCase(),
       email: email?.toLowerCase(),
+      preferredLocale,
     });
 
     const savedUser = await this.usersRepository.save(user);
     await this.enqueueModeration(savedUser);
+    await this.userSettingsService.ensureSettingsForUser(savedUser.id);
     return this.toResponseDto(savedUser);
   }
 
-  async findById(id: string): Promise<UserResponseDto> {
+  async findById(id: string, viewerId?: string): Promise<UserResponseDto> {
     const user = await this.usersRepository.findOne({ where: { id } });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundById', {
+          args: { id },
+        }),
+      );
     }
 
-    return this.toResponseDto(user);
+    const dto = this.toResponseDto(user);
+    return this.applyPrivacy(dto, viewerId);
   }
 
   async findByUsername(username: string): Promise<UserResponseDto> {
     const user = await this.usersRepository.findByUsername(username);
 
     if (!user) {
-      throw new NotFoundException(`User with username ${username} not found`);
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundByUsername', {
+          args: { username },
+        }),
+      );
     }
 
-    return this.toResponseDto(user);
+    return this.applyPrivacy(this.toResponseDto(user));
   }
 
   async findByWalletAddress(walletAddress: string): Promise<UserResponseDto> {
     const user = await this.usersRepository.findByWalletAddress(walletAddress);
 
     if (!user) {
-      throw new NotFoundException(`User with wallet address ${walletAddress} not found`);
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundByWallet', {
+          args: { walletAddress },
+        }),
+      );
     }
 
-    return this.toResponseDto(user);
+    return this.applyPrivacy(this.toResponseDto(user));
   }
 
   async updateProfile(id: string, updateProfileDto: UpdateProfileDto): Promise<UserResponseDto> {
     const user = await this.usersRepository.findOne({ where: { id } });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundById', {
+          args: { id },
+        }),
+      );
     }
 
     // Validate username uniqueness if being updated
@@ -103,7 +143,7 @@ export class UsersService {
         id,
       );
       if (!isAvailable) {
-        throw new ConflictException('Username already taken');
+        throw new ConflictException(this.translationService.translate('errors.users.usernameTaken'));
       }
     }
 
@@ -111,14 +151,19 @@ export class UsersService {
     if (updateProfileDto.email && updateProfileDto.email !== user.email) {
       const isAvailable = await this.usersRepository.isEmailAvailable(updateProfileDto.email, id);
       if (!isAvailable) {
-        throw new ConflictException('Email already registered');
+        throw new ConflictException(
+          this.translationService.translate('errors.users.emailRegistered'),
+        );
       }
     }
+
+    const preferredLocale = this.normalizePreferredLocale(updateProfileDto.preferredLocale, true);
 
     // Update user fields
     Object.assign(user, {
       ...updateProfileDto,
       email: updateProfileDto.email?.toLowerCase(),
+      ...(preferredLocale !== undefined ? { preferredLocale } : {}),
     });
 
     const updatedUser = await this.usersRepository.save(user);
@@ -130,11 +175,17 @@ export class UsersService {
     const user = await this.usersRepository.findOne({ where: { id } });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundById', {
+          args: { id },
+        }),
+      );
     }
 
     if (!user.isActive) {
-      throw new BadRequestException('User is already deactivated');
+      throw new BadRequestException(
+        this.translationService.translate('errors.users.alreadyDeactivated'),
+      );
     }
 
     user.isActive = false;
@@ -147,7 +198,7 @@ export class UsersService {
     const [users, total] = await this.usersRepository.findActiveUsers(pagination);
 
     return {
-      data: users.map((user) => this.toResponseDto(user)),
+      data: await Promise.all(users.map(async (user) => this.applyPrivacy(this.toResponseDto(user)))),
       meta: {
         page,
         limit,
@@ -158,9 +209,69 @@ export class UsersService {
   }
 
   private toResponseDto(user: User): UserResponseDto {
-    return plainToInstance(UserResponseDto, user, {
+    const dto = plainToInstance(UserResponseDto, user, {
       excludeExtraneousValues: true,
     });
+
+    // Add onboarding progress if service is available
+    if (this.onboardingService) {
+      this.onboardingService.getProgress(user.id)
+        .then(progress => {
+          dto.onboardingProgress = {
+            currentStep: progress.currentStep,
+            completedSteps: progress.completedSteps,
+            skippedSteps: progress.skippedSteps,
+            isCompleted: progress.isCompleted,
+            completionPercentage: progress.completionPercentage,
+            nextStep: progress.nextStep,
+          };
+        })
+        .catch(error => {
+          // Log error but don't fail the user response
+          console.warn('Failed to fetch onboarding progress:', error);
+        });
+    }
+
+    return dto;
+  }
+
+  private normalizePreferredLocale(
+    preferredLocale?: string | null,
+    preserveUndefined = false,
+  ): string | null | undefined {
+    if (preferredLocale === undefined) {
+      return preserveUndefined ? undefined : null;
+    }
+
+    if (preferredLocale === null) {
+      return null;
+    }
+
+    const trimmedLocale = preferredLocale.trim();
+    if (!trimmedLocale) {
+      return null;
+    }
+
+    const normalizedLocale = this.translationService.normalizeSupportedLocale(trimmedLocale);
+    if (!normalizedLocale) {
+      throw new BadRequestException(
+        this.translationService.translate('errors.users.invalidPreferredLocale'),
+      );
+    }
+
+    return normalizedLocale;
+  }
+
+  private async applyPrivacy(user: UserResponseDto, viewerId?: string): Promise<UserResponseDto> {
+    if (viewerId && viewerId === user.id) {
+      return user;
+    }
+
+    const privacy = await this.userSettingsService.getPrivacySettings(user.id);
+    if (!privacy.onlineStatusVisible) {
+      user.isActive = false;
+    }
+    return user;
   }
 
   private async enqueueModeration(user: User): Promise<void> {

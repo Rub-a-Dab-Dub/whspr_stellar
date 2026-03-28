@@ -1,0 +1,99 @@
+{
+  "validation": {
+    "string": "{property} lazima iwe maandishi",
+    "notEmpty": "{property} haitakiwi kuwa tupu",
+    "email": "{property} lazima iwe barua pepe sahihi",
+    "url": "{property} lazima iwe URL sahihi",
+    "minLength": "{property} lazima iwe na angalau herufi {min}",
+    "maxLength": "{property} lazima iwe na si zaidi ya herufi {max}",
+    "exactLength": "{property} lazima iwe na herufi {length} kamili",
+    "usernamePattern": "Jina la mtumiaji linaweza kuwa na herufi, nambari na mistari chini tu",
+    "stellarAddressFormat": "Muundo wa anwani ya Stellar si sahihi",
+    "ethereumAddress": "{property} lazima iwe anwani sahihi ya Ethereum",
+    "integer": "{property} lazima iwe nambari kamili",
+    "min": "{property} haiwezi kuwa chini ya {min}",
+    "max": "{property} haiwezi kuwa zaidi ya {max}",
+    "enum": "{property} lazima iwe moja ya hizi: {allowed}",
+    "booleanString": "{property} lazima iwe maandishi ya boolean",
+    "uuid": "Muundo wa UUID si sahihi",
+    "whitelist": "Sifa {property} haipaswi kuwepo"
+  },
+  "errors": {
+    "common": {
+      "internalServerError": "Hitilafu ya ndani ya seva"
+    },
+    "auth": {
+      "authenticationRequired": "Uthibitishaji unahitajika",
+      "invalidToken": "Token si sahihi",
+      "challengeNotFoundOrExpired": "Changamoto haijapatikana au muda wake umeisha",
+      "invalidSignature": "Sahihi si sahihi",
+      "userDeactivated": "Akaunti ya mtumiaji imezimwa",
+      "invalidOrExpiredRefreshToken": "Refresh token si sahihi au muda wake umeisha",
+      "refreshTokenNotFoundOrExpired": "Refresh token haijapatikana au muda wake umeisha",
+      "invalidRefreshToken": "Refresh token si sahihi",
+      "tooManyFailedAttempts": "Majaribio mengi yameshindwa. Tafadhali jaribu tena baadaye.",
+      "wsTokenNotFound": "Token ya uthibitishaji haijapatikana",
+      "wsInvalidOrExpiredToken": "Token si sahihi au muda wake umeisha"
+    },
+    "twoFactor": {
+      "alreadyEnabled": "Uthibitishaji wa hatua mbili tayari umewashwa",
+      "notEnabled": "Uthibitishaji wa hatua mbili haujawashwa",
+      "invalidCode": "Nambari ya uthibitishaji si sahihi au muda wake umeisha",
+      "codeRequired": "Nambari ya 2FA inahitajika (kichwa x-2fa-code)",
+      "setupRequired": "Anza na POST /2fa/setup"
+    },
+    "users": {
+      "walletAlreadyRegistered": "Anwani ya wallet tayari imesajiliwa",
+      "usernameTaken": "Jina la mtumiaji tayari limetumika",
+      "emailRegistered": "Barua pepe tayari imesajiliwa",
+      "notFoundById": "Mtumiaji mwenye ID {id} hajapatikana",
+      "notFoundByUsername": "Mtumiaji mwenye jina {username} hajapatikana",
+      "notFoundByWallet": "Mtumiaji mwenye anwani ya wallet {walletAddress} hajapatikana",
+      "alreadyDeactivated": "Mtumiaji tayari amezimwa",
+      "invalidPreferredLocale": "Lugha uliyochagua haitumiki"
+    },
+    "wallets": {
+      "invalidStellarWalletAddress": "Anwani ya Stellar wallet si sahihi",
+      "maxWalletsExceeded": "Kiwango cha juu ni wallet {maxWallets} kwa kila mtumiaji",
+      "alreadyLinked": "Wallet tayari imeunganishwa na akaunti yako",
+      "signatureVerificationFailed": "Uhakiki wa sahihi ya wallet umeshindwa",
+      "notFound": "Wallet haijapatikana",
+      "cannotRemovePrimary": "Huwezi kuondoa wallet kuu wakati kuna wallet nyingine. Chagua wallet kuu mpya kwanza.",
+      "unfundedAccount": "Akaunti ya Stellar {walletAddress} haijapatikana kwenye {network}. Weka angalau XLM 1 ili kuiwasha."
+    },
+    "nfts": {
+      "userNotFound": "Mtumiaji hajapatikana",
+      "notFound": "NFT haijapatikana",
+      "ownershipVerificationFailed": "Umiliki wa NFT haukuweza kuthibitishwa kwenye Stellar",
+      "syncFailed": "Imeshindikana kusawazisha NFT kutoka Stellar Horizon",
+      "unsupportedNetwork": "Mtandao wa Stellar hautumiki: {network}",
+      "walletNotConfigured": "Mtumiaji hana Stellar wallet iliyounganishwa"
+    }
+  },
+  "notifications": {
+    "walletLinked": {
+      "title": "Wallet imeunganishwa",
+      "body": "{walletLabel} ({walletAddress}) imeunganishwa kwa mafanikio."
+    },
+    "nftAvatarUpdated": {
+      "title": "Avatar imesasishwa",
+      "body": "Avatar yako sasa inatumia NFT {nftName}."
+    },
+    "nftSyncComplete": {
+      "title": "Usawazishaji wa NFT umekamilika",
+      "body": "NFT {count} ziko tayari kwa vipengele vya ufikiaji maalum."
+    }
+  },
+  "emails": {
+    "welcome": {
+      "subject": "Karibu WHSPR Stellar",
+      "preview": "Akaunti yako iko tayari kutumika.",
+      "body": "Habari {displayName}, akaunti yako iko tayari. Unganisha wallet, thibitisha umiliki, na anza kutumia vipengele maalum."
+    },
+    "walletLinked": {
+      "subject": "Wallet imeunganishwa kwa mafanikio",
+      "preview": "Stellar wallet mpya imeunganishwa na akaunti yako.",
+      "body": "Stellar wallet yako {walletAddress} sasa imeunganishwa na akaunti yako."
+    }
+  }
+}

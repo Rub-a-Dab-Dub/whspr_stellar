@@ -6,6 +6,8 @@ import { User, UserTier } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
+import { TranslationService } from '../i18n/services/translation.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -19,7 +21,9 @@ describe('UsersService', () => {
     displayName: 'Test User',
     avatarUrl: 'https://example.com/avatar.jpg',
     bio: 'Test bio',
+    preferredLocale: null,
     tier: UserTier.FREE,
+    tier: UserTier.SILVER,
     isActive: true,
     isVerified: false,
     createdAt: new Date('2024-01-01'),
@@ -43,6 +47,13 @@ describe('UsersService', () => {
     enqueueProfileModeration: jest.fn(),
     enqueueUserModeration: jest.fn(),
     enqueueImageModeration: jest.fn(),
+  const mockUserSettingsService = {
+    ensureSettingsForUser: jest.fn(),
+    getPrivacySettings: jest.fn().mockResolvedValue({
+      lastSeenVisibility: 'everyone',
+      readReceiptsEnabled: true,
+      onlineStatusVisible: true,
+    }),
   };
 
   beforeEach(async () => {
@@ -56,6 +67,13 @@ describe('UsersService', () => {
         {
           provide: ModerationQueueService,
           useValue: mockModerationQueueService,
+          provide: TranslationService,
+          useValue: {
+            translate: jest.fn((key: string) => key),
+            normalizeSupportedLocale: jest.fn((locale?: string | null) => locale ?? null),
+          },
+          provide: UserSettingsService,
+          useValue: mockUserSettingsService,
         },
       ],
     }).compile();
@@ -64,6 +82,11 @@ describe('UsersService', () => {
     repository = module.get(UsersRepository);
 
     jest.clearAllMocks();
+    mockUserSettingsService.getPrivacySettings.mockResolvedValue({
+      lastSeenVisibility: 'everyone',
+      readReceiptsEnabled: true,
+      onlineStatusVisible: true,
+    });
   });
 
   it('should be defined', () => {
@@ -94,6 +117,7 @@ describe('UsersService', () => {
       expect(repository.findByEmail).toHaveBeenCalledWith(createUserDto.email);
       expect(repository.save).toHaveBeenCalled();
       expect(mockModerationQueueService.enqueueUserModeration).toHaveBeenCalled();
+      expect(mockUserSettingsService.ensureSettingsForUser).toHaveBeenCalled();
     });
 
     it('should throw ConflictException if wallet address exists', async () => {
@@ -138,6 +162,7 @@ describe('UsersService', () => {
       expect(repository.findByUsername).not.toHaveBeenCalled();
       expect(repository.findByEmail).not.toHaveBeenCalled();
       expect(mockModerationQueueService.enqueueUserModeration).toHaveBeenCalled();
+      expect(mockUserSettingsService.ensureSettingsForUser).toHaveBeenCalled();
     });
   });
 
@@ -156,6 +181,18 @@ describe('UsersService', () => {
       repository.findOne.mockResolvedValue(null);
 
       await expect(service.findById('non-existent-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should mask isActive when online status visibility is disabled for public view', async () => {
+      repository.findOne.mockResolvedValue({ ...mockUser, isActive: true });
+      mockUserSettingsService.getPrivacySettings.mockResolvedValueOnce({
+        lastSeenVisibility: 'everyone',
+        readReceiptsEnabled: true,
+        onlineStatusVisible: false,
+      });
+
+      const result = await service.findById(mockUser.id);
+      expect(result.isActive).toBe(false);
     });
   });
 
