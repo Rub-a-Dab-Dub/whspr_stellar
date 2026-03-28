@@ -51,6 +51,7 @@ import { MessageForwardingModule } from './message-forwarding/message-forwarding
 import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { AnchorModule } from './anchor/anchor.module';
 import { MessageDraftsModule } from './message-drafts/message-drafts.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
@@ -113,6 +114,7 @@ import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.mo
     MessageForwardingModule,
     PollsModule,
     MentionsModule,
+    AnchorModule,
     ConversationExportModule,
     AddressBookModule,
     UsernameDiscoveryModule,
