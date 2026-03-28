@@ -1,70 +1,30 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  Index,
-  OneToOne,
-  JoinColumn,
-} from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-
-export enum OnboardingStep {
-  WALLET_CONNECTED = 'wallet_connected',
-  PROFILE_COMPLETED = 'profile_completed',
-  USERNAME_SET = 'username_set',
-  FIRST_CONTACT_ADDED = 'first_contact_added',
-  FIRST_MESSAGE_SENT = 'first_message_sent',
-  ENCRYPTION_KEY_REGISTERED = 'encryption_key_registered',
-  FIRST_TRANSFER = 'first_transfer',
-}
+} from 'typeorm'
 
 @Entity('onboarding_progress')
-@Index('idx_onboarding_user_id')
 export class OnboardingProgress {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  @PrimaryColumn()
+  userId: string
 
-  @Column({ type: 'uuid' })
-  userId!: string;
+  @Column({ nullable: true })
+  currentStep: string
 
-  @OneToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
-  user!: User;
+  @Column({ type: 'text', array: true, default: [] })
+  completedSteps: string[]
 
-  @Column({
-    type: 'enum',
-    enum: OnboardingStep,
-    default: OnboardingStep.WALLET_CONNECTED,
-    nullable: true,
-  })
-  currentStep!: OnboardingStep | null;
+  @Column({ type: 'text', array: true, default: [] })
+  skippedSteps: string[]
 
-  @Column({
-    type: 'simple-array',
-    default: [],
-  })
-  completedSteps!: OnboardingStep[];
+  @Column({ default: false })
+  isCompleted: boolean
 
-  @Column({
-    type: 'simple-array',
-    default: [],
-  })
-  skippedSteps!: OnboardingStep[];
+  @Column({ nullable: true })
+  completedAt: Date
 
-  @Column({ type: 'boolean', default: false })
-  isCompleted!: boolean;
-
-  @Column({ type: 'timestamp', nullable: true })
-  completedAt!: Date | null;
-
-  @Column({ type: 'timestamp', nullable: true })
-  startedAt!: Date | null;
-
-  @CreateDateColumn({ type: 'timestamp' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ type: 'timestamp' })
-  updatedAt!: Date;
+  @CreateDateColumn()
+  startedAt: Date
 }
