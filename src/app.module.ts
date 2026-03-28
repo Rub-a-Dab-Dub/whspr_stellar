@@ -52,6 +52,7 @@ import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { PollsModule } from './polls/polls.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { MessageDraftsModule } from './message-drafts/message-drafts.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     QrCodeModule,
     PollsModule,
     OnboardingModule,
+    MessageDraftsModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     BotsModule,
