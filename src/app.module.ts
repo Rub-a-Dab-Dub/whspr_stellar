@@ -50,8 +50,8 @@ import { BlockchainTransactionsModule } from './blockchain-transactions/blockcha
 import { MessageForwardingModule } from './message-forwarding/message-forwarding.module';
 import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
-import { PollsModule } from './polls/polls.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { ConversationExportModule } from './conversation-export/conversation-export.module';
 
 @Module({
   imports: [
@@ -106,6 +106,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     MessageForwardingModule,
     PollsModule,
     MentionsModule,
+    ConversationExportModule,
   ],
   controllers: [AppController],
   providers: [
