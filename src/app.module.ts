@@ -45,6 +45,7 @@ import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
 import { Sep10Module } from './sep10/sep10.module';
 import { RampModule } from './ramp/ramp.module';
 import { QrCodeModule } from './qr-code/qr-code.module';
+import { BotsModule } from './bots/bots.module';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { QrCodeModule } from './qr-code/qr-code.module';
     QrCodeModule,
     ScheduledJobsModule,
     InChatTransfersModule,
+    BotsModule,
     WebhooksModule,
     ObservabilityModule,
     AdminModule,
