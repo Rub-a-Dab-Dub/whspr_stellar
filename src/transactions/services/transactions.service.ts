@@ -12,6 +12,7 @@ import { NotificationsGateway } from '../../messaging/gateways/notifications.gat
 import { InAppNotificationType } from '../../notifications/entities/notification.entity';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { Wallet, WalletNetwork } from '../../wallets/entities/wallet.entity';
+import { SavedAddressesService } from '../../address-book/saved-addresses.service';
 import { ListTransactionsQueryDto } from '../dto/list-transactions-query.dto';
 import {
   TransactionListResponseDto,
@@ -52,6 +53,7 @@ export class TransactionsService {
     private readonly chatGateway: ChatGateway,
     @InjectRepository(Wallet)
     private readonly walletsRepository: Repository<Wallet>,
+    private readonly savedAddressesService: SavedAddressesService,
   ) {}
 
   async createTransaction(input: CreateTransactionInput): Promise<TransactionResponseDto> {
@@ -253,6 +255,8 @@ export class TransactionsService {
       await this.notificationsGateway.sendTransferUpdate(senderId, transferPayload);
 
       if (transaction.status === TransactionStatus.CONFIRMED) {
+        await this.savedAddressesService.trackUsageByWalletAddress(senderId, transaction.toAddress);
+
         await this.notificationsService.createNotification({
           userId: senderId,
           type: InAppNotificationType.TRANSACTION_CONFIRMED,
