@@ -5,6 +5,7 @@ import { UsersRepository } from './users.repository';
 import { User, UserTier } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -38,6 +39,12 @@ describe('UsersService', () => {
     isWalletAddressAvailable: jest.fn(),
   };
 
+  const mockModerationQueueService = {
+    enqueueProfileModeration: jest.fn(),
+    enqueueUserModeration: jest.fn(),
+    enqueueImageModeration: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -45,6 +52,10 @@ describe('UsersService', () => {
         {
           provide: UsersRepository,
           useValue: mockRepository,
+        },
+        {
+          provide: ModerationQueueService,
+          useValue: mockModerationQueueService,
         },
       ],
     }).compile();
@@ -78,12 +89,11 @@ describe('UsersService', () => {
       expect(result).toBeDefined();
       expect(result.id).toBe(mockUser.id);
       expect(result.username).toBe(mockUser.username);
-      expect(repository.findByWalletAddress).toHaveBeenCalledWith(
-        createUserDto.walletAddress,
-      );
+      expect(repository.findByWalletAddress).toHaveBeenCalledWith(createUserDto.walletAddress);
       expect(repository.findByUsername).toHaveBeenCalledWith(createUserDto.username);
       expect(repository.findByEmail).toHaveBeenCalledWith(createUserDto.email);
       expect(repository.save).toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueUserModeration).toHaveBeenCalled();
     });
 
     it('should throw ConflictException if wallet address exists', async () => {
@@ -127,6 +137,7 @@ describe('UsersService', () => {
       expect(result).toBeDefined();
       expect(repository.findByUsername).not.toHaveBeenCalled();
       expect(repository.findByEmail).not.toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueUserModeration).toHaveBeenCalled();
     });
   });
 
@@ -180,9 +191,7 @@ describe('UsersService', () => {
     it('should throw NotFoundException if user not found', async () => {
       repository.findByWalletAddress.mockResolvedValue(null);
 
-      await expect(service.findByWalletAddress('0xinvalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findByWalletAddress('0xinvalid')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -203,6 +212,7 @@ describe('UsersService', () => {
       expect(result.displayName).toBe(updateDto.displayName);
       expect(result.bio).toBe(updateDto.bio);
       expect(repository.save).toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueProfileModeration).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if user not found', async () => {
@@ -252,10 +262,7 @@ describe('UsersService', () => {
 
       await service.updateProfile(mockUser.id, updateWithEmail);
 
-      expect(repository.isEmailAvailable).toHaveBeenCalledWith(
-        'newemail@example.com',
-        mockUser.id,
-      );
+      expect(repository.isEmailAvailable).toHaveBeenCalledWith('newemail@example.com', mockUser.id);
     });
 
     it('should throw ConflictException if email is taken', async () => {
@@ -280,9 +287,7 @@ describe('UsersService', () => {
 
       await service.deactivate(mockUser.id);
 
-      expect(repository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ isActive: false }),
-      );
+      expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
     });
 
     it('should throw NotFoundException if user not found', async () => {

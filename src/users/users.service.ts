@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -11,10 +12,16 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
 import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
 import { plainToInstance } from 'class-transformer';
+import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly moderationQueueService: ModerationQueueService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const { walletAddress, username, email } = createUserDto;
@@ -48,6 +55,7 @@ export class UsersService {
     });
 
     const savedUser = await this.usersRepository.save(user);
+    await this.enqueueModeration(savedUser);
     return this.toResponseDto(savedUser);
   }
 
@@ -114,6 +122,7 @@ export class UsersService {
     });
 
     const updatedUser = await this.usersRepository.save(user);
+    await this.enqueueModeration(updatedUser);
     return this.toResponseDto(updatedUser);
   }
 
@@ -152,5 +161,27 @@ export class UsersService {
     return plainToInstance(UserResponseDto, user, {
       excludeExtraneousValues: true,
     });
+  }
+
+  private async enqueueModeration(user: User): Promise<void> {
+    const profileContent = [user.username, user.displayName, user.bio].filter(Boolean).join(' ');
+
+    try {
+      if (profileContent) {
+        await this.moderationQueueService.enqueueProfileModeration(user.id, profileContent);
+      }
+
+      await this.moderationQueueService.enqueueUserModeration(
+        user.id,
+        [user.walletAddress, user.email].filter(Boolean).join(' '),
+      );
+
+      if (user.avatarUrl) {
+        await this.moderationQueueService.enqueueImageModeration(user.id, user.avatarUrl);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.warn(`Failed to enqueue moderation jobs for user ${user.id}: ${message}`);
+    }
   }
 }

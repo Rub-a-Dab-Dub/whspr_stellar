@@ -4,9 +4,7 @@ export const envValidationSchema = Joi.object({
   // Server
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().default(3001),
-  LOG_LEVEL: Joi.string()
-    .valid('error', 'warn', 'info', 'debug', 'verbose')
-    .default('info'),
+  LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug', 'verbose').default('info'),
 
   // Database
   DATABASE_HOST: Joi.string().required(),
@@ -42,12 +40,8 @@ export const envValidationSchema = Joi.object({
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
 
   // Stellar / Horizon
-  STELLAR_HORIZON_MAINNET_URL: Joi.string()
-    .uri()
-    .default('https://horizon.stellar.org'),
-  STELLAR_HORIZON_TESTNET_URL: Joi.string()
-    .uri()
-    .default('https://horizon-testnet.stellar.org'),
+  STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
+  STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
 
   // Scheduled Jobs
   JOB_BLOCKCHAIN_EVENT_POLLING_MS: Joi.number().default(5000),
@@ -61,4 +55,14 @@ export const envValidationSchema = Joi.object({
   JOB_ANALYTICS_AGGREGATION_CRON: Joi.string().default('0 0 * * *'),
   JOB_AUDIT_LOG_CLEANUP_CRON: Joi.string().default('0 0 * * 0'),
   JOB_LOCK_TTL_MS: Joi.number().default(15000),
+
+  // AI Moderation
+  AI_MODERATION_PROVIDER: Joi.string().valid('mock', 'openai', 'perspective').default('mock'),
+  OPENAI_API_KEY: Joi.string().allow('').optional(),
+  OPENAI_BASE_URL: Joi.string().uri().default('https://api.openai.com'),
+  OPENAI_MODERATION_MODEL: Joi.string().default('omni-moderation-latest'),
+  PERSPECTIVE_API_KEY: Joi.string().allow('').optional(),
+  PERSPECTIVE_BASE_URL: Joi.string()
+    .uri()
+    .default('https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze'),
 });

@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
+import { AIModerationModule } from './ai-moderation/ai-moderation.module';
 
 @Module({
   imports: [
@@ -40,8 +41,9 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
     AuthModule,
     WalletsModule,
     ScheduledJobsModule,
+    AIModerationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
