@@ -6,9 +6,14 @@ import { UsersService } from './users.service';
 import { UsersRepository } from './users.repository';
 import { User } from './entities/user.entity';
 import { UserSettingsModule } from '../user-settings/user-settings.module';
+import { OnboardingModule } from '../onboarding/onboarding.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), forwardRef(() => UserSettingsModule)],
+  imports: [
+    TypeOrmModule.forFeature([User]), 
+    forwardRef(() => UserSettingsModule),
+    forwardRef(() => OnboardingModule)
+  ],
   controllers: [UsersController],
   providers: [UsersService, UsersRepository],
   exports: [UsersService, UsersRepository],

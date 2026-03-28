@@ -51,6 +51,7 @@ import { MessageForwardingModule } from './message-forwarding/message-forwarding
 import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { PollsModule } from './polls/polls.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { PollsModule } from './polls/polls.module';
     RampModule,
     QrCodeModule,
     PollsModule,
+    OnboardingModule,
     ScheduledJobsModule,
     InChatTransfersModule,
     BotsModule,

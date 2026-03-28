@@ -18,6 +18,7 @@ import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
 import { plainToInstance } from 'class-transformer';
 import { TranslationService } from '../i18n/services/translation.service';
 import { UserSettingsService } from '../user-settings/user-settings.service';
+import { OnboardingService } from '../onboarding/onboarding.service';
 
 @Injectable()
 export class UsersService {
@@ -25,6 +26,7 @@ export class UsersService {
     private readonly usersRepository: UsersRepository,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
+    @Optional() private readonly onboardingService?: OnboardingService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
@@ -195,9 +197,30 @@ export class UsersService {
   }
 
   private toResponseDto(user: User): UserResponseDto {
-    return plainToInstance(UserResponseDto, user, {
+    const dto = plainToInstance(UserResponseDto, user, {
       excludeExtraneousValues: true,
     });
+
+    // Add onboarding progress if service is available
+    if (this.onboardingService) {
+      this.onboardingService.getProgress(user.id)
+        .then(progress => {
+          dto.onboardingProgress = {
+            currentStep: progress.currentStep,
+            completedSteps: progress.completedSteps,
+            skippedSteps: progress.skippedSteps,
+            isCompleted: progress.isCompleted,
+            completionPercentage: progress.completionPercentage,
+            nextStep: progress.nextStep,
+          };
+        })
+        .catch(error => {
+          // Log error but don't fail the user response
+          console.warn('Failed to fetch onboarding progress:', error);
+        });
+    }
+
+    return dto;
   }
 
   private normalizePreferredLocale(
@@ -225,6 +248,8 @@ export class UsersService {
     }
 
     return normalizedLocale;
+  }
+
   private async applyPrivacy(user: UserResponseDto, viewerId?: string): Promise<UserResponseDto> {
     if (viewerId && viewerId === user.id) {
       return user;
