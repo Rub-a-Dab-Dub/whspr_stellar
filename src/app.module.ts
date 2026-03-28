@@ -52,6 +52,7 @@ import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
+import { AddressBookModule } from './address-book/address-book.module';
 
 @Module({
   imports: [
@@ -107,6 +108,7 @@ import { ConversationExportModule } from './conversation-export/conversation-exp
     PollsModule,
     MentionsModule,
     ConversationExportModule,
+    AddressBookModule,
   ],
   controllers: [AppController],
   providers: [
