@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 import { UserTier } from '../entities/user.entity';
+import { OnboardingStep } from '../../onboarding/entities/onboarding-progress.entity';
 
 @Exclude()
 export class UserResponseDto {
@@ -56,6 +57,28 @@ export class UserResponseDto {
   @Expose()
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   updatedAt!: Date;
+
+  @Expose()
+  @ApiPropertyOptional({ 
+    description: 'Onboarding progress information',
+    type: 'object',
+    example: {
+      currentStep: 'profile_completed',
+      completedSteps: ['wallet_connected', 'profile_completed'],
+      skippedSteps: [],
+      isCompleted: false,
+      completionPercentage: 28,
+      nextStep: 'username_set'
+    }
+  })
+  onboardingProgress?: {
+    currentStep: OnboardingStep | null;
+    completedSteps: OnboardingStep[];
+    skippedSteps: OnboardingStep[];
+    isCompleted: boolean;
+    completionPercentage: number;
+    nextStep: OnboardingStep | null;
+  };
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
