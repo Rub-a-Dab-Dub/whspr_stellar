@@ -53,6 +53,7 @@ import { MentionsModule } from './mentions/mentions.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
 import { AddressBookModule } from './address-book/address-book.module';
+import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
 
 @Module({
   imports: [
@@ -109,6 +110,7 @@ import { AddressBookModule } from './address-book/address-book.module';
     MentionsModule,
     ConversationExportModule,
     AddressBookModule,
+    UsernameDiscoveryModule,
   ],
   controllers: [AppController],
   providers: [
