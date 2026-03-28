@@ -21,6 +21,20 @@ export interface PollOption {
 @Index('idx_polls_created_by', ['createdBy'])
 @Index('idx_polls_expires_at', ['expiresAt'])
 @Index('idx_polls_is_closed', ['isClosed'])
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Conversation } from '../../conversations/entities/conversation.entity';
+import { User } from '../../users/entities/user.entity';
+import { PollVote } from './poll-vote.entity';
+
+@Entity('polls')
 export class Poll {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -38,6 +52,18 @@ export class Poll {
 
   @Column({ type: 'jsonb' })
   options!: PollOption[];
+  @Index('idx_polls_conversation_id')
+  conversationId!: string;
+
+  @Column({ type: 'uuid' })
+  @Index('idx_polls_created_by')
+  createdBy!: string;
+
+  @Column({ type: 'varchar', length: 300 })
+  question!: string;
+
+  @Column({ type: 'jsonb' })
+  options!: string[];
 
   @Column({ type: 'boolean', default: false })
   allowMultiple!: boolean;
@@ -89,4 +115,24 @@ export class PollVote {
   @CreateDateColumn({ type: 'timestamp' })
   @Index('idx_poll_votes_voted_at')
   votedAt!: Date;
+  @Index('idx_polls_expires_at')
+  expiresAt!: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  @Index('idx_polls_is_closed')
+  isClosed!: boolean;
+
+  @ManyToOne(() => Conversation, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'conversationId' })
+  conversation!: Conversation;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'createdBy' })
+  creator!: User;
+
+  @OneToMany(() => PollVote, (vote) => vote.poll)
+  votes!: PollVote[];
+
+  @CreateDateColumn({ type: 'timestamp' })
+  createdAt!: Date;
 }

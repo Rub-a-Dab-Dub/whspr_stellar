@@ -49,6 +49,7 @@ import { BlockchainTransactionsModule } from './blockchain-transactions/blockcha
 import { MessageForwardingModule } from './message-forwarding/message-forwarding.module';
 import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
+import { PollsModule } from './polls/polls.module';
 
 @Module({
   imports: [
@@ -86,6 +87,8 @@ import { MentionsModule } from './mentions/mentions.module';
     Sep10Module,
     RampModule,
     QrCodeModule,
+    PollsModule,
+    ScheduledJobsModule,
     InChatTransfersModule,
     WebhooksModule,
     ObservabilityModule,
