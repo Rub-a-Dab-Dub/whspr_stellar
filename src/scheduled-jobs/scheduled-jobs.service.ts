@@ -159,8 +159,16 @@ export class ScheduledJobsService implements OnModuleInit {
         defaultValue: '0 0 * * 0',
         handler: () => this.handlers.cleanupAuditLogs(),
       },
+      {
+        type: 'cron',
+        name: 'story-expiry-cleanup',
+        envKey: 'JOB_STORY_EXPIRY_CLEANUP_CRON',
+        defaultValue: '0 * * * *',
+        handler: () => this.handlers.deleteExpiredStories(),
+      },
     ];
   }
+
 
   private getIntervalMs(envKey: string, defaultValue: number): number {
     const value = this.configService.get<number>(envKey, defaultValue);
