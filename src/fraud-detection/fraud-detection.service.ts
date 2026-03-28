@@ -1,26 +1,38 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
-import { Redis } from 'ioredis';
-import { CacheService } from '../../cache/cache.service';
-import { GeoService } from '../geo.service';
-import { LoginAttempt, LoginAction } from '../entities/login-attempt.entity';
+import {
+  Injectable,
+  Logger,
+  Inject,
+  NotFoundException,
+} from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { ConfigService } from '@nestjs/config';
+import { FraudDetectionRepository } from './fraud-detection.repository';
+import { GeoProvider, GeoData } from './geo/geo.provider';
+import { MailService } from '../mail/mail.service';
+import { LoginAttempt } from './entities/login-attempt.entity';
+import { LoginAction } from './enums/login-action.enum';
 
-const BLOCKED_IP_KEY = 'fraud:blocked-ips';
-const RAPID_IP_WINDOW_SECONDS = 300; // 5 min
-const RAPID_IP_THRESHOLD = 3;        // distinct IPs in window → suspicious
+const BLOCKED_IP_KEY = (ip: string) => `fraud:blocked:${ip}`;
+const GEO_CACHE_KEY = (ip: string) => `fraud:geo:${ip}`;
+const GEO_CACHE_TTL = 60 * 60 * 1000; // 1 hour ms
 
-export interface AnalyzeLoginInput {
-  userId: string | null;
-  ipAddress: string;
-  twoFaEnabled?: boolean;
-}
+const RISK_WEIGHTS = {
+  VPN: 30,
+  TOR: 50,
+  NEW_COUNTRY: 25,
+  RAPID_IP_SWITCH: 20,
+  REPEATED_BLOCKS: 20,
+} as const;
 
-export interface AnalyzeLoginResult {
-  action: LoginAction;
-  riskScore: number;
-  requiresTwoFa: boolean;
+const HIGH_RISK_THRESHOLD = 70;
+
+export interface LoginAnalysisResult {
   attempt: LoginAttempt;
+  riskScore: number;
+  action: LoginAction;
+  requiresMfa: boolean;
+  isBlocked: boolean;
 }
 
 @Injectable()
@@ -28,163 +40,238 @@ export class FraudDetectionService {
   private readonly logger = new Logger(FraudDetectionService.name);
 
   constructor(
-    @InjectRepository(LoginAttempt)
-    private readonly loginRepo: Repository<LoginAttempt>,
-    private readonly cache: CacheService,
-    private readonly geo: GeoService,
-    @Inject('REDIS_CLIENT') private readonly redis: Redis,
+    private readonly repo: FraudDetectionRepository,
+    private readonly geo: GeoProvider,
+    private readonly mail: MailService,
+    private readonly config: ConfigService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  // ─── Core analysis ────────────────────────────────────────────────────────
+  // ─── Core ─────────────────────────────────────────────────────────────
 
-  async analyzeLogin(input: AnalyzeLoginInput): Promise<AnalyzeLoginResult> {
-    const { userId, ipAddress, twoFaEnabled = false } = input;
-
-    // 1. Blocked IP check (Redis set — instant across all instances)
-    if (await this.isBlocked(ipAddress)) {
-      const attempt = await this.saveAttempt({
+  async analyzeLogin(
+    ipAddress: string,
+    userId?: string,
+    userAgent?: string,
+    userEmail?: string,
+  ): Promise<LoginAnalysisResult> {
+    // Instant block check
+    const blocked = await this.isIPBlocked(ipAddress);
+    if (blocked) {
+      const attempt = await this.repo.save({
         userId,
         ipAddress,
-        country: null,
-        countryCode: null,
-        city: null,
-        isVPN: false,
-        isTor: false,
-        isSuspicious: true,
+        userAgent,
         riskScore: 100,
         action: LoginAction.BLOCKED,
+        isSuspicious: true,
+        flagReason: 'IP is on the block list',
+        country: 'Unknown',
+        city: 'Unknown',
       });
-      return { action: LoginAction.BLOCKED, riskScore: 100, requiresTwoFa: false, attempt };
+      return { attempt, riskScore: 100, action: LoginAction.BLOCKED, requiresMfa: false, isBlocked: true };
     }
 
-    // 2. Geo lookup (cached 1 h)
-    const geo = await this.geo.lookup(ipAddress);
+    // Geo lookup (cached)
+    const geoData = await this._getCachedGeo(ipAddress);
 
-    // 3. Compute risk score
-    const riskScore = await this.getRiskScore({ userId, ipAddress, geo });
+    // Risk score
+    const { riskScore, reasons } = await this._computeRiskScore(ipAddress, userId, geoData);
 
-    // 4. Determine action
-    const isSuspicious = riskScore > 50;
-    const requiresTwoFa = twoFaEnabled && riskScore > 70;
-    const action =
-      riskScore >= 90
-        ? LoginAction.BLOCKED
-        : requiresTwoFa
-          ? LoginAction.CHALLENGED
-          : LoginAction.ALLOWED;
+    // Action
+    const action = this._determineAction(riskScore);
 
-    const attempt = await this.saveAttempt({
+    // Persist
+    const attempt = await this.repo.save({
       userId,
       ipAddress,
-      country: geo.country,
-      countryCode: geo.countryCode,
-      city: geo.city,
-      isVPN: geo.isProxy,
-      isTor: geo.isTor,
-      isSuspicious,
+      userAgent,
+      country: geoData?.country ?? 'Unknown',
+      city: geoData?.city ?? 'Unknown',
+      region: geoData?.region ?? 'Unknown',
+      isp: geoData?.isp ?? 'Unknown',
+      isVPN: geoData?.isProxy ?? false,
+      isTor: geoData?.isTor ?? false,
+      isSuspicious: riskScore >= HIGH_RISK_THRESHOLD,
       riskScore,
       action,
+      flagReason: reasons.length ? reasons.join('; ') : null,
     });
 
-    if (isSuspicious) {
-      this.flagSuspiciousActivity(attempt);
+    // High-risk side-effects (non-blocking)
+    if (riskScore >= HIGH_RISK_THRESHOLD && userEmail) {
+      this._sendSecurityAlert(attempt, userEmail, reasons, geoData).catch(
+        (err) => this.logger.error('Security alert failed', err),
+      );
     }
 
-    return { action, riskScore, requiresTwoFa, attempt };
+    return {
+      attempt,
+      riskScore,
+      action,
+      requiresMfa: action === LoginAction.CHALLENGED,
+      isBlocked: false,
+    };
   }
 
-  async getRiskScore(params: {
-    userId: string | null;
-    ipAddress: string;
-    geo: { country: string | null; countryCode: string | null; isProxy: boolean; isTor: boolean };
-  }): Promise<number> {
+  // ─── Risk score ────────────────────────────────────────────────────────
+
+  async getRiskScore(
+    ipAddress: string,
+    userId?: string,
+  ): Promise<{ score: number; reasons: string[] }> {
+    const geoData = await this._getCachedGeo(ipAddress);
+    const { riskScore, reasons } = await this._computeRiskScore(ipAddress, userId, geoData);
+    return { score: riskScore, reasons };
+  }
+
+  private async _computeRiskScore(
+    ipAddress: string,
+    userId: string | undefined,
+    geoData: GeoData | null,
+  ): Promise<{ riskScore: number; reasons: string[] }> {
     let score = 0;
+    const reasons: string[] = [];
 
-    // VPN / proxy
-    if (params.geo.isProxy) score += 30;
-    // Tor exit node
-    if (params.geo.isTor) score += 40;
-
-    if (params.userId) {
-      // New country login
-      const isNewCountry = await this.isNewCountry(params.userId, params.geo.countryCode);
-      if (isNewCountry) score += 25;
-
-      // Rapid multi-IP switching
-      const rapidSwitch = await this.detectRapidIpSwitch(params.userId, params.ipAddress);
-      if (rapidSwitch) score += 20;
+    if (geoData?.isProxy) {
+      score += RISK_WEIGHTS.VPN;
+      reasons.push('VPN or proxy detected');
     }
 
-    return Math.min(score, 100);
+    if (geoData?.isTor) {
+      score += RISK_WEIGHTS.TOR;
+      reasons.push('Tor exit node detected');
+    }
+
+    if (userId) {
+      // New country detection
+      const lastCountry = await this.repo.getLastKnownCountry(userId);
+      const currentCountry = geoData?.country;
+      if (
+        lastCountry &&
+        currentCountry &&
+        lastCountry !== currentCountry &&
+        lastCountry !== 'Local' &&
+        lastCountry !== 'Unknown'
+      ) {
+        score += RISK_WEIGHTS.NEW_COUNTRY;
+        reasons.push(`New country login: ${currentCountry} (was: ${lastCountry})`);
+      }
+
+      // Rapid IP switching — 3+ distinct IPs in 10 minutes
+      const recentIPs = await this.repo.getRecentIPs(userId, 10, 10);
+      const uniqueOtherIPs = recentIPs.filter((ip) => ip !== ipAddress);
+      if (uniqueOtherIPs.length >= 3) {
+        score += RISK_WEIGHTS.RAPID_IP_SWITCH;
+        reasons.push(`Rapid IP switching: ${uniqueOtherIPs.length + 1} IPs in 10 min`);
+      }
+
+      // Repeated blocked attempts
+      const recentBlocks = await this.repo.countRecentFailedAttempts(userId, 30);
+      if (recentBlocks >= 3) {
+        score += RISK_WEIGHTS.REPEATED_BLOCKS;
+        reasons.push(`${recentBlocks} blocked attempts in last 30 min`);
+      }
+    }
+
+    return { riskScore: Math.min(score, 100), reasons };
   }
 
-  flagSuspiciousActivity(attempt: LoginAttempt): void {
-    this.logger.warn(
-      `Suspicious login: userId=${attempt.userId ?? 'anon'} ip=${attempt.ipAddress} ` +
-        `score=${attempt.riskScore} action=${attempt.action}`,
+  private _determineAction(riskScore: number): LoginAction {
+    if (riskScore >= 90) return LoginAction.BLOCKED;
+    if (riskScore >= HIGH_RISK_THRESHOLD) return LoginAction.CHALLENGED;
+    return LoginAction.ALLOWED;
+  }
+
+  // ─── Flagging ──────────────────────────────────────────────────────────
+
+  async flagSuspiciousActivity(attemptId: string, reason: string): Promise<void> {
+    await this.repo.save({ id: attemptId, isSuspicious: true, flagReason: reason } as Partial<LoginAttempt>);
+  }
+
+  // ─── History ───────────────────────────────────────────────────────────
+
+  async getLoginHistory(userId?: string, page = 1, limit = 20) {
+    const offset = (page - 1) * limit;
+    const [data, total] = userId
+      ? await this.repo.findByUser(userId, limit, offset)
+      : await this.repo.findAll(limit, offset);
+    return { data, total, page, pages: Math.ceil(total / limit) };
+  }
+
+  // ─── IP blocking ───────────────────────────────────────────────────────
+
+  async blockIP(ipAddress: string, reason = 'Manual block'): Promise<void> {
+    await this.cache.set(
+      BLOCKED_IP_KEY(ipAddress),
+      { reason, blockedAt: new Date().toISOString() },
+      0,
     );
+    this.logger.warn(`IP blocked: ${ipAddress} — ${reason}`);
   }
 
-  async getLoginHistory(
-    userId: string,
-    limit = 50,
-  ): Promise<LoginAttempt[]> {
-    return this.loginRepo.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      take: limit,
-    });
+  async unblockIP(ipAddress: string): Promise<void> {
+    const exists = await this.cache.get(BLOCKED_IP_KEY(ipAddress));
+    if (!exists) throw new NotFoundException(`IP ${ipAddress} is not blocked`);
+    await this.cache.del(BLOCKED_IP_KEY(ipAddress));
+    this.logger.log(`IP unblocked: ${ipAddress}`);
   }
 
-  // ─── IP block management ──────────────────────────────────────────────────
-
-  async blockIP(ip: string): Promise<void> {
-    await this.redis.sadd(BLOCKED_IP_KEY, ip);
-    this.logger.warn(`IP blocked: ${ip}`);
+  async isIPBlocked(ipAddress: string): Promise<boolean> {
+    const val = await this.cache.get(BLOCKED_IP_KEY(ipAddress));
+    return val !== null && val !== undefined;
   }
 
-  async unblockIP(ip: string): Promise<void> {
-    await this.redis.srem(BLOCKED_IP_KEY, ip);
-    this.logger.log(`IP unblocked: ${ip}`);
+  async getBlockedIPs(): Promise<{ ip: string; reason: string; blockedAt: string }[]> {
+    try {
+      const store = (this.cache as any).store;
+      const keys: string[] = await store.keys('fraud:blocked:*');
+      return Promise.all(
+        keys.map(async (key) => {
+          const data = await this.cache.get<{ reason: string; blockedAt: string }>(key);
+          return {
+            ip: key.replace('fraud:blocked:', ''),
+            reason: data?.reason ?? 'Unknown',
+            blockedAt: data?.blockedAt ?? '',
+          };
+        }),
+      );
+    } catch {
+      return [];
+    }
   }
 
-  async getBlockedIPs(): Promise<string[]> {
-    return this.redis.smembers(BLOCKED_IP_KEY);
+  // ─── Helpers ───────────────────────────────────────────────────────────
+
+  private async _getCachedGeo(ip: string): Promise<GeoData | null> {
+    const key = GEO_CACHE_KEY(ip);
+    const cached = await this.cache.get<GeoData>(key);
+    if (cached) return cached;
+
+    const data = await this.geo.lookup(ip);
+    if (data) await this.cache.set(key, data, GEO_CACHE_TTL);
+    return data;
   }
 
-  async isBlocked(ip: string): Promise<boolean> {
-    return (await this.redis.sismember(BLOCKED_IP_KEY, ip)) === 1;
-  }
+  private async _sendSecurityAlert(
+    attempt: LoginAttempt,
+    userEmail: string,
+    reasons: string[],
+    geoData: GeoData | null,
+  ): Promise<void> {
+    const blockVpn = this.config.get<string>('FRAUD_BLOCK_VPN', 'false') === 'true';
+    const isNewCountry = reasons.some((r) => r.includes('New country'));
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  private async isNewCountry(userId: string, countryCode: string | null): Promise<boolean> {
-    if (!countryCode) return false;
-    const previous = await this.loginRepo
-      .createQueryBuilder('a')
-      .select('DISTINCT a."countryCode"', 'countryCode')
-      .where('a."userId" = :userId', { userId })
-      .andWhere('a."countryCode" IS NOT NULL')
-      .andWhere('a.action != :blocked', { blocked: LoginAction.BLOCKED })
-      .getRawMany<{ countryCode: string }>();
-
-    const known = new Set(previous.map((r) => r.countryCode));
-    return !known.has(countryCode);
-  }
-
-  private async detectRapidIpSwitch(userId: string, currentIp: string): Promise<boolean> {
-    const since = new Date(Date.now() - RAPID_IP_WINDOW_SECONDS * 1000);
-    const recent = await this.loginRepo.find({
-      where: { userId, createdAt: MoreThan(since) },
-      select: ['ipAddress'],
-    });
-    const distinctIps = new Set(recent.map((r) => r.ipAddress));
-    distinctIps.add(currentIp);
-    return distinctIps.size >= RAPID_IP_THRESHOLD;
-  }
-
-  private async saveAttempt(data: Omit<LoginAttempt, 'id' | 'createdAt'>): Promise<LoginAttempt> {
-    const attempt = this.loginRepo.create(data);
-    return this.loginRepo.save(attempt);
+    if (isNewCountry || geoData?.isTor || (geoData?.isProxy && blockVpn)) {
+      await this.mail.sendSecurityAlert(userEmail, {
+        ipAddress: attempt.ipAddress,
+        country: attempt.country,
+        city: attempt.city,
+        riskScore: attempt.riskScore,
+        reasons,
+        action: attempt.action,
+        timestamp: attempt.createdAt,
+      });
+    }
   }
 }

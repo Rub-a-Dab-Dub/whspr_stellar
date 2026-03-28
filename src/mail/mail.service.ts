@@ -19,6 +19,44 @@ export class MailService {
     });
   }
 
+
+  async sendSecurityAlert(
+  email: string,
+  details: {
+    ipAddress: string;
+    country: string;
+    city: string;
+    riskScore: number;
+    reasons: string[];
+    action: string;
+    timestamp: Date;
+  },
+): Promise<void> {
+  try {
+    await this.transporter.sendMail({
+      from: `"Gasless Gossip Security" <${this.config.get('MAIL_FROM', 'security@gaslessgossip.com')}>`,
+      to: email,
+      subject: '⚠️ Suspicious login detected on your account',
+      html: `
+        <h2>Security Alert</h2>
+        <p>We detected a suspicious login attempt on your account.</p>
+        <table>
+          <tr><td><strong>IP Address</strong></td><td>${details.ipAddress}</td></tr>
+          <tr><td><strong>Location</strong></td><td>${details.city}, ${details.country}</td></tr>
+          <tr><td><strong>Risk Score</strong></td><td>${details.riskScore}/100</td></tr>
+          <tr><td><strong>Action Taken</strong></td><td>${details.action}</td></tr>
+          <tr><td><strong>Time</strong></td><td>${details.timestamp.toISOString()}</td></tr>
+        </table>
+        <p><strong>Reasons flagged:</strong></p>
+        <ul>${details.reasons.map((r) => `<li>${r}</li>`).join('')}</ul>
+        <p>If this was you, you can ignore this message. If not, please change your password immediately.</p>
+      `,
+    });
+  } catch (err) {
+    this.logger.error(`Failed to send security alert to ${email}`, err);
+  }
+}
+
   async sendWaitlistConfirmation(
     email: string,
     referralCode: string,

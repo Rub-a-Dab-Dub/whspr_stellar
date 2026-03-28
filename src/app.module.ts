@@ -53,6 +53,7 @@ import { MentionsModule } from './mentions/mentions.module';
 import { PollsModule } from './polls/polls.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
+import { FraudDetectionModule } from './fraud-detection/fraud-detection.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     RedisCacheModule,
     ScheduleModule.forRoot(),
     WaitlistModule,
+    FraudDetectionModule,
     LoggingModule,
     HealthModule,
     UsersModule,
