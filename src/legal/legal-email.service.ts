@@ -10,7 +10,7 @@ import { LegalDocument } from './entities/legal-document.entity';
 export class LegalEmailService {
   private readonly logger = new Logger(LegalEmailService.name);
 
-  async notifyNewTermsPublished(
+async notifyNewTermsPublished(
     document: LegalDocument,
     recipientEmails: string[],
   ): Promise<void> {
@@ -29,5 +29,22 @@ export class LegalEmailService {
           `Please review and accept the updated terms at your next login.`,
       );
     }
+  }
+
+  async sendBugReportEmail(
+    to: string,
+    title: string,
+    description: string,
+    appVersion: string,
+    platform: string,
+    reportId: string,
+  ): Promise<void> {
+    this.logger.log(`Sending high-priority bug alert: ${title} (${reportId})`);
+
+    // TODO: real mailer
+    this.logger.debug(
+      `[EMAIL] To: ${to} | Subject: 🚨 HIGH PRIORITY BUG #${reportId} | ` +
+        `${title} (${platform} ${appVersion}): ${description}`,
+    );
   }
 }
