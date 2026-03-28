@@ -52,7 +52,9 @@ import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
-import { FeedbackModule } from './feedback/feedback.module';
+import { AddressBookModule } from './address-book/address-book.module';
+import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
+import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
 
 @Module({
   imports: [
@@ -108,7 +110,9 @@ import { FeedbackModule } from './feedback/feedback.module';
     PollsModule,
     MentionsModule,
     ConversationExportModule,
-    FeedbackModule,
+    AddressBookModule,
+    UsernameDiscoveryModule,
+    DeveloperSandboxModule,
   ],
   controllers: [AppController],
   providers: [
