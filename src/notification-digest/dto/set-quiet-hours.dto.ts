@@ -14,6 +14,7 @@ const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const EXEMPT_NOTIFICATION_TYPES = [
   InAppNotificationType.TRANSFER_RECEIVED,
+  InAppNotificationType.CONNECTION_REQUEST,
   'SECURITY_ALERT',
 ] as const;
 
