@@ -3,21 +3,22 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
-  Logger,
-  Inject,
+  ForbiddenException,
   Logger,
   Optional,
-  forwardRef,
 } from '@nestjs/common';
-import { AnalyticsService } from '../analytics/analytics.service';
-import { UsersRepository } from './users.repository';
+import { plainToInstance } from 'class-transformer';
+import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
+import { PaginatedResponse, PaginationDto } from '../common/dto/pagination.dto';
+import { TranslationService } from '../i18n/services/translation.service';
+import { OnboardingService } from '../onboarding/onboarding.service';
+import { PlatformInviteService } from '../platform-invites/platform-invite.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
-import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
-import { plainToInstance } from 'class-transformer';
-import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
+import { UsersRepository } from './users.repository';
 
 @Injectable()
 export class UsersService {
@@ -25,23 +26,32 @@ export class UsersService {
 
   constructor(
     private readonly usersRepository: UsersRepository,
-    private readonly moderationQueueService: ModerationQueueService,
-import { TranslationService } from '../i18n/services/translation.service';
-import { UserSettingsService } from '../user-settings/user-settings.service';
-import { OnboardingService } from '../onboarding/onboarding.service';
-
-@Injectable()
-export class UsersService {
-  constructor(
-    private readonly usersRepository: UsersRepository,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
+    private readonly moderationQueueService: ModerationQueueService,
     @Optional() private readonly onboardingService?: OnboardingService,
+    @Optional() private readonly platformInviteService?: PlatformInviteService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const { walletAddress, username, email } = createUserDto;
     const preferredLocale = this.normalizePreferredLocale(createUserDto.preferredLocale) ?? null;
+
+    if (this.platformInviteService) {
+      const inviteRequired = await this.platformInviteService.isInviteModeEnabled();
+      if (inviteRequired) {
+        const code = createUserDto.inviteCode?.trim();
+        if (!code) {
+          throw new ForbiddenException(
+            'Registration is invite-only. Provide a valid invite code to create an account.',
+          );
+        }
+        const validation = await this.platformInviteService.validateForRegistration(code);
+        if (!validation.valid) {
+          throw new ForbiddenException(validation.message);
+        }
+      }
+    }
 
     // Check wallet address uniqueness
     const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
@@ -69,8 +79,9 @@ export class UsersService {
       }
     }
 
+    const { inviteCode: _omitInvite, ...userFields } = createUserDto;
     const user = this.usersRepository.create({
-      ...createUserDto,
+      ...userFields,
       walletAddress: walletAddress.toLowerCase(),
       email: email?.toLowerCase(),
       preferredLocale,
@@ -79,6 +90,17 @@ export class UsersService {
     const savedUser = await this.usersRepository.save(user);
     await this.enqueueModeration(savedUser);
     await this.userSettingsService.ensureSettingsForUser(savedUser.id);
+
+    if (this.platformInviteService && createUserDto.inviteCode?.trim()) {
+      const inviteOn = await this.platformInviteService.isInviteModeEnabled();
+      if (inviteOn) {
+        await this.platformInviteService.redeemAfterRegistration(
+          createUserDto.inviteCode.trim(),
+          savedUser.id,
+        );
+      }
+    }
+
     return this.toResponseDto(savedUser);
   }
 
@@ -215,8 +237,9 @@ export class UsersService {
 
     // Add onboarding progress if service is available
     if (this.onboardingService) {
-      this.onboardingService.getProgress(user.id)
-        .then(progress => {
+      this.onboardingService
+        .getProgress(user.id)
+        .then((progress) => {
           dto.onboardingProgress = {
             currentStep: progress.currentStep,
             completedSteps: progress.completedSteps,
@@ -226,8 +249,7 @@ export class UsersService {
             nextStep: progress.nextStep,
           };
         })
-        .catch(error => {
-          // Log error but don't fail the user response
+        .catch((error) => {
           console.warn('Failed to fetch onboarding progress:', error);
         });
     }

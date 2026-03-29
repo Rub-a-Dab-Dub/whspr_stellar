@@ -3,28 +3,34 @@ import {
   PrimaryColumn,
   Column,
   CreateDateColumn,
-} from 'typeorm'
+  UpdateDateColumn,
+} from 'typeorm';
+
+export { OnboardingStep } from '../constants/onboarding-steps';
 
 @Entity('onboarding_progress')
 export class OnboardingProgress {
   @PrimaryColumn()
-  userId: string
+  userId!: string;
 
   @Column({ nullable: true })
-  currentStep: string
+  currentStep!: string | null;
 
   @Column({ type: 'text', array: true, default: [] })
-  completedSteps: string[]
+  completedSteps!: string[];
 
   @Column({ type: 'text', array: true, default: [] })
-  skippedSteps: string[]
+  skippedSteps!: string[];
 
   @Column({ default: false })
-  isCompleted: boolean
+  isCompleted!: boolean;
 
-  @Column({ nullable: true })
-  completedAt: Date
+  @Column({ type: 'timestamp', nullable: true })
+  completedAt!: Date | null;
 
   @CreateDateColumn()
-  startedAt: Date
+  startedAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

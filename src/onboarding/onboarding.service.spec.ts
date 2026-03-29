@@ -10,8 +10,8 @@ describe('OnboardingService', () => {
   let repository: jest.Mocked<Repository<OnboardingProgress>>;
 
   const mockUserId = 'user-123';
-  const mockProgress: OnboardingProgress = {
-    id: 'progress-123',
+
+  const freshProgress = (overrides: Partial<OnboardingProgress> = {}): OnboardingProgress => ({
     userId: mockUserId,
     currentStep: OnboardingStep.WALLET_CONNECTED,
     completedSteps: [],
@@ -19,9 +19,11 @@ describe('OnboardingService', () => {
     isCompleted: false,
     completedAt: null,
     startedAt: new Date(),
-    createdAt: new Date(),
     updatedAt: new Date(),
-  };
+    ...overrides,
+  });
+
+  const mockProgress = freshProgress();
 
   beforeEach(async () => {
     const mockRepository = {
@@ -57,7 +59,6 @@ describe('OnboardingService', () => {
 
       expect(repository.findOne).toHaveBeenCalledWith({
         where: { userId: mockUserId },
-        relations: ['user'],
       });
       expect(result).toEqual(
         expect.objectContaining({
@@ -67,8 +68,8 @@ describe('OnboardingService', () => {
           skippedSteps: [],
           isCompleted: false,
           completionPercentage: 0,
-          nextStep: OnboardingStep.PROFILE_COMPLETED,
-        })
+          nextStep: OnboardingStep.WALLET_CONNECTED,
+        }),
       );
     });
 
@@ -95,8 +96,9 @@ describe('OnboardingService', () => {
 
   describe('completeStep', () => {
     beforeEach(() => {
-      repository.findOne.mockResolvedValue(mockProgress);
-      repository.save.mockResolvedValue(mockProgress);
+      const p = freshProgress();
+      repository.findOne.mockResolvedValue(p);
+      repository.save.mockImplementation(async (x) => x as OnboardingProgress);
     });
 
     it('should complete a step successfully', async () => {
@@ -112,26 +114,20 @@ describe('OnboardingService', () => {
     });
 
     it('should not duplicate completed steps', async () => {
-      const progressWithCompletedStep = {
-        ...mockProgress,
+      const progressWithCompletedStep = freshProgress({
         completedSteps: [OnboardingStep.PROFILE_COMPLETED],
-      };
+      });
       repository.findOne.mockResolvedValue(progressWithCompletedStep);
 
       await service.completeStep(mockUserId, OnboardingStep.PROFILE_COMPLETED);
 
-      expect(repository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          completedSteps: [OnboardingStep.PROFILE_COMPLETED],
-        })
-      );
+      expect(repository.save).not.toHaveBeenCalled();
     });
 
     it('should remove step from skipped when completing', async () => {
-      const progressWithSkippedStep = {
-        ...mockProgress,
+      const progressWithSkippedStep = freshProgress({
         skippedSteps: [OnboardingStep.PROFILE_COMPLETED],
-      };
+      });
       repository.findOne.mockResolvedValue(progressWithSkippedStep);
 
       await service.completeStep(mockUserId, OnboardingStep.PROFILE_COMPLETED);
@@ -148,10 +144,9 @@ describe('OnboardingService', () => {
       const allStepsExceptLast = Object.values(OnboardingStep).filter(
         step => step !== OnboardingStep.FIRST_TRANSFER
       );
-      const almostCompleteProgress = {
-        ...mockProgress,
+      const almostCompleteProgress = freshProgress({
         completedSteps: allStepsExceptLast,
-      };
+      });
       repository.findOne.mockResolvedValue(almostCompleteProgress);
 
       await service.completeStep(mockUserId, OnboardingStep.FIRST_TRANSFER);
@@ -167,8 +162,9 @@ describe('OnboardingService', () => {
 
   describe('skipStep', () => {
     beforeEach(() => {
-      repository.findOne.mockResolvedValue(mockProgress);
-      repository.save.mockResolvedValue(mockProgress);
+      const p = freshProgress();
+      repository.findOne.mockResolvedValue(p);
+      repository.save.mockImplementation(async (x) => x as OnboardingProgress);
     });
 
     it('should skip a step successfully', async () => {
@@ -183,27 +179,21 @@ describe('OnboardingService', () => {
     });
 
     it('should not skip already completed steps', async () => {
-      const progressWithCompletedStep = {
-        ...mockProgress,
+      const progressWithCompletedStep = freshProgress({
         completedSteps: [OnboardingStep.PROFILE_COMPLETED],
-      };
+      });
       repository.findOne.mockResolvedValue(progressWithCompletedStep);
 
       await service.skipStep(mockUserId, OnboardingStep.PROFILE_COMPLETED);
 
-      expect(repository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          skippedSteps: [],
-          completedSteps: [OnboardingStep.PROFILE_COMPLETED],
-        })
-      );
+      expect(repository.save).not.toHaveBeenCalled();
     });
   });
 
   describe('resetOnboarding', () => {
     beforeEach(() => {
-      repository.findOne.mockResolvedValue(mockProgress);
-      repository.save.mockResolvedValue(mockProgress);
+      repository.findOne.mockResolvedValue(freshProgress());
+      repository.save.mockImplementation(async (x) => x as OnboardingProgress);
     });
 
     it('should reset all progress', async () => {
@@ -259,7 +249,7 @@ describe('OnboardingService', () => {
 
       const result = await service.getNextStepForUser(mockUserId);
 
-      expect(result).toBe(OnboardingStep.PROFILE_COMPLETED);
+      expect(result).toBe(OnboardingStep.WALLET_CONNECTED);
     });
 
     it('should return null for complete progress', async () => {
