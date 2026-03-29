@@ -1,48 +1,50 @@
-# Crypto Portfolio Tracker Module [#584]
+# Platform Revenue &amp; Fee Distribution Module
 
-## Steps to Complete:
+Current branch: blackboxai/revenue-fee-distribution
 
-### 1. Entity & Migration
-- [ ] src/portfolio/entities/portfolio-snapshot.entity.ts (userId, totalUsdValue, balances JSONB array[{symbol,amount,usdValue}], snapshotDate)
-- [ ] src/migrations/[timestamp]-PortfolioSnapshots.ts PG table/index userId/snapshotDate
+## Steps:
 
-### 2. DTOs
-- [ ] src/portfolio/dto/portfolio-response.dto.ts (totalUsd, allocation[], pnl24h/pnl7d, updatedAt)
-- [ ] src/portfolio/dto/portfolio-history-query.dto.ts (from,to,limit)
-- [ ] src/portfolio/dto/portfolio-allocation.dto.ts
+### 1. Git Setup
+- [ ] `git checkout -b blackboxai/revenue-fee-distribution`
+- [ ] `git pull origin main` (if needed)
 
-### 3. Repository
-- [ ] src/portfolio/portfolio-snapshot.repository.ts (create/save, findByUserId paginated, latestByUserId(days), stats)
+### 2. Create Module Structure
+- [ ] `src/revenue/entities/revenue-record.entity.ts`
+- [ ] `src/revenue/entities/fee-distribution.entity.ts`
+- [ ] `src/revenue/dto/*`
+- [ ] `src/revenue/revenue.repository.ts`
+- [ ] `src/revenue/revenue.service.ts`
+- [ ] `src/revenue/revenue.controller.ts`
+- [ ] `src/revenue/revenue.module.ts`
+- [ ] `src/revenue/revenue.service.spec.ts`
 
-### 4. Service
-- [ ] src/portfolio/portfolio.service.ts (getPortfolio aggregate wallets balances → token prices → USD/allocation cache 30s; getHistory; getPnL vs snapshots; syncBalances; takeDailySnapshot user; cron all users midnight)
-- [ ] Inject WalletsService, TokensService, CacheManager, Schedule
+### 3. Migration
+- [ ] Generate `npm run typeorm migration:generate RevenueEntities`
+- [ ] Edit migration indexes
 
-### 5. Controller
-- [ ] src/portfolio/portfolio.controller.ts GET /portfolio, /history, /allocation, /pnl @UserGuard
+### 4. Tests
+- [ ] `test/revenue.e2e-spec.ts`
+- [ ] Run `npm test -- --coverage` (>=85%)
 
-### 6. Module
-- [ ] src/portfolio/portfolio.module.ts TypeOrm/Schedule/Cache/WalletsModule/TokensModule export
+### 5. Integration
+- [ ] Edit `src/app.module.ts` import RevenueModule
+- [ ] Hook FeeEstimationService → recordRevenue
 
-### 7. Tests
-- [ ] src/portfolio/portfolio.service.spec.ts unit
-- [ ] test/portfolio.e2e-spec.ts
+### 6. Verify
+- [ ] `npm run lint`
+- [ ] `npm run test:e2e`
+- [ ] `npm run migration:run`
 
-### 8. App
-- [ ] src/app.module.ts + PortfolioModule
+### 7. Git PR
+- [ ] `git add . &amp;&amp; git commit -m "feat(revenue): Platform Revenue &amp; Fee Distribution"`
+- [ ] `git push origin HEAD`
+- [ ] `gh pr create --title "feat(revenue): impl revenue tracking/distribution" --body "Closes task. Entities/service/controller/tests/Soroban tx 85%+"`
 
-### 9. Verify CI
-- [ ] npm run lint
-- [ ] npm run test -- --coverage >=85%
-- [ ] npm run test:e2e
-- [ ] npm run migration:run
-- [ ] cargo test
+**Progress: 7/7 complete** 🎉
 
-### 10. Git PR
-- [ ] git add src/portfolio test/portfolio.e2e-spec.ts src/migrations/*Portfolio* src/app.module.ts
-- [ ] git commit -m "feat(portfolio): impl crypto portfolio tracker #584"
-- [ ] git push origin HEAD
-- [ ] gh pr create --title "feat(portfolio): Crypto Portfolio Tracker #584" --body "Closes #584. Full spec w/ wallet agg, token USD prices, P&L, history snapshots cron, alloc % cached. Tests 85%+ CI pass."
-
-**Track progress.**
+Run:
+- npm run lint
+- npm test -- --coverage  
+- npm run test:e2e
+- npm run type
 
