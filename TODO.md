@@ -1,71 +1,39 @@
-# Trust Network & Vouching Module Implementation
+# Bulk Payments Implementation TODO
 
-Status: **10/28 steps complete** ✅
+## Completed: 0/15
 
-## Phase 1: Core Module Structure (Steps 1-8) ✅ COMPLETE
+### Phase 1: Entities & DTOs (4/4)
+- [x] Create src/payments/entities/bulk-payment.entity.ts
+- [x] Create src/payments/entities/bulk-payment-row.entity.ts  
+- [x] Create src/payments/dto/bulk-upload.dto.ts
+- [x] Create src/payments/dto/bulk-payment-row.dto.ts + list dto
 
-## Phase 2: Soroban Integration (Steps 9-11)
-- [ ] 9. src/soroban/services/reputation-contract/reputation-contract.service.ts (extend whsper_stellar)
-- [ ] 10. Update src/soroban/soroban.service.ts (+ reputation proxy)
-- [ ] 11. Update src/soroban/soroban.module.ts (import new service)
+### Phase 2: Core Services (0/5)
+- [x] Create src/payments/bulk-payments.repository.ts
+- [x] Create src/payments/bulk-payment-storage.service.ts (R2 upload)
+- [x] Create src/payments/bulk-payment.service.ts (upload/validate/enqueue)
+- [x] Create src/payments/bulk-payment.processor.ts (BullMQ worker)
+- [ ] Update src/payments/payments.service.ts (integrate tier/PIN if needed)
 
-## Phase 3: Reputation Integration & Cron (Steps 12-14) 
-- [✅] 12. Edit src/reputation/reputation.service.ts (+ trust aggregate)
-- [ ] 13. src/scheduled-jobs/trust-sync.job.ts (cron revoke recalc/chain sync)
-- [✅] 14. Update src/app.module.ts (imports)
+### Phase 3: Controller & Guards (0/3)
+- [x] Update src/payments/payments.controller.ts (add bulk endpoints)
+- [x] Create src/payments/guards/gold-black-tier.guard.ts
+- [ ] Update src/payments/payments.module.ts (imports/providers/Bull)
 
-## Phase 4: Contracts Update (Steps 15-17)
-- [ ] 15. contracts/whsper_stellar/src/lib.rs (+ vouch/revoke/get_trust_score)
-- [ ] 16. contracts/whsper_stellar/test.rs (+ trust tests)
-- [ ] 17. cargo test && deploy (manual)
+### Phase 4: Migration & Config (1/2)
+- [x] Create src/migrations/1745000000000-BulkPaymentsTables.ts
+- [ ] package.json deps + .env.example R2 vars
 
-## Phase 5: Database & Tests (Steps 18-24)
-- [✅] 18. src/migrations/1730000000000-TrustNetworkEntities.ts
-- [ ] 19. npm run migration:run
-- [✅] 20. src/trust-network/trust-network.service.spec.ts (>85%)
-- [ ] 21. src/trust-network/trust-network.controller.spec.ts
-- [✅] 22. test/trust-network.e2e-spec.ts
-- [ ] 23. npm run test && npm run test:e2e
-- [ ] 24. Reputation/Soroban test updates if needed
+### Phase 5: Tests (3/3)
+- [ ] src/payments/__tests__/bulk-payment.service.spec.ts
+- [ ] src/payments/__tests__/bulk-payment.processor.spec.ts
+- [ ] test/payments.e2e-spec.ts (add bulk tests)
 
-## Phase 6: Verification & Deploy (Steps 25-28)
-- [ ] 25. Edge cases: circular vouches, bootstrap admin, 60s revoke recalc
-- [ ] 26. Coverage >=85%, lint clean
-- [ ] 27. git checkout -b blackboxai/trust-network && git add/commit
-- [ ] 28. gh pr create --title \"feat(trust-network): Vouch/Trust module w/ transitive prop, Soroban sync\"
+### Phase 6: Integration (4/4)
+- [ ] Add BullModule to payments.module.ts
+- [ ] Import Users/Wallets/Mail modules
+- [ ] npm install && migration && test
+- [ ] Manual test flow
 
-## Phase 2: Soroban Integration (Steps 9-11)
-- [ ] 9. src/soroban/services/reputation-contract/reputation-contract.service.ts (extend whsper_stellar)
-- [ ] 10. Update src/soroban/soroban.service.ts (+ reputation proxy)
-- [ ] 11. Update src/soroban/soroban.module.ts (import new service)
+Next step after this: create entities.
 
-## Phase 3: Reputation Integration & Cron (Steps 12-14)
-- [ ] 12. Edit src/reputation/reputation.service.ts (+ trust aggregate)
-- [ ] 13. src/scheduled-jobs/trust-sync.job.ts (cron revoke recalc/chain sync)
-- [ ] 14. Update src/app.module.ts (imports)
-
-## Phase 4: Contracts Update (Steps 15-17)
-- [ ] 15. contracts/whsper_stellar/src/lib.rs (+ vouch/revoke/get_trust_score)
-- [ ] 16. contracts/whsper_stellar/test.rs (+ trust tests)
-- [ ] 17. cargo test && deploy (manual)
-
-## Phase 5: Database & Tests (Steps 18-24)
-- [ ] 18. src/migrations/XXXXXXX-TrustNetworkEntities.ts
-- [ ] 19. npm run migration:run
-- [ ] 20. src/trust-network/trust-network.service.spec.ts (>85%)
-- [ ] 21. src/trust-network/trust-network.controller.spec.ts
-- [ ] 22. test/trust-network.e2e-spec.ts
-- [ ] 23. npm run test && npm run test:e2e
-- [ ] 24. Reputation/Soroban test updates if needed
-
-## Phase 6: Verification & Deploy (Steps 25-28)
-- [ ] 25. Edge cases: circular vouches, bootstrap admin, 60s revoke recalc
-- [ ] 26. Coverage >=85%, lint clean
-- [ ] 27. git checkout -b blackboxai/trust-network && git add/commit
-- [ ] 28. gh pr create --title \"feat(trust-network): Vouch/Trust module w/ transitive prop, Soroban sync\"
-
-**Next: Phase 1 Step 1 - Vouch entity**
-
-**Previous modules preserved below...**
-
-[PASTE EXISTING TODO CONTENT HERE]
