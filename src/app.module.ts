@@ -58,6 +58,9 @@ import { AnchorModule } from './anchor/anchor.module';
 import { MessageDraftsModule } from './message-drafts/message-drafts.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
+
 import { AddressBookModule } from './address-book/address-book.module';
 import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
 import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
@@ -130,6 +133,8 @@ import { ConnectionsModule } from './connections/connections.module';
     RecurringPaymentsModule,
     AnchorModule,
     ConversationExportModule,
+    FeedbackModule,
+    PortfolioModule,
     AddressBookModule,
     UsernameDiscoveryModule,
     DeveloperSandboxModule,
