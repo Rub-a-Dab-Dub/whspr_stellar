@@ -11,10 +11,15 @@ import { Cache } from 'cache-manager';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { FeedbackReportRepository } from './feedback-report.repository';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
+import { CreateFeedbackResponseDto, ScreenshotPresign } from './dto/create-feedback-response.dto';
+import { UserResponseDto } from '../users/dto/user-response.dto';
+import { UserTier } from '../users/entities/user.entity';
+import { PresignAttachmentDto } from '../attachments/dto/presign-attachment.dto';
 import { UpdateFeedbackDto } from './dto/update-feedback.dto';
 import { GetFeedbackQueryDto } from './dto/get-feedback-query.dto';
 import { FeedbackResponseDto } from './dto/feedback-response.dto';
 import { FeedbackStatsDto } from './dto/feedback-stats.dto';
+
 import {
   FeedbackType,
   FeedbackStatus,
@@ -35,7 +40,7 @@ export class FeedbackService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  async submitFeedback(dto: CreateFeedbackDto, req: Request, userId?: string): Promise<FeedbackResponseDto> {
+async submitFeedback(dto: CreateFeedbackDto, req: Request, userId?: string): Promise<CreateFeedbackResponseDto> {
     // Extract from headers
     const appVersion = (req.headers['x-app-version'] as string) ?? 'unknown';
     const platform = (req.headers['x-platform'] as string) ?? 'unknown';
@@ -47,30 +52,54 @@ export class FeedbackService {
       this.logger.warn('Invalid device-info header');
     }
 
-    // Validate screenshot if provided
-    if (dto.screenshotUrl) {
-      // Minimal validation (full in attachments)
-      if (!dto.screenshotUrl.startsWith('http') || dto.screenshotUrl.length > 2048) {
-        throw new BadRequestException('Invalid screenshotUrl');
-      }
-    }
-
     const entityData: Partial<FeedbackReport> = {
-      ...dto,
       userId,
+      type: dto.type,
+      title: dto.title,
+      description: dto.description,
       appVersion,
       platform,
       deviceInfo,
       // Auto-priority: high for bugs
       priority: dto.type === FeedbackType.BUG ? FeedbackPriority.HIGH : FeedbackPriority.MEDIUM,
+      status: FeedbackStatus.NEW,
     };
 
     const report = await this.repo.createAndSave(entityData);
 
+    let screenshotPresign: ScreenshotPresign | undefined;
+    if (dto.screenshot) {
+      const tempId = `feedback-${report.id}`;
+      const fakeUser: UserResponseDto = {
+        id: `feedback-anon-${report.id}`,
+        tier: UserTier.SILVER,
+        walletAddress: 'GFEEDBACKANON',
+        isActive: true,
+        isVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const presignDto: PresignAttachmentDto = {
+        messageId: tempId,
+        fileName: 'screenshot.png',
+        mimeType: 'image/png',
+        fileSize: 5242880, // 5MB
+      };
+      const presignData = await this.attachmentsService.generateUploadUrl(fakeUser, presignDto);
+      screenshotPresign = {
+        uploadUrl: presignData.uploadUrl,
+        fileKey: presignData.fileKey,
+        fileUrl: presignData.fileUrl,
+        expiresIn: presignData.expiresIn,
+      };
+      // Temp store presign data for confirm (use cache or separate table? For now cache w/ short TTL)
+      await this.cacheManager.set(`feedback-presign-${report.id}`, screenshotPresign, presignData.expiresIn);
+    }
+
     // High priority bug → notify admin
     if (report.priority === FeedbackPriority.HIGH && report.type === FeedbackType.BUG) {
       await this.emailService.sendBugReportEmail(
-        'admin@whspr.stellar.com', // config?
+        'admin@whspr.stellar.com',
         report.title,
         report.description,
         report.appVersion,
@@ -79,8 +108,13 @@ export class FeedbackService {
       ).catch(err => this.logger.error(`Admin email failed: ${err.message}`));
     }
 
-    this.logger.log(`Feedback #${report.id} submitted (${dto.type})`);
-    return this.toResponseDto(report);
+    this.logger.log(`Feedback #${report.id} submitted (${dto.type})${dto.screenshot ? ' with screenshot presign' : ''}`);
+    
+    const response = this.toResponseDto(report) as CreateFeedbackResponseDto;
+    if (screenshotPresign) {
+      response.screenshotPresign = screenshotPresign;
+    }
+    return response;
   }
 
   async getFeedbackQueue(query: GetFeedbackQueryDto): Promise<{ items: FeedbackResponseDto[]; total: number; page: number; limit: number }> {

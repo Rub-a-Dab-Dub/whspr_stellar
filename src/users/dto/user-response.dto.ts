@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 import { UserTier } from '../entities/user.entity';
-import { OnboardingStep } from '../../onboarding/entities/onboarding-progress.entity';
 
 @Exclude()
 export class UserResponseDto {
@@ -38,7 +37,6 @@ export class UserResponseDto {
   preferredLocale!: string | null;
 
   @Expose()
-  @ApiProperty({ enum: UserTier, example: UserTier.FREE })
   @ApiProperty({ enum: UserTier, example: UserTier.SILVER })
   tier!: UserTier;
 
@@ -72,12 +70,12 @@ export class UserResponseDto {
     }
   })
   onboardingProgress?: {
-    currentStep: OnboardingStep | null;
-    completedSteps: OnboardingStep[];
-    skippedSteps: OnboardingStep[];
+    currentStep: string | null;
+    completedSteps: string[];
+    skippedSteps: string[];
     isCompleted: boolean;
     completionPercentage: number;
-    nextStep: OnboardingStep | null;
+    nextStep: string | null;
   };
 
   constructor(partial: Partial<UserResponseDto>) {
