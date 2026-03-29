@@ -71,6 +71,7 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
 import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
+import { AmlMonitoringModule } from './aml/aml-monitoring.module';
 import { ConnectionsModule } from './connections/connections.module';
 
 @Module({
@@ -146,6 +147,7 @@ import { ConnectionsModule } from './connections/connections.module';
     NotificationDigestModule,
     ReceiptsModule,
     TrustNetworkModule,
+    AmlMonitoringModule,
     ConnectionsModule,
   ],
 
