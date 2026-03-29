@@ -1,22 +1,13 @@
-import {
-  Entity,
-  PrimaryColumn,
-  CreateDateColumn,
-  Column,
-} from 'typeorm';
+import { Entity, PrimaryColumn, CreateDateColumn } from 'typeorm';
 
 @Entity('story_views')
 export class StoryView {
-  @PrimaryColumn()
+  @PrimaryColumn('uuid')
   storyId!: string;
 
-  @PrimaryColumn()
+  @PrimaryColumn('uuid')
   viewerId!: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   viewedAt!: Date;
-
-  @Column({ default: false })
-  isCreatorView!: boolean; // if viewer is story creator
 }
-

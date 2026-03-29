@@ -48,6 +48,6 @@ import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module'
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, CryptoService, JwtModule],
 })
 export class AuthModule {}

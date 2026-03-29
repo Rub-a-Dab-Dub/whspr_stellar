@@ -13,6 +13,7 @@ import { Message } from '../../messages/entities/message.entity';
 import { Transaction } from '../../transactions/entities/transaction.entity';
 import { Conversation } from '../../conversations/entities/conversation.entity';
 import { User } from '../../users/entities/user.entity';
+import { PaymentRequest } from '../../payment-requests/entities/payment-request.entity';
 
 export enum TransferStatus {
   PENDING_CONFIRMATION = 'pending_confirmation',
@@ -104,6 +105,9 @@ export class InChatTransfer {
   @OneToOne(() => Transaction, (transaction) => transaction.transfer, { nullable: true })
   @JoinColumn({ name: 'transactionId' })
   transaction!: Transaction | null;
+
+  @OneToOne(() => PaymentRequest, (pr) => pr.transfer, { nullable: true })
+  paymentRequest!: PaymentRequest | null;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;

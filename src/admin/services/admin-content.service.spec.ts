@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AdminContentService } from './admin-content.service';
-import { Message } from '../../Conversation Module/src/conversations/entities/message.entity';
+import { Message } from '../../messages/entities/message.entity';
 import { Repository } from 'typeorm';
 
 describe('AdminContentService', () => {

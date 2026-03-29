@@ -58,6 +58,9 @@ import { AnchorModule } from './anchor/anchor.module';
 import { MessageDraftsModule } from './message-drafts/message-drafts.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
+
 import { AddressBookModule } from './address-book/address-book.module';
 import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
 import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
@@ -68,7 +71,7 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
 import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
-import { ContentGatesModule } from './content-gates/content-gates.module';
+import { ConnectionsModule } from './connections/connections.module';
 
 @Module({
   imports: [
@@ -130,6 +133,8 @@ import { ContentGatesModule } from './content-gates/content-gates.module';
     RecurringPaymentsModule,
     AnchorModule,
     ConversationExportModule,
+    FeedbackModule,
+    PortfolioModule,
     AddressBookModule,
     UsernameDiscoveryModule,
     DeveloperSandboxModule,
@@ -139,7 +144,7 @@ import { ContentGatesModule } from './content-gates/content-gates.module';
     NotificationDigestModule,
     ReceiptsModule,
     TrustNetworkModule,
-    ContentGatesModule,
+    ConnectionsModule,
   ],
 
   controllers: [AppController],
