@@ -25,6 +25,9 @@ import {
 } from '../entities/transaction.entity';
 import { TransactionsRepository } from '../repositories/transactions.repository';
 import { SorobanTransactionsService } from './soroban-transactions.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { AmlMonitoringService } from '../../aml/aml-monitoring.service';
 
 export interface CreateTransactionInput {
   txHash: string;
@@ -54,6 +57,9 @@ export class TransactionsService {
     @InjectRepository(Wallet)
     private readonly walletsRepository: Repository<Wallet>,
     private readonly savedAddressesService: SavedAddressesService,
+    private readonly amlService: AmlMonitoringService,
+    @InjectQueue('aml-analysis')
+    private readonly amlQueue: Queue<{ txId: string }>,
   ) {}
 
   async createTransaction(input: CreateTransactionInput): Promise<TransactionResponseDto> {
@@ -111,6 +117,11 @@ export class TransactionsService {
 
     if (updated.status !== existing.status || updated.ledger !== existing.ledger) {
       await this.handleStatusChange(updated);
+    }
+
+    // AML analysis for confirmed transactions
+    if (updated.status === TransactionStatus.CONFIRMED) {
+      await this.amlQueue.add('analyze-transaction', { txId: updated.id });
     }
 
     return this.toDto(updated);

@@ -13,6 +13,7 @@ import { ReceiptPdfGenerator } from './services/receipt-pdf.generator';
 import { ReceiptService } from './services/receipt.service';
 import { SorobanTransactionsService } from './services/soroban-transactions.service';
 import { TransactionsService } from './services/transactions.service';
+import { AmlMonitoringModule } from '../aml/aml-monitoring.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { TransactionsService } from './services/transactions.service';
     MessagingModule,
     NotificationsModule,
     AddressBookModule,
+    AmlMonitoringModule,
   ],
   controllers: [TransactionsController, ReceiptController],
   providers: [
