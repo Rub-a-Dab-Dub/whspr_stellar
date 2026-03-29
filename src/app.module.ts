@@ -65,9 +65,10 @@ import { StoriesModule } from './stories/stories.module';
 import { PaymentsModule } from './payments/payments.module';
 import { LinkPreviewsModule } from './link-previews/link-previews.module';
 import { NotificationDigestModule } from './notification-digest/notification-digest.module';
-import { LiveLocationModule } from './live-location/live-location.module';
-import { CustomEmojiModule } from './custom-emoji/custom-emoji.module';
-import { GroupEventsModule } from './group-events/group-events.module';
+import { ReceiptsModule } from './receipts/receipts.module';
+import { TrustNetworkModule } from './trust-network/trust-network.module';
+import { ReputationModule } from './reputation/reputation.module';
+import { ConnectionsModule } from './connections/connections.module';
 
 @Module({
   imports: [
@@ -136,9 +137,9 @@ import { GroupEventsModule } from './group-events/group-events.module';
     PaymentsModule,
     LinkPreviewsModule,
     NotificationDigestModule,
-    LiveLocationModule,
-    CustomEmojiModule,
-    GroupEventsModule,
+    ReceiptsModule,
+    TrustNetworkModule,
+    ConnectionsModule,
   ],
 
   controllers: [AppController],
