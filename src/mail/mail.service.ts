@@ -85,4 +85,23 @@ export class MailService {
       this.logger.error(`Failed to send digest email to ${email}`, err);
     }
   }
+
+  async sendPlatformInviteEmail(to: string, inviteCode: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: `"Gasless Gossip" <${this.config.get('MAIL_FROM', 'noreply@gaslessgossip.com')}>`,
+        to,
+        subject: 'Your Gasless Gossip platform invite',
+        html: `
+          <h2>You’re invited</h2>
+          <p>Use this invite code when you register:</p>
+          <p style="font-size:18px;font-family:monospace;letter-spacing:2px"><strong>${inviteCode}</strong></p>
+          <p style="color:#6b7280;font-size:12px">Keep this code private. It may be single-use or limited-use depending on how it was issued.</p>
+        `,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to send platform invite email to ${to}`, err);
+      throw err;
+    }
+  }
 }

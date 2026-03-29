@@ -27,7 +27,9 @@ export class UsersService {
     private readonly moderationQueueService: ModerationQueueService,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
+    private readonly moderationQueueService: ModerationQueueService,
     @Optional() private readonly onboardingService?: OnboardingService,
+    @Optional() private readonly platformInviteService?: PlatformInviteService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
@@ -57,8 +59,9 @@ export class UsersService {
       }
     }
 
+    const { inviteCode: _omitInvite, ...userFields } = createUserDto;
     const user = this.usersRepository.create({
-      ...createUserDto,
+      ...userFields,
       walletAddress: walletAddress.toLowerCase(),
       email: email?.toLowerCase(),
       preferredLocale,
@@ -67,6 +70,17 @@ export class UsersService {
     const savedUser = await this.usersRepository.save(user);
     await this.enqueueModeration(savedUser);
     await this.userSettingsService.ensureSettingsForUser(savedUser.id);
+
+    if (this.platformInviteService && createUserDto.inviteCode?.trim()) {
+      const inviteOn = await this.platformInviteService.isInviteModeEnabled();
+      if (inviteOn) {
+        await this.platformInviteService.redeemAfterRegistration(
+          createUserDto.inviteCode.trim(),
+          savedUser.id,
+        );
+      }
+    }
+
     return this.toResponseDto(savedUser);
   }
 
