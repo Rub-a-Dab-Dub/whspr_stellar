@@ -64,6 +64,7 @@ import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.mo
 import { StoriesModule } from './stories/stories.module';
 import { PaymentsModule } from './payments/payments.module';
 import { LinkPreviewsModule } from './link-previews/link-previews.module';
+import { NotificationDigestModule } from './notification-digest/notification-digest.module';
 
 @Module({
   imports: [
@@ -131,6 +132,7 @@ import { LinkPreviewsModule } from './link-previews/link-previews.module';
     StoriesModule,
     PaymentsModule,
     LinkPreviewsModule,
+    NotificationDigestModule,
   ],
 
   controllers: [AppController],
