@@ -12,8 +12,12 @@ export enum InAppNotificationType {
   TRANSFER_RECEIVED = 'TRANSFER_RECEIVED',
   GROUP_INVITE = 'GROUP_INVITE',
   CONTACT_REQUEST = 'CONTACT_REQUEST',
+  /** Mutual professional connection request (distinct from device / address-book contacts). */
+  CONNECTION_REQUEST = 'CONNECTION_REQUEST',
   PROPOSAL_VOTE = 'PROPOSAL_VOTE',
   TRANSACTION_CONFIRMED = 'TRANSACTION_CONFIRMED',
+  GROUP_EVENT = 'GROUP_EVENT',
+  EVENT_REMINDER = 'EVENT_REMINDER',
 }
 
 @Entity('notifications')

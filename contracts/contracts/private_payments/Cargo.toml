@@ -1,0 +1,21 @@
+[package]
+name = "private_payments"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[features]
+default = []
+testhelpers = []
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+ed25519-dalek = { version = "2.1", default-features = false, features = ["rand_core"] }
+rand = { version = "0.8", default-features = false, features = ["std_rng"] }

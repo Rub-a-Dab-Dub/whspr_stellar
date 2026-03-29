@@ -1,7 +1,7 @@
 import './test-env';
 import { Inject, Injectable, INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule, TestingModuleBuilder } from '@nestjs/testing';
 import { createHash } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -173,12 +173,14 @@ class E2eWebhooksService {
   }
 }
 
-export async function createTestApp(): Promise<{
+export async function createTestApp(
+  extend?: (builder: TestingModuleBuilder) => TestingModuleBuilder,
+): Promise<{
   app: INestApplication;
   dataSource: DataSource;
   jwtService: JwtService;
 }> {
-  const moduleBuilder = Test.createTestingModule({
+  let moduleBuilder = Test.createTestingModule({
     imports: [E2eAppModule],
   })
     .overrideProvider(UsersService)
@@ -207,6 +209,16 @@ export async function createTestApp(): Promise<{
           sellingLiabilities: '0.0000000',
         },
       ],
+      getBalancesOrEmpty: async () => [
+        {
+          assetCode: 'XLM',
+          assetType: 'native',
+          assetIssuer: null,
+          balance: '100.0000000',
+          buyingLiabilities: '0.0000000',
+          sellingLiabilities: '0.0000000',
+        },
+      ],
     })
     .overrideProvider(SorobanTransfersService)
     .useValue({
@@ -216,6 +228,10 @@ export async function createTestApp(): Promise<{
     })
     .overrideProvider(WebhooksService)
     .useClass(E2eWebhooksService);
+
+  if (extend) {
+    moduleBuilder = extend(moduleBuilder);
+  }
 
   const moduleFixture: TestingModule = await moduleBuilder.compile();
 
@@ -290,5 +306,5 @@ export async function listUserSessions(
 ): Promise<UserSession[]> {
   return dataSource
     .getRepository(UserSession)
-    .find({ where: { userId }, order: { createdAt: 'ASC' } });
+    .find({ where: { userId }, order: { lastActiveAt: 'ASC' } });
 }

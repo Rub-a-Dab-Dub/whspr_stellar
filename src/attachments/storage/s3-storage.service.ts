@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
@@ -44,6 +44,34 @@ export class S3StorageService {
     return getSignedUrl(this.client, command, {
       expiresIn: expiresInSeconds,
     });
+  }
+
+  async getObjectBuffer(fileKey: string): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: fileKey,
+    });
+    const res = await this.client.send(command);
+    if (!res.Body) {
+      throw new Error(`Empty S3 body for key ${fileKey}`);
+    }
+    const chunks: Buffer[] = [];
+    const body = res.Body as AsyncIterable<Uint8Array>;
+    for await (const chunk of body) {
+      chunks.push(Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  async putObjectBuffer(fileKey: string, body: Buffer, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: fileKey,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
   }
 
   async deleteFile(fileKey: string): Promise<void> {

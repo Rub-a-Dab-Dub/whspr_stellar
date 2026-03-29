@@ -23,6 +23,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
+import { AIModerationModule } from './ai-moderation/ai-moderation.module';
 import { NFTsModule } from './nfts/nfts.module';
 import { AppI18nModule } from './i18n/app-i18n.module';
 import { InChatTransfersModule } from './in-chat-transfers/in-chat-transfers.module';
@@ -51,11 +52,27 @@ import { MessageForwardingModule } from './message-forwarding/message-forwarding
 import { PollsModule } from './polls/polls.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { AppVersionModule } from './app-version/app-version.module';
+import { RecurringPaymentsModule } from './recurring-payments/recurring-payments.module';
+import { AnchorModule } from './anchor/anchor.module';
+import { MessageDraftsModule } from './message-drafts/message-drafts.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { RevenueModule } from './revenue/revenue.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 
+import { AddressBookModule } from './address-book/address-book.module';
+import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
+import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
+import { StoriesModule } from './stories/stories.module';
+import { PaymentsModule } from './payments/payments.module';
+import { LinkPreviewsModule } from './link-previews/link-previews.module';
+import { NotificationDigestModule } from './notification-digest/notification-digest.module';
+import { ReceiptsModule } from './receipts/receipts.module';
+import { TrustNetworkModule } from './trust-network/trust-network.module';
+import { ReputationModule } from './reputation/reputation.module';
+import { ConnectionsModule } from './connections/connections.module';
 
 
 @Module({
@@ -70,6 +87,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     RedisCacheModule,
     ScheduleModule.forRoot(),
+    WaitlistModule,
     LoggingModule,
     HealthModule,
     UsersModule,
@@ -84,9 +102,11 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     NFTsModule,
     AppI18nModule,
     StellarEventsModule,
+    ContractStateCacheModule,
     NotificationsModule,
     ReactionsModule,
     StickersModule,
+    UserStickerPacksModule,
     PrivacyModule,
     SpamDetectionModule,
     LeaderboardModule,
@@ -96,13 +116,16 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     QrCodeModule,
     PollsModule,
     OnboardingModule,
+    MessageDraftsModule,
     ScheduledJobsModule,
+    AIModerationModule,
     InChatTransfersModule,
     BotsModule,
     WebhooksModule,
     ObservabilityModule,
     UserSettingsModule,
     AppConfigModule,
+    AppVersionModule,
     AdminModule,
     MembershipTierModule,
     CacheModule,
@@ -111,11 +134,22 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     MessageForwardingModule,
     PollsModule,
     MentionsModule,
+    RecurringPaymentsModule,
+    AnchorModule,
     ConversationExportModule,
     FeedbackModule,
     RevenueModule,
     PortfolioModule,
-
+    AddressBookModule,
+    UsernameDiscoveryModule,
+    DeveloperSandboxModule,
+    StoriesModule,
+    PaymentsModule,
+    LinkPreviewsModule,
+    NotificationDigestModule,
+    ReceiptsModule,
+    TrustNetworkModule,
+    ConnectionsModule,
   ],
 
   controllers: [AppController],
@@ -127,4 +161,4 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

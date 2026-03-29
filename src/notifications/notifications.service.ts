@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { NotificationsGateway } from '../messaging/gateways/notifications.gateway';
 import { NotificationType } from '../messaging/dto/notification-events.dto';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -10,24 +10,44 @@ import {
 } from './dto/notification-response.dto';
 import { InAppNotificationType, Notification } from './entities/notification.entity';
 import { NotificationsRepository } from './notifications.repository';
+import { NotificationDigestService } from '../notification-digest/notification-digest.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     private readonly notificationsRepository: NotificationsRepository,
     private readonly notificationsGateway: NotificationsGateway,
+    @Inject(forwardRef(() => NotificationDigestService))
+    private readonly notificationDigestService: NotificationDigestService,
   ) {}
 
   async createNotification(input: CreateNotificationDto): Promise<NotificationResponseDto> {
     const notification = await this.notificationsRepository.createAndSave(input);
 
-    await this.notificationsGateway.sendNotification(input.userId, {
-      id: notification.id,
-      type: this.toGatewayType(input.type),
-      title: notification.title,
-      body: notification.body,
-      data: notification.data ?? undefined,
-    });
+    let deliverImmediately = true;
+    const config = await this.notificationDigestService.getQuietHoursConfig(input.userId);
+    
+    if (config.isEnabled) {
+      const isExempt = this.notificationDigestService.isExemptType(input.type, config.exemptTypes);
+      if (!isExempt) {
+        const inQuietHours = await this.notificationDigestService.isInQuietHours(input.userId);
+        if (inQuietHours) {
+          deliverImmediately = false;
+        }
+      }
+    }
+
+    if (deliverImmediately) {
+      await this.notificationsGateway.sendNotification(input.userId, {
+        id: notification.id,
+        type: this.toGatewayType(input.type),
+        title: notification.title,
+        body: notification.body,
+        data: notification.data ?? undefined,
+      });
+    } else {
+      await this.notificationDigestService.queueForDigest(input.userId, notification.id);
+    }
 
     await this.emitUnreadCount(input.userId);
 

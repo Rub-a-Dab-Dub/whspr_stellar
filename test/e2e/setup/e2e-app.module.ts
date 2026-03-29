@@ -12,6 +12,9 @@ import { WalletsModule } from '../../../src/wallets/wallets.module';
 import { InChatTransfersModule } from '../../../src/in-chat-transfers/in-chat-transfers.module';
 import { WebhooksModule } from '../../../src/webhooks/webhooks.module';
 import { AdminModule } from '../../../src/admin/admin.module';
+import { AppVersionModule } from '../../../src/app-version/app-version.module';
+import { CacheModule } from '../../../src/cache/cache.module';
+import { StoriesModule } from '../../../src/stories/stories.module';
 
 @Module({
   imports: [
@@ -30,6 +33,9 @@ import { AdminModule } from '../../../src/admin/admin.module';
     InChatTransfersModule,
     WebhooksModule,
     AdminModule,
+    CacheModule,
+    AppVersionModule,
+    StoriesModule,
   ],
 })
 export class E2eAppModule {}

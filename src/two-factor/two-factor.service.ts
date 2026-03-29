@@ -317,7 +317,7 @@ export class TwoFactorService {
   }
 
   private deriveKey(): Buffer {
-    const secret = this.configService.get<string>('JWT_SECRET');
+    const secret = this.configService.get<string>('JWT_SECRET') ?? '';
     return scryptSync(secret, 'gasless-gossip-2fa-v1', 32);
   }
 }
