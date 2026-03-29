@@ -68,6 +68,7 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
 import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
+import { ContractStateCacheModule } from './contract-state-cache/contract-state-cache.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { ReputationModule } from './reputation/reputation.module';
     NFTsModule,
     AppI18nModule,
     StellarEventsModule,
+    ContractStateCacheModule,
     NotificationsModule,
     ReactionsModule,
     StickersModule,
