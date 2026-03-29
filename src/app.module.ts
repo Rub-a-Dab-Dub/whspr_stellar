@@ -1,3 +1,9 @@
+// Unit tests stub
+import { Test, TestingModule } from '@nestjs/testing';
+import { CommandFrameworkService } from '../command-framework.service';
+
+describe('CommandFrameworkService', () => {
+  let service: CommandFrameworkService;
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -59,6 +65,7 @@ import { MessageDraftsModule } from './message-drafts/message-drafts.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { RevenueModule } from './revenue/revenue.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { PaymentSettingsModule } from './payment-settings/payment-settings.module';
 
@@ -72,7 +79,10 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
 import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
+import { AmlMonitoringModule } from './aml/aml-monitoring.module';
 import { ConnectionsModule } from './connections/connections.module';
+import { ActivityFeedModule } from './activity-feed/activity-feed.module';
+
 
 @Module({
   imports: [
@@ -137,6 +147,7 @@ import { ConnectionsModule } from './connections/connections.module';
     AnchorModule,
     ConversationExportModule,
     FeedbackModule,
+    RevenueModule,
     PortfolioModule,
     AddressBookModule,
     UsernameDiscoveryModule,
@@ -147,17 +158,22 @@ import { ConnectionsModule } from './connections/connections.module';
     NotificationDigestModule,
     ReceiptsModule,
     TrustNetworkModule,
+    AmlMonitoringModule,
     ConnectionsModule,
     PaymentSettingsModule,
+    ActivityFeedModule,
   ],
 
-  controllers: [AppController],
-  providers: [
-    AppService,
-    {
-      provide: APP_GUARD,
-      useClass: AdvancedThrottlerGuard,
-    },
-  ],
-})
-export class AppModule { }
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [CommandFrameworkService],
+    }).compile();
+
+    service = module.get<CommandFrameworkService>(CommandFrameworkService);
+  });
+
+  it('should parse command', () => {
+    expect(service.parseCommand('/help')).toBeDefined();
+  });
+  // TODO: full coverage >85%
+});

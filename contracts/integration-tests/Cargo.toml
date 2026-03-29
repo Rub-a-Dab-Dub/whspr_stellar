@@ -5,6 +5,7 @@ edition = "2021"
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+bridge_adapter = { path = "../bridge_adapter" }
 messaging  = { path = "../messaging" }
 payments   = { path = "../payments" }
 private_payments = { path = "../contracts/private_payments", features = ["testhelpers"] }
