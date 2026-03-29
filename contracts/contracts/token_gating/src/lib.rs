@@ -1,26 +1,24 @@
 #![no_std]
 
+mod events;
 mod storage;
 mod types;
-mod events;
 
 #[cfg(test)]
 mod test;
 
-use soroban_sdk::{contract, contractimpl, contractclient, Address, Env};
+use events::{emit_access_denied, emit_gate_removed, emit_gate_set};
 use gasless_common::{
-    CommonError,
-    types::TokenAmount,
     access_control::{
-        init_access_control,
-        activate_emergency_pause,
-        deactivate_emergency_pause,
+        activate_emergency_pause, deactivate_emergency_pause, init_access_control,
         require_not_paused,
     },
+    types::TokenAmount,
+    CommonError,
 };
+use soroban_sdk::{contract, contractclient, contractimpl, Address, Env};
+use storage::{get_gate, remove_gate as remove_gate_storage, save_gate};
 use types::{GateConfig, GroupId};
-use storage::{save_gate, get_gate, remove_gate as remove_gate_storage};
-use events::{emit_gate_set, emit_gate_removed, emit_access_denied};
 
 /// Minimal SEP-41 token interface — used to query the balance of a user
 #[contractclient(name = "TokenClient")]
@@ -128,8 +126,7 @@ impl TokenGatingContract {
         admin.require_auth();
         require_not_paused(&env)?;
 
-        let config = get_gate(&env, &group_id)
-            .ok_or(CommonError::InvalidInput)?;
+        let config = get_gate(&env, &group_id).ok_or(CommonError::InvalidInput)?;
 
         if config.admin != admin {
             return Err(CommonError::Unauthorized);

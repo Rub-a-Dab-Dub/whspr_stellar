@@ -1,5 +1,5 @@
-use soroban_sdk::{contracttype, Address, BytesN};
 use gasless_common::types::TokenAmount;
+use soroban_sdk::{contracttype, Address, BytesN};
 
 /// Unique identifier for a group (matches group_management contract)
 pub type GroupId = BytesN<32>;

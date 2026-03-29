@@ -1,5 +1,5 @@
-use soroban_sdk::{Env, symbol_short, Symbol};
 use crate::types::{GateConfig, GroupId};
+use soroban_sdk::{symbol_short, Env, Symbol};
 
 const GATE_KEY: Symbol = symbol_short!("GATE");
 

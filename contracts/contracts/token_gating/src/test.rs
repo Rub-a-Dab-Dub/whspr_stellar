@@ -1,9 +1,6 @@
 #![cfg(test)]
 
-use soroban_sdk::{
-    testutils::Address as _,
-    Address, BytesN, Env,
-};
+use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
 use crate::{TokenGatingContract, TokenGatingContractClient};
 
@@ -26,7 +23,9 @@ mod mock_token {
     impl MockToken {
         /// Mint (set) token balance for an address (test helper)
         pub fn mint(env: Env, to: Address, amount: i128) {
-            env.storage().persistent().set(&DataKey::Balance(to), &amount);
+            env.storage()
+                .persistent()
+                .set(&DataKey::Balance(to), &amount);
         }
 
         /// SEP-41 balance function
@@ -71,7 +70,9 @@ fn test_set_gate_and_get_config() {
 
     client.set_gate(&admin, &group_id, &token_id, &100);
 
-    let config = client.get_gate_config(&group_id).expect("Gate should be set");
+    let config = client
+        .get_gate_config(&group_id)
+        .expect("Gate should be set");
     assert_eq!(config.token, token_id);
     assert_eq!(config.min_balance.0, 100);
     assert_eq!(config.admin, admin);
@@ -130,8 +131,14 @@ fn test_nft_gating_min_balance_one() {
 
     client.set_gate(&admin, &group_id, &nft_id, &1);
 
-    assert!(client.verify_access(&group_id, &holder), "NFT holder should pass");
-    assert!(!client.verify_access(&group_id, &non_holder), "Non-holder should fail");
+    assert!(
+        client.verify_access(&group_id, &holder),
+        "NFT holder should pass"
+    );
+    assert!(
+        !client.verify_access(&group_id, &non_holder),
+        "Non-holder should fail"
+    );
 }
 
 #[test]
@@ -144,7 +151,10 @@ fn test_remove_gate() {
     assert!(client.get_gate_config(&group_id).is_some());
 
     client.remove_gate(&admin, &group_id);
-    assert!(client.get_gate_config(&group_id).is_none(), "Gate should be removed");
+    assert!(
+        client.get_gate_config(&group_id).is_none(),
+        "Gate should be removed"
+    );
 
     // After removal, access should be open
     let user = Address::generate(&env);
@@ -209,10 +219,16 @@ fn test_re_verification_reflects_balance_change() {
     token.mint(&user, &50); // below threshold
 
     client.set_gate(&admin, &group_id, &token_id, &100);
-    assert!(!client.verify_access(&group_id, &user), "Should fail initially");
+    assert!(
+        !client.verify_access(&group_id, &user),
+        "Should fail initially"
+    );
 
     token.mint(&user, &100); // now meets threshold
-    assert!(client.verify_access(&group_id, &user), "Should pass after acquiring tokens");
+    assert!(
+        client.verify_access(&group_id, &user),
+        "Should pass after acquiring tokens"
+    );
 }
 
 // ============================================================================
