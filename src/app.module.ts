@@ -100,6 +100,7 @@ import { ConnectionsModule } from './connections/connections.module';
     NFTsModule,
     AppI18nModule,
     StellarEventsModule,
+    ContractStateCacheModule,
     NotificationsModule,
     ReactionsModule,
     StickersModule,
