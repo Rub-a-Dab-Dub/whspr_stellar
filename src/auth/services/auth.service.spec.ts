@@ -11,6 +11,9 @@ import { AuthChallenge } from '../entities/auth-challenge.entity';
 import { AuthAttempt } from '../entities/auth-attempt.entity';
 import { UserTier } from '../../users/entities/user.entity';
 import { TranslationService } from '../../i18n/services/translation.service';
+import { TwoFactorService } from '../../two-factor/two-factor.service';
+import { FraudDetectionService } from '../../fraud-detection/fraud-detection.service';
+import { LoginAction } from '../../fraud-detection/entities/login-attempt.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -35,7 +38,7 @@ describe('AuthService', () => {
     avatarUrl: null,
     bio: null,
     preferredLocale: null,
-    tier: UserTier.FREE,
+    tier: UserTier.SILVER,
     isActive: true,
     isVerified: false,
     createdAt: new Date(),
@@ -123,6 +126,16 @@ describe('AuthService', () => {
           provide: TranslationService,
           useValue: {
             translate: jest.fn((key: string) => key),
+          },
+        },
+        {
+          provide: TwoFactorService,
+          useValue: { isEnabled: jest.fn().mockResolvedValue(false) },
+        },
+        {
+          provide: FraudDetectionService,
+          useValue: {
+            analyzeLogin: jest.fn().mockResolvedValue({ action: LoginAction.ALLOWED }),
           },
         },
         { provide: getRepositoryToken(AuthChallenge), useValue: mockChallengeRepo },

@@ -7,9 +7,10 @@ import { ContractEvent } from '../../src/stellar-events/contract-event.entity';
 import { IndexerCursor } from '../../src/stellar-events/indexer-cursor.entity';
 import { CONTRACT_EVENTS } from '../../src/stellar-events/event-schemas';
 import type { RawContractEvent } from '../../src/stellar-events/soroban-rpc.service';
+import { ContractStateCacheService } from '../../src/contract-state-cache/contract-state-cache.service';
 
 // Mock stellar-sdk XDR parsing so tests don't need real XDR-encoded topics
-jest.mock('stellar-sdk', () => ({
+jest.mock('@stellar/stellar-sdk', () => ({
   xdr: {
     ScVal: {
       fromXDR: jest.fn(() => ({})),
@@ -37,6 +38,7 @@ function makeRawEvent(overrides: Partial<RawContractEvent> = {}): RawContractEve
 describe('EventIndexerService', () => {
   let service: EventIndexerService;
   let rpcService: jest.Mocked<SorobanRpcService>;
+  const cacheMock = { invalidateAfterChainEvents: jest.fn().mockResolvedValue(undefined) };
 
   const mockInsertQb = {
     insert: jest.fn().mockReturnThis(),
@@ -67,6 +69,7 @@ describe('EventIndexerService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    cacheMock.invalidateAfterChainEvents.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -87,6 +90,7 @@ describe('EventIndexerService', () => {
         },
         { provide: getRepositoryToken(ContractEvent), useValue: mockEventRepo },
         { provide: getRepositoryToken(IndexerCursor), useValue: mockCursorRepo },
+        { provide: ContractStateCacheService, useValue: cacheMock },
       ],
     }).compile();
 
@@ -139,6 +143,7 @@ describe('EventIndexerService', () => {
         expect.objectContaining({ contractId: CONTRACT_ID, lastLedger: 120 }),
         ['contractId'],
       );
+      expect(cacheMock.invalidateAfterChainEvents).toHaveBeenCalledWith(CONTRACT_ID);
     });
   });
 
