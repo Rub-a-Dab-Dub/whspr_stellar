@@ -1,43 +1,57 @@
 import { Injectable } from '@nestjs/common';
-import { Injectable } from '@nestjs/common';
-import { DataSource, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { Story } from './entities/story.entity';
-import { StoryView } from './entities/story-view.entity';
-import { User } from '../../users/entities/user.entity';
-
 import { StoryView } from './entities/story-view.entity';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 
+export interface ContactStoriesResult {
+  stories: Story[];
+  total: number;
+}
+
 @Injectable()
 export class StoriesRepository {
+  constructor(private readonly dataSource: DataSource) {}
 
-  constructor(
-    private dataSource: DataSource,
-  ) {}
+  private get storyRepo(): Repository<Story> {
+    return this.dataSource.getRepository(Story);
+  }
 
-
+  private get viewRepo(): Repository<StoryView> {
+    return this.dataSource.getRepository(StoryView);
+  }
 
   async createStory(userId: string, dto: CreateStoryDto): Promise<Story> {
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + (dto.durationMs || 24 * 60 * 60 * 1000));
-    
-    const story = this.dataSource.getRepository(Story).create({
+    const durationMs = dto.durationMs ?? 24 * 60 * 60 * 1000;
+    const expiresAt = new Date(now.getTime() + durationMs);
+
+    const story = this.storyRepo.create({
       userId,
       contentType: dto.contentType,
-      content: dto.content,
-      mediaUrl: dto.mediaUrl,
-      backgroundColor: dto.backgroundColor,
+      content: dto.content ?? null,
+      mediaUrl: dto.mediaUrl ?? null,
+      backgroundColor: dto.backgroundColor ?? null,
+      duration: durationMs,
       expiresAt,
     });
-
-    return this.dataSource.getRepository(Story).save(story);
+    return this.storyRepo.save(story);
   }
 
+  async findActiveByIdWithAuthor(storyId: string): Promise<Story | null> {
+    return this.storyRepo.findOne({
+      where: { id: storyId, expiresAt: MoreThanOrEqual(new Date()) },
+      relations: ['user'],
+    });
+  }
+
+  async findByIdAndUser(storyId: string, userId: string): Promise<Story | null> {
+    return this.storyRepo.findOne({ where: { id: storyId, userId } });
+  }
 
   async countActiveByUser(userId: string): Promise<number> {
-    return this.count({
+    return this.storyRepo.count({
       where: {
         userId,
         expiresAt: MoreThanOrEqual(new Date()),
@@ -45,18 +59,13 @@ export class StoriesRepository {
     });
   }
 
-  // Removed duplicate - use countActiveByUser
-
-
-  async getMyStories(
-    userId: string, 
-    pagination: PaginationDto & { limit?: number }
-  ): Promise<[Story[], number]> {
-    const { page = 1, limit = 30 } = pagination;
+  async getMyStories(userId: string, pagination: PaginationDto): Promise<[Story[], number]> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 30;
     const take = Math.min(limit, 50);
     const skip = (page - 1) * take;
 
-    return this.findAndCount({
+    return this.storyRepo.findAndCount({
       where: {
         userId,
         expiresAt: MoreThanOrEqual(new Date()),
@@ -67,88 +76,113 @@ export class StoriesRepository {
     });
   }
 
-  async getContactStories(
-    viewerId: string,
-    pagination: PaginationDto
-  ): Promise<ContactStoriesResult> {
-    const { page = 1, limit = 20 } = pagination;
+  async getContactStories(viewerId: string, pagination: PaginationDto): Promise<ContactStoriesResult> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    // Get viewer&#x27;s friends wallet addresses using raw query for perf
-    const friendsWallets = await this.dataSource.query(
-      `SELECT DISTINCT wallet_address FROM saved_addresses 
-       WHERE user_id = $1 AND &#x27;friends&#x27;=ANY(tags)`,
-      [viewerId]
+    const friendsWallets: { walletAddress: string }[] = await this.dataSource.query(
+      `SELECT DISTINCT "walletAddress" AS "walletAddress" FROM saved_addresses 
+       WHERE "userId" = $1 AND 'friends' = ANY(tags)`,
+      [viewerId],
     );
 
     if (friendsWallets.length === 0) {
       return { stories: [], total: 0 };
     }
 
-    const walletAddresses = friendsWallets.map((w: any) => w.wallet_address);
-    const stories = await this.dataSource.getRepository(Story).find({
-      where: {
-        user: { walletAddress: In(walletAddresses) },
-        expiresAt: MoreThanOrEqual(new Date()),
-      },
-      relations: ['user'],
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip,
-    });
+    const walletAddresses = [...new Set(friendsWallets.map((w) => w.walletAddress))];
 
-    const total = await this.dataSource.getRepository(Story).count({
-      where: {
-        user: { walletAddress: In(walletAddresses) },
-        expiresAt: MoreThanOrEqual(new Date()),
-      },
-    });
+    const stories = await this.storyRepo
+      .createQueryBuilder('story')
+      .innerJoinAndSelect('story.user', 'user')
+      .where('user.walletAddress IN (:...wallets)', { wallets: walletAddresses })
+      .andWhere('story.expiresAt >= :now', { now: new Date() })
+      .andWhere('story.userId != :viewerId', { viewerId })
+      .orderBy('story.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getMany();
+
+    const total = await this.storyRepo
+      .createQueryBuilder('story')
+      .innerJoin('story.user', 'user')
+      .where('user.walletAddress IN (:...wallets)', { wallets: walletAddresses })
+      .andWhere('story.expiresAt >= :now', { now: new Date() })
+      .andWhere('story.userId != :viewerId', { viewerId })
+      .getCount();
 
     return { stories, total };
   }
 
-
-
-  async recordView(storyId: string, viewerId: string, isCreator = false): Promise<void> {
-    // Upsert view
-    await this.dataSource.query(
-      `INSERT INTO story_views (story_id, viewer_id, viewed_at, is_creator_view) 
-       VALUES ($1, $2, NOW(), $3) 
-       ON CONFLICT (story_id, viewer_id) DO NOTHING`,
-      [storyId, viewerId, isCreator]
+  /**
+   * Inserts a view row if missing and increments story viewCount in one round-trip.
+   * @returns new viewCount when a new view was recorded, otherwise null
+   */
+  async recordView(storyId: string, viewerId: string): Promise<number | null> {
+    const rows = await this.dataSource.query(
+      `WITH inserted AS (
+        INSERT INTO "story_views" ("storyId", "viewerId", "viewedAt")
+        VALUES ($1, $2, NOW())
+        ON CONFLICT ("storyId", "viewerId") DO NOTHING
+        RETURNING "storyId"
+      )
+      UPDATE "stories" s
+      SET "viewCount" = s."viewCount" + 1
+      FROM inserted i
+      WHERE s.id = i."storyId"
+      RETURNING s."viewCount" AS "viewCount"`,
+      [storyId, viewerId],
     );
-
-    // Increment viewCount
-    await this.increment({ id: storyId }, 'viewCount', 1);
+    const row = rows?.[0] as { viewCount: string | number } | undefined;
+    if (row?.viewCount === undefined || row?.viewCount === null) {
+      return null;
+    }
+    return typeof row.viewCount === 'string' ? parseInt(row.viewCount, 10) : row.viewCount;
   }
 
+  async isContactOfAuthor(viewerId: string, authorWalletAddress: string): Promise<boolean> {
+    const rows = await this.dataSource.query(
+      `SELECT 1 FROM saved_addresses 
+       WHERE "userId" = $1 AND LOWER("walletAddress") = LOWER($2) AND 'friends' = ANY(tags)
+       LIMIT 1`,
+      [viewerId, authorWalletAddress],
+    );
+    return rows.length > 0;
+  }
+
+  async getContactUserIdsForCreatorWallet(creatorWallet: string): Promise<string[]> {
+    const rows: { userId: string }[] = await this.dataSource.query(
+      `SELECT DISTINCT "userId" AS "userId" FROM saved_addresses
+       WHERE LOWER("walletAddress") = LOWER($1) AND 'friends' = ANY(tags)`,
+      [creatorWallet],
+    );
+    return rows.map((r) => r.userId);
+  }
+
+  async deleteStory(story: Story): Promise<void> {
+    await this.storyRepo.remove(story);
+  }
 
   async deleteExpired(): Promise<number> {
-    const result = await this.delete({
+    const result = await this.storyRepo.delete({
       expiresAt: LessThanOrEqual(new Date()),
     });
     return result.affected ?? 0;
   }
 
   async getViewers(storyId: string): Promise<StoryView[]> {
-    return this.dataSource.getRepository(StoryView).find({
+    return this.viewRepo.find({
       where: { storyId },
       order: { viewedAt: 'ASC' },
     });
   }
 
-  async recordView(storyId: string, viewerId: string, isCreator = false): Promise<void> {
-    await this.dataSource.query(
-      `INSERT INTO story_views (story_id, viewer_id, viewed_at, is_creator_view) 
-       VALUES ($1, $2, NOW(), $3) 
-       ON CONFLICT (story_id, viewer_id) DO NOTHING`,
-      [storyId, viewerId, isCreator]
-    );
-
-    await this.dataSource.getRepository(Story).increment({ id: storyId }, 'viewCount', 1);
+  async findViewCountByStoryId(storyId: string): Promise<number | null> {
+    const row = await this.storyRepo.findOne({
+      where: { id: storyId },
+      select: ['id', 'viewCount'],
+    });
+    return row?.viewCount ?? null;
   }
 }
-
-
-
-
