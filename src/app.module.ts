@@ -67,6 +67,7 @@ import { ConversationExportModule } from './conversation-export/conversation-exp
 import { FeedbackModule } from './feedback/feedback.module';
 import { RevenueModule } from './revenue/revenue.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { PaymentSettingsModule } from './payment-settings/payment-settings.module';
 
 import { AddressBookModule } from './address-book/address-book.module';
 import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
@@ -159,6 +160,7 @@ import { ActivityFeedModule } from './activity-feed/activity-feed.module';
     TrustNetworkModule,
     AmlMonitoringModule,
     ConnectionsModule,
+    PaymentSettingsModule,
     ActivityFeedModule,
   ],
 
