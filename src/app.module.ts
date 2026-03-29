@@ -68,6 +68,7 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
 import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
+import { NameResolutionModule } from './name-resolution/name-resolution.module';
 
 @Module({
   imports: [
@@ -138,6 +139,7 @@ import { ReputationModule } from './reputation/reputation.module';
     NotificationDigestModule,
     ReceiptsModule,
     TrustNetworkModule,
+    NameResolutionModule,
   ],
 
   controllers: [AppController],

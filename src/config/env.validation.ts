@@ -101,6 +101,9 @@ export const envValidationSchema = Joi.object({
   // Soroban
   SOROBAN_NETWORK_PASSPHRASE: Joi.string().default('Test SDF Network ; September 2015'),
 
+  // Stellar Name Service (optional HTTP resolver base, no trailing slash required)
+  SNS_RESOLVER_BASE_URL: Joi.string().uri().allow('').optional(),
+
   // Observability
   OTEL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
   OTEL_SERVICE_NAME: Joi.string().default('gasless-gossip-api'),
