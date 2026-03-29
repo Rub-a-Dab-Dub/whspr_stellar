@@ -19,7 +19,10 @@ const CHAIN_SYNC_INTERVAL_MS = 30_000;
 export class ReputationService {
   private readonly logger = new Logger(ReputationService.name);
 
-  constructor(private readonly repo: ReputationRepository) {}
+constructor(
+    private readonly repo: ReputationRepository,
+    private readonly trustService: TrustNetworkService,
+  ) {}
 
   // ── Rating ────────────────────────────────────────────────────────────────
 
@@ -53,14 +56,18 @@ export class ReputationService {
   // ── Reputation ────────────────────────────────────────────────────────────
 
   async getReputation(userId: string): Promise<ReputationResponseDto> {
-    const score = await this.repo.findScoreByUserId(userId);
-    if (!score) {
-      // Return a zeroed-out record for users with no ratings yet.
+    const ratingScore = await this.repo.findScoreByUserId(userId);
+    const trustScoreData = await this.trustService.getTrustScore(userId);
+    const trustScore = trustScoreData.score;
+    const aggregateScore = ratingScore ? (ratingScore.score * 0.7 + trustScore * 0.3) : trustScore;
+
+    if (!ratingScore) {
+      // Return zeroed rating + trust
       return plainToInstance(
         ReputationResponseDto,
         {
           userId,
-          score: 0,
+          score: aggregateScore,
           totalRatings: 0,
           positiveRatings: 0,
           flags: 0,
@@ -72,7 +79,9 @@ export class ReputationService {
         { excludeExtraneousValues: true },
       );
     }
-    return plainToInstance(ReputationResponseDto, score, { excludeExtraneousValues: true });
+
+    ratingScore.score = aggregateScore;
+    return plainToInstance(ReputationResponseDto, ratingScore, { excludeExtraneousValues: true });
   }
 
   // ── Flagging ──────────────────────────────────────────────────────────────

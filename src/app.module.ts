@@ -66,6 +66,8 @@ import { PaymentsModule } from './payments/payments.module';
 import { LinkPreviewsModule } from './link-previews/link-previews.module';
 import { NotificationDigestModule } from './notification-digest/notification-digest.module';
 import { ReceiptsModule } from './receipts/receipts.module';
+import { TrustNetworkModule } from './trust-network/trust-network.module';
+import { ReputationModule } from './reputation/reputation.module';
 
 @Module({
   imports: [
@@ -135,6 +137,7 @@ import { ReceiptsModule } from './receipts/receipts.module';
     LinkPreviewsModule,
     NotificationDigestModule,
     ReceiptsModule,
+    TrustNetworkModule,
   ],
 
   controllers: [AppController],
