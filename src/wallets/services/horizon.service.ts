@@ -78,6 +78,28 @@ export class HorizonService {
     }
   }
 
+  /**
+   * Like {@link getBalances} but returns an empty list when the account is not funded (404),
+   * for callers that treat “no account” as zero balances (e.g. token-gate checks).
+   */
+  async getBalancesOrEmpty(
+    walletAddress: string,
+    network: WalletNetwork = WalletNetwork.STELLAR_MAINNET,
+  ): Promise<AssetBalanceDto[]> {
+    try {
+      return await this.getBalances(walletAddress, network);
+    } catch (error: unknown) {
+      if (error instanceof NotFoundException) {
+        return [];
+      }
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        return [];
+      }
+      throw error;
+    }
+  }
+
   /** Validate that a Stellar address is well-formed. */
   isValidAddress(address: string): boolean {
     return StellarSdk.StrKey.isValidEd25519PublicKey(address);

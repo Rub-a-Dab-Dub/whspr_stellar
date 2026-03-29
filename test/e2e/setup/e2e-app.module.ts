@@ -14,6 +14,7 @@ import { WebhooksModule } from '../../../src/webhooks/webhooks.module';
 import { AdminModule } from '../../../src/admin/admin.module';
 import { AppVersionModule } from '../../../src/app-version/app-version.module';
 import { CacheModule } from '../../../src/cache/cache.module';
+import { ContentGatesModule } from '../../../src/content-gates/content-gates.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { CacheModule } from '../../../src/cache/cache.module';
     AdminModule,
     CacheModule,
     AppVersionModule,
+    ContentGatesModule,
   ],
 })
 export class E2eAppModule {}
