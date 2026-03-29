@@ -7,58 +7,66 @@ import {
   Body,
   Query,
   ParseUUIDPipe,
-  UseGuards,
-  CurrentUser,
+  HttpCode,
 } from '@nestjs/common';
 import { StoriesService } from './stories.service';
 import { CreateStoryDto } from './dto/create-story.dto';
-import { StoryResponseDto, PaginatedStoriesResponse } from './dto/story-response.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
-import { AuthGuard } from '@nestjs/passport'; // assume JWT auth
-import { User } from '../users/entities/user.entity';
+import { StoryResponseDto, StoryViewDto } from './dto/story-response.dto';
+import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserResponseDto } from '../users/dto/user-response.dto';
 
 @Controller('stories')
-@UseGuards(AuthGuard('jwt'))
 export class StoriesController {
   constructor(private readonly storiesService: StoriesService) {}
 
   @Post()
-  async create(@CurrentUser() user: User, @Body() createStoryDto: CreateStoryDto): Promise<StoryResponseDto> {
-    return this.storiesService.createStory(user.id, createStoryDto);
+  async create(
+    @CurrentUser('id') userId: string,
+    @Body() createStoryDto: CreateStoryDto,
+  ): Promise<StoryResponseDto> {
+    return this.storiesService.createStory(userId, createStoryDto);
   }
 
   @Get()
   async getContactStories(
-    @CurrentUser() user: User,
+    @CurrentUser('id') userId: string,
     @Query() pagination: PaginationDto,
-  ): Promise<PaginatedStoriesResponse> {
-    const result = await this.storiesService.getContactStories(user.id, pagination);
-    return result;
+  ): Promise<PaginatedResponse<StoryResponseDto>> {
+    return this.storiesService.getContactStories(userId, pagination);
   }
 
   @Get('mine')
   async getMyStories(
-    @CurrentUser() user: User,
+    @CurrentUser('id') userId: string,
     @Query() pagination: PaginationDto,
-  ): Promise<PaginatedStoriesResponse> {
-    const result = await this.storiesService.getMyStories(user.id, pagination);
-    return result;
+  ): Promise<PaginatedResponse<StoryResponseDto>> {
+    return this.storiesService.getMyStories(userId, pagination);
+  }
+
+  @Post(':id/view')
+  @HttpCode(200)
+  async recordView(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ viewCount: number }> {
+    return this.storiesService.viewStory(id, userId);
   }
 
   @Delete(':id')
+  @HttpCode(204)
   async deleteStory(
-    @CurrentUser() user: User,
+    @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
-    await this.storiesService.deleteStory(id, user.id);
+    await this.storiesService.deleteStory(id, userId);
   }
 
   @Get(':id/viewers')
   async getViewers(
-    @CurrentUser() user: User,
+    @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<any[]> {
-    return this.storiesService.getStoryViewers(id, user.id);
+  ): Promise<StoryViewDto[]> {
+    return this.storiesService.getStoryViewers(id, userId);
   }
 }
-

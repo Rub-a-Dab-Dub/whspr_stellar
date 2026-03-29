@@ -1,36 +1,33 @@
-import {
-  Entity,
-  PrimaryColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn } from 'typeorm';
 
-export { OnboardingStep } from '../constants/onboarding-steps';
+export enum OnboardingStep {
+  WALLET_CONNECTED = 'wallet_connected',
+  PROFILE_COMPLETED = 'profile_completed',
+  USERNAME_SET = 'username_set',
+  PREFERENCES_SET = 'preferences_set',
+  CONTACTS_IMPORTED = 'contacts_imported',
+}
 
 @Entity('onboarding_progress')
 export class OnboardingProgress {
-  @PrimaryColumn()
+  @PrimaryColumn('uuid')
   userId!: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   currentStep!: string | null;
 
-  @Column({ type: 'text', array: true, default: [] })
+  @Column({ type: 'text', array: true, default: '{}' })
   completedSteps!: string[];
 
-  @Column({ type: 'text', array: true, default: [] })
+  @Column({ type: 'text', array: true, default: '{}' })
   skippedSteps!: string[];
 
   @Column({ default: false })
   isCompleted!: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   completedAt!: Date | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   startedAt!: Date;
-
-  @UpdateDateColumn()
-  updatedAt!: Date;
 }

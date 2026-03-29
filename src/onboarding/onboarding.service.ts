@@ -40,7 +40,7 @@ export class OnboardingService {
       completedSteps: [],
       skippedSteps: [],
       isCompleted: false,
-      startedAt: new Date(),
+      completedAt: null,
     });
 
     return await this.onboardingRepository.save(progress);
@@ -137,22 +137,24 @@ export class OnboardingService {
   }
 
   private checkOnboardingComplete(progress: OnboardingProgress): boolean {
-    const allSteps = Object.values(OnboardingStep);
-    const requiredSteps = allSteps.filter((step) => step !== OnboardingStep.WALLET_CONNECTED);
+    const allSteps = Object.values(OnboardingStep) as OnboardingStep[];
+    const requiredSteps = allSteps.filter(step => step !== OnboardingStep.WALLET_CONNECTED);
     const completedOrSkipped = [...progress.completedSteps, ...progress.skippedSteps];
-
+    
     return requiredSteps.every((step) =>
       completedOrSkipped.includes(step as string),
     );
   }
 
   private getNextStep(progress: OnboardingProgress): OnboardingStep | null {
-    const allSteps = Object.values(OnboardingStep);
+    const allSteps = Object.values(OnboardingStep) as OnboardingStep[];
     const completedOrSkipped = [...progress.completedSteps, ...progress.skippedSteps];
-
-    const nextStep = allSteps.find((step) => !completedOrSkipped.includes(step as string));
-
-    return (nextStep as OnboardingStep) || null;
+    
+    const nextStep = allSteps.find(
+      (step) => !completedOrSkipped.includes(step as string),
+    );
+    
+    return nextStep || null;
   }
 
   private mapToResponseDto(progress: OnboardingProgress): OnboardingProgressResponseDto {
@@ -169,7 +171,7 @@ export class OnboardingService {
       completedAt: progress.completedAt,
       startedAt: progress.startedAt,
       createdAt: progress.startedAt,
-      updatedAt: progress.updatedAt,
+      updatedAt: progress.startedAt,
       nextStep,
       completionPercentage,
     };

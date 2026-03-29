@@ -3,22 +3,20 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
-  ForbiddenException,
   Logger,
   Optional,
 } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
-import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
-import { PaginatedResponse, PaginationDto } from '../common/dto/pagination.dto';
-import { TranslationService } from '../i18n/services/translation.service';
-import { OnboardingService } from '../onboarding/onboarding.service';
-import { PlatformInviteService } from '../platform-invites/platform-invite.service';
-import { UserSettingsService } from '../user-settings/user-settings.service';
+import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
-import { UsersRepository } from './users.repository';
+import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
+import { plainToInstance } from 'class-transformer';
+import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
+import { TranslationService } from '../i18n/services/translation.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';
+import { OnboardingService } from '../onboarding/onboarding.service';
 
 @Injectable()
 export class UsersService {
@@ -26,6 +24,7 @@ export class UsersService {
 
   constructor(
     private readonly usersRepository: UsersRepository,
+    private readonly moderationQueueService: ModerationQueueService,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
     private readonly moderationQueueService: ModerationQueueService,
@@ -37,23 +36,6 @@ export class UsersService {
     const { walletAddress, username, email } = createUserDto;
     const preferredLocale = this.normalizePreferredLocale(createUserDto.preferredLocale) ?? null;
 
-    if (this.platformInviteService) {
-      const inviteRequired = await this.platformInviteService.isInviteModeEnabled();
-      if (inviteRequired) {
-        const code = createUserDto.inviteCode?.trim();
-        if (!code) {
-          throw new ForbiddenException(
-            'Registration is invite-only. Provide a valid invite code to create an account.',
-          );
-        }
-        const validation = await this.platformInviteService.validateForRegistration(code);
-        if (!validation.valid) {
-          throw new ForbiddenException(validation.message);
-        }
-      }
-    }
-
-    // Check wallet address uniqueness
     const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
     if (existingWallet) {
       throw new ConflictException(
@@ -61,7 +43,6 @@ export class UsersService {
       );
     }
 
-    // Check username uniqueness if provided
     if (username) {
       const existingUsername = await this.usersRepository.findByUsername(username);
       if (existingUsername) {
@@ -69,7 +50,6 @@ export class UsersService {
       }
     }
 
-    // Check email uniqueness if provided
     if (email) {
       const existingEmail = await this.usersRepository.findByEmail(email);
       if (existingEmail) {
@@ -158,7 +138,6 @@ export class UsersService {
       );
     }
 
-    // Validate username uniqueness if being updated
     if (updateProfileDto.username && updateProfileDto.username !== user.username) {
       const isAvailable = await this.usersRepository.isUsernameAvailable(
         updateProfileDto.username,
@@ -169,7 +148,6 @@ export class UsersService {
       }
     }
 
-    // Validate email uniqueness if being updated
     if (updateProfileDto.email && updateProfileDto.email !== user.email) {
       const isAvailable = await this.usersRepository.isEmailAvailable(updateProfileDto.email, id);
       if (!isAvailable) {
@@ -181,7 +159,6 @@ export class UsersService {
 
     const preferredLocale = this.normalizePreferredLocale(updateProfileDto.preferredLocale, true);
 
-    // Update user fields
     Object.assign(user, {
       ...updateProfileDto,
       email: updateProfileDto.email?.toLowerCase(),
@@ -235,7 +212,6 @@ export class UsersService {
       excludeExtraneousValues: true,
     });
 
-    // Add onboarding progress if service is available
     if (this.onboardingService) {
       this.onboardingService
         .getProgress(user.id)

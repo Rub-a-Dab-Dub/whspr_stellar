@@ -3,7 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AIModerationModule } from '../ai-moderation/ai-moderation.module';
 import { OnboardingModule } from '../onboarding/onboarding.module';
-import { PlatformInvitesModule } from '../platform-invites/platform-invites.module';
 import { UserSettingsModule } from '../user-settings/user-settings.module';
 import { User } from './entities/user.entity';
 import { UsersController } from './users.controller';
@@ -17,7 +16,6 @@ import { UsersService } from './users.service';
     AIModerationModule,
     forwardRef(() => UserSettingsModule),
     forwardRef(() => OnboardingModule),
-    forwardRef(() => PlatformInvitesModule),
   ],
   controllers: [UsersController],
   providers: [UsersService, UsersRepository],
