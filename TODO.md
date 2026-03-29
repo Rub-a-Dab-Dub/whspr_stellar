@@ -1,35 +1,48 @@
-# Feedback Module Implementation Plan [#582]
+# Crypto Portfolio Tracker Module [#584]
 
 ## Steps to Complete:
 
-### 1. DTO Updates ✅
-- [x] src/feedback/dto/create-feedback.dto.ts: Add `screenshot?: boolean`, remove screenshotUrl/appVersion/platform/deviceInfo (service handles)
-- [x] Create src/feedback/dto/create-feedback-response.dto.ts: Extend FeedbackResponseDto + `screenshotPresign?: {uploadUrl, fileKey, fileUrl, expiresIn}`
+### 1. Entity & Migration
+- [ ] src/portfolio/entities/portfolio-snapshot.entity.ts (userId, totalUsdValue, balances JSONB array[{symbol,amount,usdValue}], snapshotDate)
+- [ ] src/migrations/[timestamp]-PortfolioSnapshots.ts PG table/index userId/snapshotDate
 
+### 2. DTOs
+- [ ] src/portfolio/dto/portfolio-response.dto.ts (totalUsd, allocation[], pnl24h/pnl7d, updatedAt)
+- [ ] src/portfolio/dto/portfolio-history-query.dto.ts (from,to,limit)
+- [ ] src/portfolio/dto/portfolio-allocation.dto.ts
 
-- [ ] src/feedback/feedback.service.ts: In submitFeedback, if dto.screenshot gen presign via attachmentsService.generateUploadUrl(fakeFeedbackUser/messageId="feedback-{tempId}", "screenshot.png", "image/png", 5242880), temp store tempId->presign, return in response. New confirmScreenshot(tempId, fileKey): save screenshotUrl=fileUrl to report.
-- [ ] src/feedback/feedback.controller.ts: POST /feedback/presign (already in submit response?), POST /feedback/:tempId/confirm-screenshot {fileKey}
+### 3. Repository
+- [ ] src/portfolio/portfolio-snapshot.repository.ts (create/save, findByUserId paginated, latestByUserId(days), stats)
 
-### 3. Tests
-- [ ] src/feedback/feedback.service.spec.ts: Add presign/confirm tests
-- [ ] test/feedback.e2e-spec.ts: Real presign flow, admin auth with factories
+### 4. Service
+- [ ] src/portfolio/portfolio.service.ts (getPortfolio aggregate wallets balances → token prices → USD/allocation cache 30s; getHistory; getPnL vs snapshots; syncBalances; takeDailySnapshot user; cron all users midnight)
+- [ ] Inject WalletsService, TokensService, CacheManager, Schedule
 
-### 4. Email (Optional)
-- [ ] src/legal/legal-email.service.ts: Stub OK
+### 5. Controller
+- [ ] src/portfolio/portfolio.controller.ts GET /portfolio, /history, /allocation, /pnl @UserGuard
 
-### 5. Verify & CI
-- [ ] Run `npm run lint`
-- [ ] `npm run test -- --coverage` (>=85%)
-- [ ] `npm run test:e2e`
-- [ ] `npm run migration:run`
-- [ ] `cargo test`
+### 6. Module
+- [ ] src/portfolio/portfolio.module.ts TypeOrm/Schedule/Cache/WalletsModule/TokensModule export
 
-### 6. Git & PR
-- [ ] `git checkout -b blackboxai/feedback-#582`
-- [ ] `git add .`
-- [ ] `git commit -m "feat(feedback): complete In-App Feedback module w/ presign screenshots #582"`
-- [ ] `git push -u origin HEAD`
-- [ ] `gh pr create --title "feat(feedback): In-App Feedback/Bug Module #582" --body "Implements full spec. Presign S3 screenshots (5MB image), admin queue/stats/export/email. Tests 90% cov. Passes CI."`
+### 7. Tests
+- [ ] src/portfolio/portfolio.service.spec.ts unit
+- [ ] test/portfolio.e2e-spec.ts
 
-**Track progress by checking off items after each step.**
+### 8. App
+- [ ] src/app.module.ts + PortfolioModule
+
+### 9. Verify CI
+- [ ] npm run lint
+- [ ] npm run test -- --coverage >=85%
+- [ ] npm run test:e2e
+- [ ] npm run migration:run
+- [ ] cargo test
+
+### 10. Git PR
+- [ ] git add src/portfolio test/portfolio.e2e-spec.ts src/migrations/*Portfolio* src/app.module.ts
+- [ ] git commit -m "feat(portfolio): impl crypto portfolio tracker #584"
+- [ ] git push origin HEAD
+- [ ] gh pr create --title "feat(portfolio): Crypto Portfolio Tracker #584" --body "Closes #584. Full spec w/ wallet agg, token USD prices, P&L, history snapshots cron, alloc % cached. Tests 85%+ CI pass."
+
+**Track progress.**
 

@@ -53,6 +53,8 @@ import { MentionsModule } from './mentions/mentions.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
+
 
 @Module({
   imports: [
@@ -109,7 +111,9 @@ import { FeedbackModule } from './feedback/feedback.module';
     MentionsModule,
     ConversationExportModule,
     FeedbackModule,
+    PortfolioModule,
   ],
+
   controllers: [AppController],
   providers: [
     AppService,
