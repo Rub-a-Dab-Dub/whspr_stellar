@@ -65,6 +65,9 @@ import { StoriesModule } from './stories/stories.module';
 import { PaymentsModule } from './payments/payments.module';
 import { LinkPreviewsModule } from './link-previews/link-previews.module';
 import { NotificationDigestModule } from './notification-digest/notification-digest.module';
+import { LiveLocationModule } from './live-location/live-location.module';
+import { CustomEmojiModule } from './custom-emoji/custom-emoji.module';
+import { GroupEventsModule } from './group-events/group-events.module';
 
 @Module({
   imports: [
@@ -133,6 +136,9 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
     PaymentsModule,
     LinkPreviewsModule,
     NotificationDigestModule,
+    LiveLocationModule,
+    CustomEmojiModule,
+    GroupEventsModule,
   ],
 
   controllers: [AppController],
