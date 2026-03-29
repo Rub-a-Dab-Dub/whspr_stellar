@@ -8,6 +8,7 @@ import {
   MaxLength,
   Matches,
   IsEthereumAddress,
+  Length,
 } from 'class-validator';
 import { validationMessages } from '../../i18n/validation-messages';
 
@@ -80,4 +81,16 @@ export class CreateUserDto {
   @IsString({ message: validationMessages.string() })
   @MaxLength(10, { message: validationMessages.maxLength(10) })
   preferredLocale?: string;
+
+  @ApiPropertyOptional({
+    description: 'Platform invite code (required when invite-only mode is enabled)',
+    example: 'AbCdEfGhIjKlMnOp',
+    minLength: 16,
+    maxLength: 16,
+  })
+  @IsOptional()
+  @IsString()
+  @Length(16, 16)
+  @Matches(/^[A-Za-z0-9_-]{16}$/)
+  inviteCode?: string;
 }

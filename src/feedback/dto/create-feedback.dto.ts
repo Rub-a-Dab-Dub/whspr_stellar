@@ -18,23 +18,8 @@ export class CreateFeedbackDto {
   @MinLength(10)
   description: string;
 
-  @ApiProperty({ example: 'https://s3.../screenshot.png', required: false })
+@ApiProperty({ description: 'Request screenshot presign URL (generates pre-signed S3 upload)', required: false })
   @IsOptional()
-  @IsString()
-  screenshotUrl?: string;
-
-  @ApiProperty({ example: '2.3.1', required: false })
-  @IsOptional()
-  @IsString()
-  appVersion?: string;
-
-  @ApiProperty({ example: 'ios', required: false })
-  @IsOptional()
-  @IsString()
-  platform?: string;
-
-  @ApiProperty({ example: { os: 'iOS 17', model: 'iPhone 14' }, required: false })
-  @IsOptional()
-  @IsString()
-  deviceInfo?: string; // JSON string
+  @IsBoolean()
+  screenshot?: boolean;
 }

@@ -46,6 +46,7 @@ const defaults: Record<string, string> = {
   SOROBAN_CONTRACT_IDS: 'test-contract-id',
   STELLAR_HORIZON_MAINNET_URL: 'https://horizon.stellar.org',
   STELLAR_HORIZON_TESTNET_URL: 'https://horizon-testnet.stellar.org',
+  SEP10_SERVER_SECRET: 'e2e-sep10-server-secret-at-least-32-characters-long',
   JOB_BLOCKCHAIN_EVENT_POLLING_MS: '5000',
   JOB_TRANSACTION_STATUS_SYNC_MS: '30000',
   JOB_TOKEN_PRICE_REFRESH_MS: '60000',

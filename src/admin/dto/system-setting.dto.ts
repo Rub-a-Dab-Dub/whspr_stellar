@@ -1,6 +1,6 @@
 export class CreateSystemSettingDto {
-  key: string;
-  value: string;
+  key!: string;
+  value!: string;
   description?: string;
 }
 

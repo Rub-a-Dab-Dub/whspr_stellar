@@ -2,9 +2,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
 import { Redis } from 'ioredis';
-import { CacheService } from '../../cache/cache.service';
-import { GeoService } from '../geo.service';
-import { LoginAttempt, LoginAction } from '../entities/login-attempt.entity';
+import { CacheService } from '../cache/cache.service';
+import { GeoService } from './geo.service';
+import { LoginAttempt, LoginAction } from './entities/login-attempt.entity';
 
 const BLOCKED_IP_KEY = 'fraud:blocked-ips';
 const RAPID_IP_WINDOW_SECONDS = 300; // 5 min
