@@ -72,6 +72,7 @@ import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
 import { ConnectionsModule } from './connections/connections.module';
+import { ActivityFeedModule } from './activity-feed/activity-feed.module';
 
 @Module({
   imports: [
@@ -147,6 +148,7 @@ import { ConnectionsModule } from './connections/connections.module';
     ReceiptsModule,
     TrustNetworkModule,
     ConnectionsModule,
+    ActivityFeedModule,
   ],
 
   controllers: [AppController],

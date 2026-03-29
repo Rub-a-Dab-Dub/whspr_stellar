@@ -2,6 +2,9 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { MentionsRepository } from '../repositories/mentions.repository';
 import { Mention } from '../entities/mention.entity';
 import { MentionResponseDto, MentionListResponseDto, ParsedMention } from '../dto/mention.dto';
+import { NotificationsService } from '../../notifications/notifications.service';
+import { InAppNotificationType } from '../../notifications/entities/notification.entity';
+import { MentionsGateway } from '../gateway/mentions.gateway';
 
 /**
  * Service for handling user mentions in messages
@@ -12,7 +15,11 @@ export class MentionsService {
   // Pattern to match @username mentions (word characters and dots)
   private readonly MENTION_PATTERN = /@([a-zA-Z0-9._-]+)/g;
 
-  constructor(private readonly repository: MentionsRepository) {}
+  constructor(
+    private readonly repository: MentionsRepository,
+    private readonly notificationsService: NotificationsService,
+    private readonly mentionsGateway: MentionsGateway,
+  ) {}
 
   /**
    * Parse mentions from message content
@@ -72,10 +79,24 @@ export class MentionsService {
 
     const created = await this.repository.save(mentions);
 
-    // TODO: Trigger notifications for each mention
-    // - In-app notification
-    // - Push notification (if enabled)
-    // - WebSocket event: "mention:new"
+    // Trigger in-app notification and WebSocket push for each mentioned user
+    await Promise.allSettled(
+      created.map(async (mention) => {
+        await this.notificationsService.createNotification({
+          userId: mention.mentionedUserId,
+          type: InAppNotificationType.MENTION,
+          title: 'You were mentioned',
+          body: `Someone mentioned you in a conversation`,
+          data: {
+            messageId: mention.messageId,
+            conversationId: mention.conversationId,
+            mentionedBy: mention.mentionedBy,
+            mentionId: mention.id,
+          },
+        });
+        this.mentionsGateway.emitMentionNew(mention.mentionedUserId, mention);
+      }),
+    );
 
     return created;
   }
