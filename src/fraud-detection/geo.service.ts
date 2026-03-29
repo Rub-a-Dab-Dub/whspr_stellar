@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { CacheService } from '../../cache/cache.service';
-import { GeoData } from '../interfaces/geo-data.interface';
+import { CacheService } from '../cache/cache.service';
+import { GeoData } from './interfaces/geo-data.interface';
 
 const GEO_TTL = 3600; // 1 hour
 

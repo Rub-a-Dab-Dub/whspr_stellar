@@ -4,12 +4,8 @@ import {
   ConflictException,
   BadRequestException,
   Logger,
-  Inject,
-  Logger,
   Optional,
-  forwardRef,
 } from '@nestjs/common';
-import { AnalyticsService } from '../analytics/analytics.service';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -18,6 +14,9 @@ import { User } from './entities/user.entity';
 import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
 import { plainToInstance } from 'class-transformer';
 import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
+import { TranslationService } from '../i18n/services/translation.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';
+import { OnboardingService } from '../onboarding/onboarding.service';
 
 @Injectable()
 export class UsersService {
@@ -26,14 +25,6 @@ export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly moderationQueueService: ModerationQueueService,
-import { TranslationService } from '../i18n/services/translation.service';
-import { UserSettingsService } from '../user-settings/user-settings.service';
-import { OnboardingService } from '../onboarding/onboarding.service';
-
-@Injectable()
-export class UsersService {
-  constructor(
-    private readonly usersRepository: UsersRepository,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
     @Optional() private readonly onboardingService?: OnboardingService,

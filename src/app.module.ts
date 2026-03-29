@@ -68,6 +68,7 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
 import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
+import { UserStickerPacksModule } from './user-sticker-packs/user-sticker-packs.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { ReputationModule } from './reputation/reputation.module';
     NotificationsModule,
     ReactionsModule,
     StickersModule,
+    UserStickerPacksModule,
     PrivacyModule,
     SpamDetectionModule,
     LeaderboardModule,

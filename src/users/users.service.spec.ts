@@ -22,7 +22,7 @@ describe('UsersService', () => {
     avatarUrl: 'https://example.com/avatar.jpg',
     bio: 'Test bio',
     preferredLocale: null,
-    tier: UserTier.FREE,
+    referralCode: null,
     tier: UserTier.SILVER,
     isActive: true,
     isVerified: false,
@@ -47,6 +47,8 @@ describe('UsersService', () => {
     enqueueProfileModeration: jest.fn(),
     enqueueUserModeration: jest.fn(),
     enqueueImageModeration: jest.fn(),
+  };
+
   const mockUserSettingsService = {
     ensureSettingsForUser: jest.fn(),
     getPrivacySettings: jest.fn().mockResolvedValue({
@@ -60,21 +62,16 @@ describe('UsersService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
+        { provide: UsersRepository, useValue: mockRepository },
+        { provide: ModerationQueueService, useValue: mockModerationQueueService },
         {
-          provide: UsersRepository,
-          useValue: mockRepository,
-        },
-        {
-          provide: ModerationQueueService,
-          useValue: mockModerationQueueService,
           provide: TranslationService,
           useValue: {
             translate: jest.fn((key: string) => key),
             normalizeSupportedLocale: jest.fn((locale?: string | null) => locale ?? null),
           },
-          provide: UserSettingsService,
-          useValue: mockUserSettingsService,
         },
+        { provide: UserSettingsService, useValue: mockUserSettingsService },
       ],
     }).compile();
 

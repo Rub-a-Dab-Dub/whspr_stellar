@@ -151,7 +151,7 @@ export class OnboardingService {
     
     const nextStep = allSteps.find(step => !completedOrSkipped.includes(step));
     
-    return nextStep || null;
+    return (nextStep as OnboardingStep | null) || null;
   }
 
   private mapToResponseDto(progress: OnboardingProgress): OnboardingProgressResponseDto {
@@ -161,9 +161,9 @@ export class OnboardingService {
     return {
       id: progress.id,
       userId: progress.userId,
-      currentStep: progress.currentStep,
-      completedSteps: progress.completedSteps,
-      skippedSteps: progress.skippedSteps,
+      currentStep: progress.currentStep as OnboardingStep | null,
+      completedSteps: progress.completedSteps as OnboardingStep[],
+      skippedSteps: progress.skippedSteps as OnboardingStep[],
       isCompleted: progress.isCompleted,
       completedAt: progress.completedAt,
       startedAt: progress.startedAt,

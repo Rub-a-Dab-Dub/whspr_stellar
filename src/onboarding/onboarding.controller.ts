@@ -14,6 +14,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OnboardingService } from './onboarding.service';
 import { CompleteStepDto, SkipStepDto, OnboardingProgressResponseDto } from './dto/onboarding.dto';
 import { OnboardingStep } from './entities/onboarding-progress.entity';
+import type { Request as ExpressRequest } from 'express';
+
+type JwtRequest = ExpressRequest & { user?: { id: string } };
 
 @ApiTags('onboarding')
 @Controller('onboarding')
@@ -26,7 +29,7 @@ export class OnboardingController {
   @ApiOperation({ summary: 'Get user onboarding progress' })
   @ApiResponse({ status: 200, description: 'Onboarding progress retrieved successfully', type: OnboardingProgressResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async getOnboardingProgress(@Request() req): Promise<OnboardingProgressResponseDto> {
+  async getOnboardingProgress(@Request() req: JwtRequest): Promise<OnboardingProgressResponseDto> {
     const userId = req.user?.id;
     if (!userId) {
       throw new BadRequestException('User ID is required');
@@ -42,7 +45,7 @@ export class OnboardingController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async completeStep(
     @Param('step') step: OnboardingStep,
-    @Request() req,
+    @Request() req: JwtRequest,
   ): Promise<OnboardingProgressResponseDto> {
     const userId = req.user?.id;
     if (!userId) {
@@ -63,7 +66,7 @@ export class OnboardingController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async skipStep(
     @Param('step') step: OnboardingStep,
-    @Request() req,
+    @Request() req: JwtRequest,
   ): Promise<OnboardingProgressResponseDto> {
     const userId = req.user?.id;
     if (!userId) {
@@ -81,7 +84,7 @@ export class OnboardingController {
   @ApiOperation({ summary: 'Reset onboarding progress' })
   @ApiResponse({ status: 200, description: 'Onboarding reset successfully', type: OnboardingProgressResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async resetOnboarding(@Request() req): Promise<OnboardingProgressResponseDto> {
+  async resetOnboarding(@Request() req: JwtRequest): Promise<OnboardingProgressResponseDto> {
     const userId = req.user?.id;
     if (!userId) {
       throw new BadRequestException('User ID is required');
