@@ -207,6 +207,16 @@ export async function createTestApp(): Promise<{
           sellingLiabilities: '0.0000000',
         },
       ],
+      getBalancesOrEmpty: async () => [
+        {
+          assetCode: 'XLM',
+          assetType: 'native',
+          assetIssuer: null,
+          balance: '100.0000000',
+          buyingLiabilities: '0.0000000',
+          sellingLiabilities: '0.0000000',
+        },
+      ],
     })
     .overrideProvider(SorobanTransfersService)
     .useValue({

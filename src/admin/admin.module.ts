@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
-import { Message } from '../../Conversation Module/src/conversations/entities/message.entity';
+import { Message } from '../messages/entities/message.entity';
 import { SystemSetting } from './entities/system-setting.entity';
 import { AdminUsersController } from './controllers/admin-users.controller';
 import { AdminUsersService } from './services/admin-users.service';

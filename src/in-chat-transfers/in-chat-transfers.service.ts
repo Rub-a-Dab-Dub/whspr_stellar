@@ -186,7 +186,7 @@ export class InChatTransfersService {
         senderId,
         asset: transfer.asset,
         totalAmount: transfer.totalAmount,
-        status: TransactionStatus.SUBMITTED,
+        status: TransactionStatus.PENDING,
       }),
     );
 
@@ -195,15 +195,18 @@ export class InChatTransfersService {
     await this.transfersRepository.save(transfer);
 
     try {
-      const txHash = await this.sorobanTransfersService.submitTransfer({
-        senderAddress,
-        recipientAddresses: recipientUsers.map((user) => user.walletAddress),
-        asset: transfer.asset,
-        amountPerRecipient: transfer.amountPerRecipient,
-        totalAmount: transfer.totalAmount,
-      });
+      const txHash = await this.sorobanTransfersService.submitTransfer(
+        {
+          senderAddress,
+          recipientAddresses: recipientUsers.map((user) => user.walletAddress),
+          asset: transfer.asset,
+          amountPerRecipient: transfer.amountPerRecipient,
+          totalAmount: transfer.totalAmount,
+        },
+        { userId: senderId },
+      );
 
-      transaction.status = TransactionStatus.COMPLETED;
+      transaction.status = TransactionStatus.CONFIRMED;
       transaction.txHash = txHash;
       await this.transactionsRepository.save(transaction);
 

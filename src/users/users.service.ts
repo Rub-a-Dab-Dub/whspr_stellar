@@ -27,14 +27,15 @@ export class UsersService {
     private readonly moderationQueueService: ModerationQueueService,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
+    private readonly moderationQueueService: ModerationQueueService,
     @Optional() private readonly onboardingService?: OnboardingService,
+    @Optional() private readonly platformInviteService?: PlatformInviteService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const { walletAddress, username, email } = createUserDto;
     const preferredLocale = this.normalizePreferredLocale(createUserDto.preferredLocale) ?? null;
 
-    // Check wallet address uniqueness
     const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
     if (existingWallet) {
       throw new ConflictException(
@@ -42,7 +43,6 @@ export class UsersService {
       );
     }
 
-    // Check username uniqueness if provided
     if (username) {
       const existingUsername = await this.usersRepository.findByUsername(username);
       if (existingUsername) {
@@ -50,7 +50,6 @@ export class UsersService {
       }
     }
 
-    // Check email uniqueness if provided
     if (email) {
       const existingEmail = await this.usersRepository.findByEmail(email);
       if (existingEmail) {
@@ -60,8 +59,9 @@ export class UsersService {
       }
     }
 
+    const { inviteCode: _omitInvite, ...userFields } = createUserDto;
     const user = this.usersRepository.create({
-      ...createUserDto,
+      ...userFields,
       walletAddress: walletAddress.toLowerCase(),
       email: email?.toLowerCase(),
       preferredLocale,
@@ -70,6 +70,17 @@ export class UsersService {
     const savedUser = await this.usersRepository.save(user);
     await this.enqueueModeration(savedUser);
     await this.userSettingsService.ensureSettingsForUser(savedUser.id);
+
+    if (this.platformInviteService && createUserDto.inviteCode?.trim()) {
+      const inviteOn = await this.platformInviteService.isInviteModeEnabled();
+      if (inviteOn) {
+        await this.platformInviteService.redeemAfterRegistration(
+          createUserDto.inviteCode.trim(),
+          savedUser.id,
+        );
+      }
+    }
+
     return this.toResponseDto(savedUser);
   }
 
@@ -127,7 +138,6 @@ export class UsersService {
       );
     }
 
-    // Validate username uniqueness if being updated
     if (updateProfileDto.username && updateProfileDto.username !== user.username) {
       const isAvailable = await this.usersRepository.isUsernameAvailable(
         updateProfileDto.username,
@@ -138,7 +148,6 @@ export class UsersService {
       }
     }
 
-    // Validate email uniqueness if being updated
     if (updateProfileDto.email && updateProfileDto.email !== user.email) {
       const isAvailable = await this.usersRepository.isEmailAvailable(updateProfileDto.email, id);
       if (!isAvailable) {
@@ -150,7 +159,6 @@ export class UsersService {
 
     const preferredLocale = this.normalizePreferredLocale(updateProfileDto.preferredLocale, true);
 
-    // Update user fields
     Object.assign(user, {
       ...updateProfileDto,
       email: updateProfileDto.email?.toLowerCase(),
@@ -204,10 +212,10 @@ export class UsersService {
       excludeExtraneousValues: true,
     });
 
-    // Add onboarding progress if service is available
     if (this.onboardingService) {
-      this.onboardingService.getProgress(user.id)
-        .then(progress => {
+      this.onboardingService
+        .getProgress(user.id)
+        .then((progress) => {
           dto.onboardingProgress = {
             currentStep: progress.currentStep,
             completedSteps: progress.completedSteps,
@@ -217,8 +225,7 @@ export class UsersService {
             nextStep: progress.nextStep,
           };
         })
-        .catch(error => {
-          // Log error but don't fail the user response
+        .catch((error) => {
           console.warn('Failed to fetch onboarding progress:', error);
         });
     }
