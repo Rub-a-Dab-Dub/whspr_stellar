@@ -65,6 +65,7 @@ import { MessageDraftsModule } from './message-drafts/message-drafts.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { RevenueModule } from './revenue/revenue.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 
 import { AddressBookModule } from './address-book/address-book.module';
@@ -79,6 +80,7 @@ import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
 import { AmlMonitoringModule } from './aml/aml-monitoring.module';
 import { ConnectionsModule } from './connections/connections.module';
+
 
 @Module({
   imports: [
@@ -143,6 +145,7 @@ import { ConnectionsModule } from './connections/connections.module';
     AnchorModule,
     ConversationExportModule,
     FeedbackModule,
+    RevenueModule,
     PortfolioModule,
     AddressBookModule,
     UsernameDiscoveryModule,
