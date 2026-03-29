@@ -80,6 +80,7 @@ import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
 import { AmlMonitoringModule } from './aml/aml-monitoring.module';
 import { ConnectionsModule } from './connections/connections.module';
+import { ActivityFeedModule } from './activity-feed/activity-feed.module';
 
 
 @Module({
@@ -158,6 +159,7 @@ import { ConnectionsModule } from './connections/connections.module';
     TrustNetworkModule,
     AmlMonitoringModule,
     ConnectionsModule,
+    ActivityFeedModule,
   ],
 
   beforeEach(async () => {

@@ -18,6 +18,7 @@ export enum InAppNotificationType {
   TRANSACTION_CONFIRMED = 'TRANSACTION_CONFIRMED',
   GROUP_EVENT = 'GROUP_EVENT',
   EVENT_REMINDER = 'EVENT_REMINDER',
+  MENTION = 'MENTION',
 }
 
 @Entity('notifications')

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ActivityFeedRepository } from '../repositories/activity-feed.repository'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { ActivityFeedGateway } from '../gateways/activity-feed.gateway'
+import { ActivityFeedGateway } from '../gateway/activity-feed.gateway'
 
 @Injectable()
 export class ActivityFeedService {

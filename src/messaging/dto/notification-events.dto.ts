@@ -12,6 +12,7 @@ export enum NotificationType {
   FRIEND_REQUEST = 'friend_request',
   TRANSFER = 'transfer',
   SYSTEM = 'system',
+  MENTION = 'MENTION',
 }
 
 export class NotificationDto {
