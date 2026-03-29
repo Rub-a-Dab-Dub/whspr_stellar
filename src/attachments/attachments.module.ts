@@ -16,6 +16,6 @@ import { VirusScanQueueService } from './virus-scan/virus-scan.queue.service';
     S3StorageService,
     VirusScanQueueService,
   ],
-  exports: [AttachmentsService, AttachmentsRepository],
+  exports: [AttachmentsService, AttachmentsRepository, S3StorageService],
 })
 export class AttachmentsModule {}

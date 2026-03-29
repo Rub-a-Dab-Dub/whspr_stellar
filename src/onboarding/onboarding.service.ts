@@ -154,7 +154,7 @@ export class OnboardingService {
       (step) => !completedOrSkipped.includes(step as string),
     );
     
-    return nextStep || null;
+    return (nextStep as OnboardingStep | null) || null;
   }
 
   private mapToResponseDto(progress: OnboardingProgress): OnboardingProgressResponseDto {

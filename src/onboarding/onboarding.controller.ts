@@ -14,6 +14,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OnboardingService } from './onboarding.service';
 import { CompleteStepDto, SkipStepDto, OnboardingProgressResponseDto } from './dto/onboarding.dto';
 import { OnboardingStep } from './entities/onboarding-progress.entity';
+import type { Request as ExpressRequest } from 'express';
+
+type JwtRequest = ExpressRequest & { user?: { id: string } };
 
 type AuthedRequest = { user?: { id: string } };
 

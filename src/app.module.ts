@@ -104,6 +104,7 @@ import { ConnectionsModule } from './connections/connections.module';
     NotificationsModule,
     ReactionsModule,
     StickersModule,
+    UserStickerPacksModule,
     PrivacyModule,
     SpamDetectionModule,
     LeaderboardModule,
