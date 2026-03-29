@@ -58,6 +58,9 @@ import { AnchorModule } from './anchor/anchor.module';
 import { MessageDraftsModule } from './message-drafts/message-drafts.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
+
 import { AddressBookModule } from './address-book/address-book.module';
 import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
 import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
@@ -68,7 +71,7 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
 import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
-import { UserStickerPacksModule } from './user-sticker-packs/user-sticker-packs.module';
+import { ConnectionsModule } from './connections/connections.module';
 
 @Module({
   imports: [
@@ -97,6 +100,7 @@ import { UserStickerPacksModule } from './user-sticker-packs/user-sticker-packs.
     NFTsModule,
     AppI18nModule,
     StellarEventsModule,
+    ContractStateCacheModule,
     NotificationsModule,
     ReactionsModule,
     StickersModule,
@@ -131,6 +135,8 @@ import { UserStickerPacksModule } from './user-sticker-packs/user-sticker-packs.
     RecurringPaymentsModule,
     AnchorModule,
     ConversationExportModule,
+    FeedbackModule,
+    PortfolioModule,
     AddressBookModule,
     UsernameDiscoveryModule,
     DeveloperSandboxModule,
@@ -140,6 +146,7 @@ import { UserStickerPacksModule } from './user-sticker-packs/user-sticker-packs.
     NotificationDigestModule,
     ReceiptsModule,
     TrustNetworkModule,
+    ConnectionsModule,
   ],
 
   controllers: [AppController],

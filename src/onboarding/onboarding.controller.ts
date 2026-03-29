@@ -18,6 +18,8 @@ import type { Request as ExpressRequest } from 'express';
 
 type JwtRequest = ExpressRequest & { user?: { id: string } };
 
+type AuthedRequest = { user?: { id: string } };
+
 @ApiTags('onboarding')
 @Controller('onboarding')
 @UseGuards(JwtAuthGuard)
@@ -29,7 +31,7 @@ export class OnboardingController {
   @ApiOperation({ summary: 'Get user onboarding progress' })
   @ApiResponse({ status: 200, description: 'Onboarding progress retrieved successfully', type: OnboardingProgressResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async getOnboardingProgress(@Request() req: JwtRequest): Promise<OnboardingProgressResponseDto> {
+  async getOnboardingProgress(@Request() req: AuthedRequest): Promise<OnboardingProgressResponseDto> {
     const userId = req.user?.id;
     if (!userId) {
       throw new BadRequestException('User ID is required');
@@ -45,7 +47,7 @@ export class OnboardingController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async completeStep(
     @Param('step') step: OnboardingStep,
-    @Request() req: JwtRequest,
+    @Request() req: AuthedRequest,
   ): Promise<OnboardingProgressResponseDto> {
     const userId = req.user?.id;
     if (!userId) {
@@ -66,7 +68,7 @@ export class OnboardingController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async skipStep(
     @Param('step') step: OnboardingStep,
-    @Request() req: JwtRequest,
+    @Request() req: AuthedRequest,
   ): Promise<OnboardingProgressResponseDto> {
     const userId = req.user?.id;
     if (!userId) {
@@ -84,7 +86,7 @@ export class OnboardingController {
   @ApiOperation({ summary: 'Reset onboarding progress' })
   @ApiResponse({ status: 200, description: 'Onboarding reset successfully', type: OnboardingProgressResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async resetOnboarding(@Request() req: JwtRequest): Promise<OnboardingProgressResponseDto> {
+  async resetOnboarding(@Request() req: AuthedRequest): Promise<OnboardingProgressResponseDto> {
     const userId = req.user?.id;
     if (!userId) {
       throw new BadRequestException('User ID is required');

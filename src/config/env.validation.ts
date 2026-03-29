@@ -67,6 +67,12 @@ export const envValidationSchema = Joi.object({
   STELLAR_HORIZON_MAINNET_URL: Joi.string().uri().default('https://horizon.stellar.org'),
   STELLAR_HORIZON_TESTNET_URL: Joi.string().uri().default('https://horizon-testnet.stellar.org'),
 
+  // Gasless fee sponsorship (Stellar fee-bump; optional until configured)
+  SPONSORSHIP_SPONSOR_SECRET: Joi.string().allow('').optional(),
+  SPONSORSHIP_PLATFORM_ACCOUNT_PUBLIC_KEY: Joi.string().allow('').optional(),
+  SPONSORSHIP_LOW_BALANCE_XLM_THRESHOLD: Joi.number().default(100),
+  SPONSORSHIP_BALANCE_NETWORK: Joi.string().valid('testnet', 'mainnet').default('testnet'),
+
   // SEP-10 Web Authentication
   SEP10_SERVER_SECRET: Joi.string().required(),
   SEP10_HOME_DOMAIN: Joi.string().default('localhost'),
@@ -100,6 +106,9 @@ export const envValidationSchema = Joi.object({
     .default('https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze'),
   // Soroban
   SOROBAN_NETWORK_PASSPHRASE: Joi.string().default('Test SDF Network ; September 2015'),
+
+  // Stellar Name Service (optional HTTP resolver base, no trailing slash required)
+  SNS_RESOLVER_BASE_URL: Joi.string().uri().allow('').optional(),
 
   // Observability
   OTEL_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),

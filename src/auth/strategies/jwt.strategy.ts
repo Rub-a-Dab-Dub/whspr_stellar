@@ -23,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload): Promise<UserResponseDto & { sessionId: string }> {
     try {
       return await this.authService.validateUser(payload);
-    } catch (_error) {
+    } catch {
       throw new UnauthorizedException(this.translationService.translate('errors.auth.invalidToken'));
     }
   }

@@ -29,6 +29,6 @@ import { TwoFactorModule } from '../two-factor/two-factor.module';
   ],
   controllers: [WalletsController],
   providers: [WalletsService, WalletsRepository, HorizonService],
-  exports: [WalletsService],
+  exports: [WalletsService, HorizonService],
 })
 export class WalletsModule {}
