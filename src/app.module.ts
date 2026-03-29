@@ -65,6 +65,7 @@ import { StoriesModule } from './stories/stories.module';
 import { PaymentsModule } from './payments/payments.module';
 import { LinkPreviewsModule } from './link-previews/link-previews.module';
 import { NotificationDigestModule } from './notification-digest/notification-digest.module';
+import { ReceiptsModule } from './receipts/receipts.module';
 
 @Module({
   imports: [
@@ -133,6 +134,7 @@ import { NotificationDigestModule } from './notification-digest/notification-dig
     PaymentsModule,
     LinkPreviewsModule,
     NotificationDigestModule,
+    ReceiptsModule,
   ],
 
   controllers: [AppController],
