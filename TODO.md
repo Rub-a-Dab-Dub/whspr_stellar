@@ -1,51 +1,37 @@
-# Project TODO Tracking
+# Command Framework Implementation
+Current Working Directory: c:/Users/USER/whspr_stellar/src/command-framework/
 
-## Recurring Subscriptions Contract (Completed)
-- [x] Create contracts/recurring-subscriptions/Cargo.toml
-- [x] Create contracts/recurring-subscriptions/src/lib.rs with all functions
-- [x] Create contracts/recurring-subscriptions/src/tests.rs (>90% coverage)
-- [x] Test: cargo test
-- [ ] Deploy to testnet
-- [ ] Update contracts/README.md
-- [ ] Backend integration src/recurring-payments/
+## Plan Steps (Approved)
 
-## AML Transaction Monitoring Module ⭐ PRIORITY
-### 1. Core Structure [ ]
-- [ ] Create src/aml/entities/ (AMLFlag.entity.ts, ComplianceReport.entity.ts + enums)
-- [ ] Create src/aml/dto/ (all DTOs)
-- [ ] Create src/aml/aml-flags.repository.ts
-- [ ] Create src/aml/aml-monitoring.module.ts (with BullModule 'aml-analysis')
+### 1. Create module structure & core files [COMPLETE ✓]
+- `src/command-framework/command-framework.module.ts`
+- `entities/bot-command.entity.ts`
+- `command-framework.service.ts` (parse/register/route/built-ins/dispatch)
+- `command-framework.controller.ts`
+- DTOs: register-command.dto.ts, execute-command.dto.ts, paginated-commands.dto.ts
 
-### 2. Services & Logic [ ]
-- [ ] Create src/aml/aml-monitoring.service.ts (analyzeTransaction, flagSuspicious, etc.)
-- [ ] Create src/aml/aml.processor.ts (@Processor('aml-analysis'))
-- [ ] Extend src/transactions/services/receipt-pdf.generator.ts for SAR/CTR PDFs
+### 2. Database & entity [READY ✓]
+- Migration: `src/migrations/1747000000000-CommandFrameworkBotCommands.ts` (with built-in seeds)
 
-### 3. Controller & Admin [ ]
-- [ ] Create src/aml/aml-monitoring.controller.ts (/admin/aml/* with AdminGuard)
+### 3. Integrate with message flow [TODO]
+- Hook into `src/Conversation Module/src/conversations/services/conversations.service.ts#sendMessage`
+- Inject CommandFrameworkService, parse/route on `/` commands
 
-### 4. Database & Integration [ ]
-- [ ] Create migration src/migrations/[timestamp]-AMLEntities.ts
-- [ ] Edit src/transactions/transactions.service.ts (add post-confirm analysis job)
-- [ ] Edit src/app.module.ts (import AMLMonitoringModule)
+### 4. Tests [TODO]
+- `src/command-framework/__tests__/command-framework.service.spec.ts`
+- `test/command-framework.e2e-spec.ts`
 
-### 5. Testing [ ]
-- [ ] src/aml/__tests__/aml-monitoring.service.spec.ts (>=85%)
-- [ ] test/aml.e2e-spec.ts
+### 5. App integration & updates [TODO]
+- Update `src/app.module.ts`
+- Update `src/bots/entities/bot-command.entity.ts`? (add fields)
 
-### 6. Final [ ]
-- [ ] npm run typeorm migration:generate && npm run typeorm migration:run
-- [ ] npm run test && npm run test:cov
-- [ ] Config env vars (AML_LARGE_AMOUNT_USD=10000)
-- [ ] Manual test: Create tx >10k → Check flag → Admin review → Generate SAR PDF
+### 6. Followup/Verification [TODO]
+- Run migration
+- `npm run test`
+- Benchmark parse/route <100ms
+- Test built-ins: `/pay`, `/balance`, `/help`
 
-**Progress: 16/20 | Next: App integration**
-- Core Structure: ✓
-- Services & Logic: ✓ 
-- DB Migration: ✓ (1746000000000-AMLEntities.ts)
-- Core Structure: ✓
-- Services & Logic: ✓ (service, processor, controller)
-
+**Next step: Step 2 - Run migration \`npm run typeorm migration:run\`, then Step 3 integration.**
 - [x] Create contracts/recurring-subscriptions/src/lib.rs with all functions (subscribe, charge, pause/resume/cancel, views)
 - [x] Create contracts/recurring-subscriptions/src/tests.rs with unit/integration tests (>90% coverage)
 - [x] Test: cd contracts/recurring-subscriptions && cargo test (awaiting terminal output)

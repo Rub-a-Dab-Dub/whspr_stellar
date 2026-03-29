@@ -1,4 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import { MessageType } from '../../../messages/entities/message.entity';
+import { CommandFrameworkService } from '../../../command-framework/command-framework.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, LessThan, MoreThan, And } from 'typeorm';
 import { Conversation, ConversationType } from '../entities/conversation.entity';
