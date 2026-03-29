@@ -34,7 +34,6 @@ export class UsersService {
     const { walletAddress, username, email } = createUserDto;
     const preferredLocale = this.normalizePreferredLocale(createUserDto.preferredLocale) ?? null;
 
-    // Check wallet address uniqueness
     const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
     if (existingWallet) {
       throw new ConflictException(
@@ -42,7 +41,6 @@ export class UsersService {
       );
     }
 
-    // Check username uniqueness if provided
     if (username) {
       const existingUsername = await this.usersRepository.findByUsername(username);
       if (existingUsername) {
@@ -50,7 +48,6 @@ export class UsersService {
       }
     }
 
-    // Check email uniqueness if provided
     if (email) {
       const existingEmail = await this.usersRepository.findByEmail(email);
       if (existingEmail) {
@@ -127,7 +124,6 @@ export class UsersService {
       );
     }
 
-    // Validate username uniqueness if being updated
     if (updateProfileDto.username && updateProfileDto.username !== user.username) {
       const isAvailable = await this.usersRepository.isUsernameAvailable(
         updateProfileDto.username,
@@ -138,7 +134,6 @@ export class UsersService {
       }
     }
 
-    // Validate email uniqueness if being updated
     if (updateProfileDto.email && updateProfileDto.email !== user.email) {
       const isAvailable = await this.usersRepository.isEmailAvailable(updateProfileDto.email, id);
       if (!isAvailable) {
@@ -150,7 +145,6 @@ export class UsersService {
 
     const preferredLocale = this.normalizePreferredLocale(updateProfileDto.preferredLocale, true);
 
-    // Update user fields
     Object.assign(user, {
       ...updateProfileDto,
       email: updateProfileDto.email?.toLowerCase(),
@@ -204,10 +198,10 @@ export class UsersService {
       excludeExtraneousValues: true,
     });
 
-    // Add onboarding progress if service is available
     if (this.onboardingService) {
-      this.onboardingService.getProgress(user.id)
-        .then(progress => {
+      this.onboardingService
+        .getProgress(user.id)
+        .then((progress) => {
           dto.onboardingProgress = {
             currentStep: progress.currentStep,
             completedSteps: progress.completedSteps,
@@ -217,8 +211,7 @@ export class UsersService {
             nextStep: progress.nextStep,
           };
         })
-        .catch(error => {
-          // Log error but don't fail the user response
+        .catch((error) => {
           console.warn('Failed to fetch onboarding progress:', error);
         });
     }

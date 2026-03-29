@@ -1,27 +1,39 @@
-import { IsEnum, IsOptional, IsString, IsUrl, Length, Max, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Length,
+  Max,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { ContentType } from '../entities/story.entity';
+
+const MS_24H = 24 * 60 * 60 * 1000;
 
 export class CreateStoryDto {
   @IsEnum(ContentType)
   contentType!: ContentType;
 
-  @IsOptional()
+  @ValidateIf((o: CreateStoryDto) => o.contentType === ContentType.TEXT)
   @IsString()
   @Length(1, 500)
-  content?: string; // for TEXT
+  content?: string;
 
-  @IsOptional()
+  @ValidateIf(
+    (o: CreateStoryDto) => o.contentType === ContentType.IMAGE || o.contentType === ContentType.VIDEO,
+  )
   @IsUrl({}, { message: 'Invalid media URL' })
   mediaUrl?: string;
 
   @IsOptional()
   @IsString()
-  @Length(7, 7) // #RRGGBB
+  @Length(7, 7)
   backgroundColor?: string;
 
   @IsOptional()
-  @Min(1 * 60 * 60 * 1000) // 1h min
-  @Max(48 * 60 * 60 * 1000) // 48h max
-  durationMs?: number; // override default 24h
+  @Min(1 * 60 * 60 * 1000)
+  @Max(MS_24H)
+  durationMs?: number;
 }
-

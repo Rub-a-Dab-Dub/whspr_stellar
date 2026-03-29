@@ -15,10 +15,22 @@ export class UsersRepository extends Repository<User> {
     });
   }
 
+  async findByWalletCaseInsensitive(walletAddress: string): Promise<User | null> {
+    return this.createQueryBuilder('user')
+      .where('LOWER(TRIM(user."walletAddress")) = LOWER(TRIM(:w))', { w: walletAddress })
+      .getOne();
+  }
+
   async findByUsername(username: string): Promise<User | null> {
     return this.findOne({
       where: { username },
     });
+  }
+
+  async findByUsernameCaseInsensitive(username: string): Promise<User | null> {
+    return this.createQueryBuilder('user')
+      .where('LOWER(user.username) = LOWER(:username)', { username })
+      .getOne();
   }
 
   async findByEmail(email: string): Promise<User | null> {
