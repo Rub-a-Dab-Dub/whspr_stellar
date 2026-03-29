@@ -137,7 +137,7 @@ export class OnboardingService {
   }
 
   private checkOnboardingComplete(progress: OnboardingProgress): boolean {
-    const allSteps = Object.values(OnboardingStep);
+    const allSteps = Object.values(OnboardingStep) as OnboardingStep[];
     const requiredSteps = allSteps.filter(step => step !== OnboardingStep.WALLET_CONNECTED);
     const completedOrSkipped = [...progress.completedSteps, ...progress.skippedSteps];
     
@@ -147,7 +147,7 @@ export class OnboardingService {
   }
 
   private getNextStep(progress: OnboardingProgress): OnboardingStep | null {
-    const allSteps = Object.values(OnboardingStep);
+    const allSteps = Object.values(OnboardingStep) as OnboardingStep[];
     const completedOrSkipped = [...progress.completedSteps, ...progress.skippedSteps];
     
     const nextStep = allSteps.find(
