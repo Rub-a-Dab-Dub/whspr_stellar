@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SorobanClientService } from '../soroban-client/soroban-client.service';
-import { Networks, TransactionBuilder, xdr, nativeToScVal } from '@stellar/stellar-sdk';
+import {
+  Networks,
+  TransactionBuilder,
+  nativeToScVal,
+  StrKey,
+} from '@stellar/stellar-sdk';
 
 @Injectable()
 export class UserRegistryContractService {
@@ -53,5 +58,36 @@ export class UserRegistryContractService {
       'is_registered',
       [nativeToScVal(userId, { type: 'string' })],
     );
+  }
+
+  /**
+   * Reads on-chain username → Stellar public key mapping from the user registry contract.
+   * Returns null when the contract is not configured or the lookup fails.
+   */
+  async getWalletAddressForUsername(username: string): Promise<string | null> {
+    if (!this.contractId?.trim()) {
+      return null;
+    }
+    try {
+      const raw = await this.sorobanClient.callView(this.contractId, 'get_user', [
+        nativeToScVal(username, { type: 'string' }),
+      ]);
+      if (typeof raw === 'string' && StrKey.isValidEd25519PublicKey(raw)) {
+        return raw;
+      }
+      if (raw && typeof raw === 'object') {
+        const pk =
+          (raw as Record<string, unknown>).public_key ??
+          (raw as Record<string, unknown>).publicKey ??
+          (raw as Record<string, unknown>).address;
+        if (typeof pk === 'string' && StrKey.isValidEd25519PublicKey(pk)) {
+          return pk;
+        }
+      }
+      return null;
+    } catch (err) {
+      this.logger.debug(`get_user view failed for ${username}: ${(err as Error).message}`);
+      return null;
+    }
   }
 }

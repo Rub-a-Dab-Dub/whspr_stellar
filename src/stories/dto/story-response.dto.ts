@@ -1,4 +1,3 @@
-import { Exclude, Expose, Type } from 'class-transformer';
 import { ContentType } from '../entities/story.entity';
 
 export class StoryViewDto {
@@ -9,15 +8,15 @@ export class StoryViewDto {
 export class StoryResponseDto {
   id!: string;
   userId!: string;
-  username!: string; // populated
+  username!: string;
   avatarUrl!: string | null;
   contentType!: ContentType;
   content!: string | null;
   mediaUrl!: string | null;
   backgroundColor!: string | null;
+  duration!: number;
   viewCount!: number;
   expiresAt!: Date;
   createdAt!: Date;
-  myViews?: StoryViewDto[]; // only for owner
+  myViews?: StoryViewDto[];
 }
-

@@ -436,7 +436,7 @@ export class LeaderboardService {
 
   private mapEntryToDto(entry: any): LeaderboardEntryResponseDto {
     return {
-      id: entry.id,
+      id: entry.id ?? '',
       boardType: entry.boardType,
       userId: entry.userId,
       username: entry.user?.username || '',
@@ -444,11 +444,14 @@ export class LeaderboardService {
       score: entry.score,
       rank: entry.rank,
       period: entry.period,
-      computedAt: entry.computedAt,
+      computedAt: entry.computedAt ?? new Date(),
       changeFromLastPeriod: entry.changeFromLastPeriod || 0,
     };
   }
-}
+
+  @Cron(CronExpression.EVERY_WEEK, {
+    name: 'resetWeeklyLeaderboards',
+  })
   async resetWeeklyLeaderboards(): Promise<void> {
     try {
       this.logger.log('Starting weekly leaderboard reset');
@@ -528,18 +531,5 @@ export class LeaderboardService {
       );
       throw error;
     }
-  }
-
-  private mapEntryToDto(entry: LeaderboardEntry): LeaderboardEntryResponseDto {
-    return {
-      rank: entry.rank,
-      score: entry.score,
-      user: {
-        id: entry.user.id,
-        username: entry.user.username,
-        avatarUrl: entry.user.avatarUrl,
-      },
-      changeFromLastPeriod: entry.changeFromLastPeriod,
-    };
   }
 }

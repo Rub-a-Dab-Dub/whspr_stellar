@@ -61,6 +61,7 @@ export class AuthService {
     private readonly sessionsService: SessionsService,
     @Inject(forwardRef(() => TwoFactorService))
     private readonly twoFactorService: TwoFactorService,
+    private readonly fraudDetection: FraudDetectionService,
   ) {}
 
   async generateChallenge(walletAddress: string): Promise<ChallengeResponseDto> {
