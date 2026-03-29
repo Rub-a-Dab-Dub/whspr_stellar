@@ -138,20 +138,20 @@ export class OnboardingService {
   }
 
   private checkOnboardingComplete(progress: OnboardingProgress): boolean {
-    const allSteps = Object.values(OnboardingStep);
+    const allSteps = Object.values(OnboardingStep) as OnboardingStep[];
     const requiredSteps = allSteps.filter(step => step !== OnboardingStep.WALLET_CONNECTED);
     const completedOrSkipped = [...progress.completedSteps, ...progress.skippedSteps];
-    
+
     return requiredSteps.every(step => completedOrSkipped.includes(step));
   }
 
   private getNextStep(progress: OnboardingProgress): OnboardingStep | null {
-    const allSteps = Object.values(OnboardingStep);
+    const allSteps = Object.values(OnboardingStep) as OnboardingStep[];
     const completedOrSkipped = [...progress.completedSteps, ...progress.skippedSteps];
-    
+
     const nextStep = allSteps.find(step => !completedOrSkipped.includes(step));
-    
-    return nextStep || null;
+
+    return nextStep ?? null;
   }
 
   private mapToResponseDto(progress: OnboardingProgress): OnboardingProgressResponseDto {
@@ -161,9 +161,9 @@ export class OnboardingService {
     return {
       id: progress.id,
       userId: progress.userId,
-      currentStep: progress.currentStep,
-      completedSteps: progress.completedSteps,
-      skippedSteps: progress.skippedSteps,
+      currentStep: progress.currentStep as OnboardingStep | null,
+      completedSteps: progress.completedSteps as OnboardingStep[],
+      skippedSteps: progress.skippedSteps as OnboardingStep[],
       isCompleted: progress.isCompleted,
       completedAt: progress.completedAt,
       startedAt: progress.startedAt,

@@ -1,30 +1,58 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-} from 'typeorm'
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+
+export enum OnboardingStep {
+  WALLET_CONNECTED = 'wallet_connected',
+  PROFILE_COMPLETED = 'profile_completed',
+  USERNAME_SET = 'username_set',
+  AVATAR_SET = 'avatar_set',
+  FIRST_CONTACT_ADDED = 'first_contact_added',
+  FIRST_MESSAGE_SENT = 'first_message_sent',
+  ENCRYPTION_KEY_REGISTERED = 'encryption_key_registered',
+  FIRST_TRANSFER = 'first_transfer',
+}
 
 @Entity('onboarding_progress')
 export class OnboardingProgress {
-  @PrimaryColumn()
-  userId: string
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 
-  @Column({ nullable: true })
-  currentStep: string
+  @Column({ type: 'uuid', unique: true })
+  userId!: string;
 
-  @Column({ type: 'text', array: true, default: [] })
-  completedSteps: string[]
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user!: User;
 
-  @Column({ type: 'text', array: true, default: [] })
-  skippedSteps: string[]
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  currentStep!: string | null;
+
+  @Column({ type: 'text', array: true, default: '{}' })
+  completedSteps!: string[];
+
+  @Column({ type: 'text', array: true, default: '{}' })
+  skippedSteps!: string[];
 
   @Column({ default: false })
-  isCompleted: boolean
+  isCompleted!: boolean;
 
-  @Column({ nullable: true })
-  completedAt: Date
+  @Column({ type: 'timestamp', nullable: true })
+  completedAt!: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  startedAt!: Date | null;
 
   @CreateDateColumn()
-  startedAt: Date
+  createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

@@ -186,7 +186,7 @@ export class InChatTransfersService {
         senderId,
         asset: transfer.asset,
         totalAmount: transfer.totalAmount,
-        status: TransactionStatus.SUBMITTED,
+        status: TransactionStatus.PENDING,
       }),
     );
 
@@ -203,7 +203,7 @@ export class InChatTransfersService {
         totalAmount: transfer.totalAmount,
       });
 
-      transaction.status = TransactionStatus.COMPLETED;
+      transaction.status = TransactionStatus.CONFIRMED;
       transaction.txHash = txHash;
       await this.transactionsRepository.save(transaction);
 
