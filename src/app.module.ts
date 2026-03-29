@@ -60,6 +60,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConversationExportModule } from './conversation-export/conversation-export.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { PaymentSettingsModule } from './payment-settings/payment-settings.module';
 
 import { AddressBookModule } from './address-book/address-book.module';
 import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
@@ -147,6 +148,7 @@ import { ConnectionsModule } from './connections/connections.module';
     ReceiptsModule,
     TrustNetworkModule,
     ConnectionsModule,
+    PaymentSettingsModule,
   ],
 
   controllers: [AppController],
