@@ -3,12 +3,9 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
-  Inject,
   Logger,
   Optional,
-  forwardRef,
 } from '@nestjs/common';
-import { AnalyticsService } from '../analytics/analytics.service';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -16,14 +13,18 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
 import { PaginationDto, PaginatedResponse } from '../common/dto/pagination.dto';
 import { plainToInstance } from 'class-transformer';
+import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
 import { TranslationService } from '../i18n/services/translation.service';
 import { UserSettingsService } from '../user-settings/user-settings.service';
 import { OnboardingService } from '../onboarding/onboarding.service';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly usersRepository: UsersRepository,
+    private readonly moderationQueueService: ModerationQueueService,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
     @Optional() private readonly onboardingService?: OnboardingService,
@@ -33,7 +34,6 @@ export class UsersService {
     const { walletAddress, username, email } = createUserDto;
     const preferredLocale = this.normalizePreferredLocale(createUserDto.preferredLocale) ?? null;
 
-    // Check wallet address uniqueness
     const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
     if (existingWallet) {
       throw new ConflictException(
@@ -41,7 +41,6 @@ export class UsersService {
       );
     }
 
-    // Check username uniqueness if provided
     if (username) {
       const existingUsername = await this.usersRepository.findByUsername(username);
       if (existingUsername) {
@@ -49,7 +48,6 @@ export class UsersService {
       }
     }
 
-    // Check email uniqueness if provided
     if (email) {
       const existingEmail = await this.usersRepository.findByEmail(email);
       if (existingEmail) {
@@ -67,6 +65,7 @@ export class UsersService {
     });
 
     const savedUser = await this.usersRepository.save(user);
+    await this.enqueueModeration(savedUser);
     await this.userSettingsService.ensureSettingsForUser(savedUser.id);
     return this.toResponseDto(savedUser);
   }
@@ -125,7 +124,6 @@ export class UsersService {
       );
     }
 
-    // Validate username uniqueness if being updated
     if (updateProfileDto.username && updateProfileDto.username !== user.username) {
       const isAvailable = await this.usersRepository.isUsernameAvailable(
         updateProfileDto.username,
@@ -136,7 +134,6 @@ export class UsersService {
       }
     }
 
-    // Validate email uniqueness if being updated
     if (updateProfileDto.email && updateProfileDto.email !== user.email) {
       const isAvailable = await this.usersRepository.isEmailAvailable(updateProfileDto.email, id);
       if (!isAvailable) {
@@ -148,7 +145,6 @@ export class UsersService {
 
     const preferredLocale = this.normalizePreferredLocale(updateProfileDto.preferredLocale, true);
 
-    // Update user fields
     Object.assign(user, {
       ...updateProfileDto,
       email: updateProfileDto.email?.toLowerCase(),
@@ -156,6 +152,7 @@ export class UsersService {
     });
 
     const updatedUser = await this.usersRepository.save(user);
+    await this.enqueueModeration(updatedUser);
     return this.toResponseDto(updatedUser);
   }
 
@@ -201,10 +198,10 @@ export class UsersService {
       excludeExtraneousValues: true,
     });
 
-    // Add onboarding progress if service is available
     if (this.onboardingService) {
-      this.onboardingService.getProgress(user.id)
-        .then(progress => {
+      this.onboardingService
+        .getProgress(user.id)
+        .then((progress) => {
           dto.onboardingProgress = {
             currentStep: progress.currentStep,
             completedSteps: progress.completedSteps,
@@ -214,8 +211,7 @@ export class UsersService {
             nextStep: progress.nextStep,
           };
         })
-        .catch(error => {
-          // Log error but don't fail the user response
+        .catch((error) => {
           console.warn('Failed to fetch onboarding progress:', error);
         });
     }
@@ -260,5 +256,27 @@ export class UsersService {
       user.isActive = false;
     }
     return user;
+  }
+
+  private async enqueueModeration(user: User): Promise<void> {
+    const profileContent = [user.username, user.displayName, user.bio].filter(Boolean).join(' ');
+
+    try {
+      if (profileContent) {
+        await this.moderationQueueService.enqueueProfileModeration(user.id, profileContent);
+      }
+
+      await this.moderationQueueService.enqueueUserModeration(
+        user.id,
+        [user.walletAddress, user.email].filter(Boolean).join(' '),
+      );
+
+      if (user.avatarUrl) {
+        await this.moderationQueueService.enqueueImageModeration(user.id, user.avatarUrl);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.warn(`Failed to enqueue moderation jobs for user ${user.id}: ${message}`);
+    }
   }
 }

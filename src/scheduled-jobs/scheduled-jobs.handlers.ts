@@ -52,6 +52,11 @@ export class ScheduledJobHandlersService {
     await this.executeJob('cleanupAuditLogs', () => this.operations.cleanupAuditLogs());
   }
 
+  async deleteExpiredStories(): Promise<void> {
+    await this.executeJob('deleteExpiredStories', () => this.operations.deleteExpiredStories());
+  }
+
+
   private async executeJob(
     jobName: string,
     execute: () => Promise<{ processedCount: number; metadata?: Record<string, unknown> }>,

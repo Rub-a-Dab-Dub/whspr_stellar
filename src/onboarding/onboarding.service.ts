@@ -16,7 +16,6 @@ export class OnboardingService {
   async getProgress(userId: string): Promise<OnboardingProgressResponseDto> {
     let progress = await this.onboardingRepository.findOne({
       where: { userId },
-      relations: ['user'],
     });
 
     if (!progress) {
@@ -41,7 +40,7 @@ export class OnboardingService {
       completedSteps: [],
       skippedSteps: [],
       isCompleted: false,
-      startedAt: new Date(),
+      completedAt: null,
     });
 
     return await this.onboardingRepository.save(progress);
@@ -138,18 +137,22 @@ export class OnboardingService {
   }
 
   private checkOnboardingComplete(progress: OnboardingProgress): boolean {
-    const allSteps = Object.values(OnboardingStep);
+    const allSteps = Object.values(OnboardingStep) as OnboardingStep[];
     const requiredSteps = allSteps.filter(step => step !== OnboardingStep.WALLET_CONNECTED);
     const completedOrSkipped = [...progress.completedSteps, ...progress.skippedSteps];
     
-    return requiredSteps.every(step => completedOrSkipped.includes(step));
+    return requiredSteps.every((step) =>
+      completedOrSkipped.includes(step as string),
+    );
   }
 
   private getNextStep(progress: OnboardingProgress): OnboardingStep | null {
-    const allSteps = Object.values(OnboardingStep);
+    const allSteps = Object.values(OnboardingStep) as OnboardingStep[];
     const completedOrSkipped = [...progress.completedSteps, ...progress.skippedSteps];
     
-    const nextStep = allSteps.find(step => !completedOrSkipped.includes(step));
+    const nextStep = allSteps.find(
+      (step) => !completedOrSkipped.includes(step as string),
+    );
     
     return nextStep || null;
   }
@@ -159,16 +162,16 @@ export class OnboardingService {
     const nextStep = this.getNextStep(progress);
 
     return {
-      id: progress.id,
+      id: progress.userId,
       userId: progress.userId,
-      currentStep: progress.currentStep,
-      completedSteps: progress.completedSteps,
-      skippedSteps: progress.skippedSteps,
+      currentStep: progress.currentStep as OnboardingStep | null,
+      completedSteps: progress.completedSteps as OnboardingStep[],
+      skippedSteps: progress.skippedSteps as OnboardingStep[],
       isCompleted: progress.isCompleted,
       completedAt: progress.completedAt,
       startedAt: progress.startedAt,
-      createdAt: progress.createdAt,
-      updatedAt: progress.updatedAt,
+      createdAt: progress.startedAt,
+      updatedAt: progress.startedAt,
       nextStep,
       completionPercentage,
     };

@@ -12,6 +12,7 @@ import {
 } from './entities/in-chat-transfer.entity';
 import { UsersRepository } from '../users/users.repository';
 import { Wallet } from '../wallets/entities/wallet.entity';
+import { SavedAddressesService } from '../address-book/saved-addresses.service';
 import { InitiateTransferDto } from './dto/initiate-transfer.dto';
 import { TransferPreviewDto } from './dto/transfer-preview.dto';
 import { TransferResponseDto } from './dto/transfer-response.dto';
@@ -51,6 +52,7 @@ export class InChatTransfersService {
     private readonly walletsRepository: Repository<Wallet>,
     private readonly usersRepository: UsersRepository,
     private readonly sorobanTransfersService: SorobanTransfersService,
+    private readonly savedAddressesService: SavedAddressesService,
   ) {}
 
   parseTransferCommand(raw: string): ParsedTransferCommand {
@@ -184,7 +186,7 @@ export class InChatTransfersService {
         senderId,
         asset: transfer.asset,
         totalAmount: transfer.totalAmount,
-        status: TransactionStatus.SUBMITTED,
+        status: TransactionStatus.PENDING,
       }),
     );
 
@@ -201,7 +203,7 @@ export class InChatTransfersService {
         totalAmount: transfer.totalAmount,
       });
 
-      transaction.status = TransactionStatus.COMPLETED;
+      transaction.status = TransactionStatus.CONFIRMED;
       transaction.txHash = txHash;
       await this.transactionsRepository.save(transaction);
 
@@ -227,6 +229,12 @@ export class InChatTransfersService {
       transfer.messageId = message.id;
       transfer.transactionId = transaction.id;
       await this.transfersRepository.save(transfer);
+
+      await Promise.all(
+        recipientUsers.map((recipient) =>
+          this.savedAddressesService.trackUsageByWalletAddress(senderId, recipient.walletAddress),
+        ),
+      );
 
       return {
         transferId: transfer.id,

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AddressBookModule } from '../address-book/address-book.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { Wallet } from '../wallets/entities/wallet.entity';
@@ -19,6 +20,7 @@ import { TransactionsService } from './services/transactions.service';
     TypeOrmModule.forFeature([Transaction, Wallet]),
     MessagingModule,
     NotificationsModule,
+    AddressBookModule,
   ],
   controllers: [TransactionsController, ReceiptController],
   providers: [

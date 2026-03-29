@@ -18,6 +18,7 @@ import { AuthAttempt } from './entities/auth-attempt.entity';
 import { UsersModule } from '../users/users.module';
 import { SessionsModule } from '../sessions/sessions.module';
 import { TwoFactorModule } from '../two-factor/two-factor.module';
+import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module';
 
 @Module({
   imports: [
@@ -47,6 +48,6 @@ import { TwoFactorModule } from '../two-factor/two-factor.module';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, CryptoService, JwtModule],
 })
 export class AuthModule {}

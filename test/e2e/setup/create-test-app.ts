@@ -290,5 +290,5 @@ export async function listUserSessions(
 ): Promise<UserSession[]> {
   return dataSource
     .getRepository(UserSession)
-    .find({ where: { userId }, order: { createdAt: 'ASC' } });
+    .find({ where: { userId }, order: { lastActiveAt: 'ASC' } });
 }
