@@ -18,6 +18,7 @@ import { TranslationService } from '../i18n/services/translation.service';
 import { UserSettingsService } from '../user-settings/user-settings.service';
 import { OnboardingService } from '../onboarding/onboarding.service';
 import { PlatformInviteService } from '../platform-invites/platform-invite.service';
+import { BlockEnforcementService } from '../block-enforcement/block-enforcement.service';
 
 @Injectable()
 export class UsersService {
@@ -28,6 +29,7 @@ export class UsersService {
     private readonly moderationQueueService: ModerationQueueService,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
+    private readonly blockEnforcementService: BlockEnforcementService,
     @Optional() private readonly onboardingService?: OnboardingService,
     @Optional() private readonly platformInviteService?: PlatformInviteService,
   ) {}
@@ -281,10 +283,23 @@ export class UsersService {
       return user;
     }
 
+    if (viewerId) {
+      await this.blockEnforcementService.canViewProfile(viewerId, user.id);
+    }
+
     const privacy = await this.userSettingsService.getPrivacySettings(user.id);
+
     if (!privacy.onlineStatusVisible) {
       user.isActive = false;
     }
+
+    if (privacy.lastSeenVisibility === 'nobody') {
+      user.isActive = false;
+    } else if (privacy.lastSeenVisibility === 'contacts' && viewerId) {
+      // TODO: contact list integration. Non-contacts currently treated as removed online presence.
+      user.isActive = false;
+    }
+
     return user;
   }
 

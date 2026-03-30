@@ -82,7 +82,7 @@ import { ReputationModule } from './reputation/reputation.module';
 import { AmlMonitoringModule } from './aml/aml-monitoring.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ActivityFeedModule } from './activity-feed/activity-feed.module';
-
+import { BlockEnforcementModule } from './block-enforcement/block-enforcement.module';
 
 @Module({
   imports: [
@@ -117,6 +117,7 @@ import { ActivityFeedModule } from './activity-feed/activity-feed.module';
     StickersModule,
     UserStickerPacksModule,
     PrivacyModule,
+    BlockEnforcementModule,
     SpamDetectionModule,
     LeaderboardModule,
     PinnedMessagesModule,
