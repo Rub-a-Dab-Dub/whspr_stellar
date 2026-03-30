@@ -61,6 +61,14 @@ export const envValidationSchema = Joi.object({
     'image/jpeg,image/png,image/webp,image/gif,video/mp4,audio/mpeg,audio/wav,application/pdf',
   ),
 
+  // Email
+  EMAIL_PROVIDER: Joi.string().valid('sendgrid', 'zeptomail').default('sendgrid'),
+  EMAIL_FROM_ADDRESS: Joi.string().email().default('noreply@example.com'),
+  SENDGRID_API_KEY: Joi.string().allow('').optional(),
+  ZEPTOMAIL_API_KEY: Joi.string().allow('').optional(),
+  ZEPTOMAIL_API_URL: Joi.string().uri().optional(),
+  APP_PUBLIC_URL: Joi.string().uri().default('https://app.whspr.example'),
+
   // Soroban RPC
   SOROBAN_RPC_URL: Joi.string().uri().required(),
   SOROBAN_CONTRACT_IDS: Joi.string().default(''), // comma-separated contract addresses
