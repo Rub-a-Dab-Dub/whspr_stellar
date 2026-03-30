@@ -12,6 +12,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { UseGuards } from '@nestjs/common';
+import { BlockGuard } from '../block-enforcement/block.guard';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -102,6 +104,7 @@ export class UsersController {
     return this.usersService.findByWalletAddress(walletAddress);
   }
 
+  @UseGuards(BlockGuard)
   @Get(':id')
   @Public()
   @ApiOperation({ summary: 'Get user by ID' })

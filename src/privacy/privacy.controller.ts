@@ -131,4 +131,34 @@ export class PrivacyController {
   ): Promise<ConsentRecordResponseDto> {
     return this.privacyService.revokeConsent(req.user.id, consentType as any);
   }
+
+   @Post("export")
+  async requestExport(@Query("userId") userId: string) {
+    return this.service.requestDataExport(userId);
+  }
+
+  @Get("export/status")
+  async exportStatus(@Query("userId") userId: string) {
+    return this.service.getExportStatus(userId);
+  }
+
+  @Get("export/download")
+  async exportDownload(@Query("userId") userId: string) {
+    return this.service.downloadExport(userId);
+  }
+
+  @Delete("account")
+  async deleteAccount(@Query("userId") userId: string) {
+    return this.service.deleteAccount(userId);
+  }
+
+  @Get("consents")
+  async consents(@Query("userId") userId: string) {
+    return this.service.getConsentHistory(userId);
+  }
+
+  @Patch("consents/:type")
+  async revokeConsent(@Query("userId") userId: string, @Param("type") type: string) {
+    return this.service.revokeConsent(userId, type);
+  }
 }

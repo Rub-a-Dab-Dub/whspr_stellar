@@ -167,8 +167,15 @@ export class RampService {
   }
 
   private async creditWallet(tx: RampTransaction): Promise<void> {
-    // Mark wallet as verified/active after confirmed deposit — balance is live on-chain
-    this.logger.log(`Deposit confirmed for user ${tx.userId}, asset ${tx.assetCode}, tx ${tx.txHash}`);
+    // Balance is live on-chain (Stellar); mark the primary wallet as verified in DB
+    // so the app knows the wallet has been funded at least once.
+    await this.walletsRepo.update(
+      { userId: tx.userId, isPrimary: true },
+      { isVerified: true },
+    );
+    this.logger.log(
+      `Deposit confirmed — wallet verified for user=${tx.userId} asset=${tx.assetCode} txHash=${tx.txHash}`,
+    );
   }
 
   private async findOwned(userId: string, id: string): Promise<RampTransaction> {

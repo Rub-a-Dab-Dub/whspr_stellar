@@ -7,7 +7,7 @@ import { ReputationService } from './reputation.service';
 import { ReputationController } from './reputation.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ReputationScore, UserRating])],
+  imports: [TypeOrmModule.forFeature([ReputationScore, UserRating]), TrustNetworkModule],
   controllers: [ReputationController],
   providers: [ReputationService, ReputationRepository],
   exports: [ReputationService],

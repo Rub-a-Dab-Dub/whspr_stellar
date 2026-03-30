@@ -8,16 +8,18 @@ import {
   MaxLength,
   Matches,
   IsEthereumAddress,
+  Length,
 } from 'class-validator';
 import { validationMessages } from '../../i18n/validation-messages';
 
 export class CreateUserDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Ethereum wallet address',
     example: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
   })
+  @IsOptional()
   @IsEthereumAddress({ message: validationMessages.ethereumAddress() })
-  walletAddress!: string;
+  walletAddress?: string;
 
   @ApiPropertyOptional({
     description: 'Unique username (3-50 characters, alphanumeric and underscores)',
@@ -80,4 +82,16 @@ export class CreateUserDto {
   @IsString({ message: validationMessages.string() })
   @MaxLength(10, { message: validationMessages.maxLength(10) })
   preferredLocale?: string;
+
+  @ApiPropertyOptional({
+    description: 'Platform invite code (required when invite-only mode is enabled)',
+    example: 'AbCdEfGhIjKlMnOp',
+    minLength: 16,
+    maxLength: 16,
+  })
+  @IsOptional()
+  @IsString()
+  @Length(16, 16)
+  @Matches(/^[A-Za-z0-9_-]{16}$/)
+  inviteCode?: string;
 }

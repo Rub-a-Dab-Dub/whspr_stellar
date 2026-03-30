@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatGateway } from '../messaging/gateways/chat.gateway';
-import { Message } from '../Conversation Module/src/conversations/entities/message.entity';
+import { Message } from '../messages/entities/message.entity';
 import { AddReactionDto } from './dto/add-reaction.dto';
 import { MessageReactionsResponseDto, ReactionSummaryDto } from './dto/reaction-summary.dto';
 import { ReactionsRepository } from './reactions.repository';

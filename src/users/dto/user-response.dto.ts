@@ -13,8 +13,8 @@ export class UserResponseDto {
   username!: string | null;
 
   @Expose()
-  @ApiProperty({ example: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb' })
-  walletAddress!: string;
+  @ApiPropertyOptional({ example: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb' })
+  walletAddress!: string | null;
 
   @Expose()
   @ApiPropertyOptional({ example: 'john@example.com' })
@@ -37,7 +37,6 @@ export class UserResponseDto {
   preferredLocale!: string | null;
 
   @Expose()
-  @ApiProperty({ enum: UserTier, example: UserTier.FREE })
   @ApiProperty({ enum: UserTier, example: UserTier.SILVER })
   tier!: UserTier;
 
@@ -56,6 +55,28 @@ export class UserResponseDto {
   @Expose()
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   updatedAt!: Date;
+
+  @Expose()
+  @ApiPropertyOptional({ 
+    description: 'Onboarding progress information',
+    type: 'object',
+    example: {
+      currentStep: 'profile_completed',
+      completedSteps: ['wallet_connected', 'profile_completed'],
+      skippedSteps: [],
+      isCompleted: false,
+      completionPercentage: 28,
+      nextStep: 'username_set'
+    }
+  })
+  onboardingProgress?: {
+    currentStep: string | null;
+    completedSteps: string[];
+    skippedSteps: string[];
+    isCompleted: boolean;
+    completionPercentage: number;
+    nextStep: string | null;
+  };
 
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);

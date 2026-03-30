@@ -33,7 +33,7 @@ import { LoginAction } from '../../fraud-detection/entities/login-attempt.entity
 
 export interface JwtPayload {
   sub: string;
-  walletAddress: string;
+  walletAddress: string | null;
   sessionId: string;
   iat?: number;
   exp?: number;
@@ -61,6 +61,7 @@ export class AuthService {
     private readonly sessionsService: SessionsService,
     @Inject(forwardRef(() => TwoFactorService))
     private readonly twoFactorService: TwoFactorService,
+    private readonly fraudDetection: FraudDetectionService,
   ) {}
 
   async generateChallenge(walletAddress: string): Promise<ChallengeResponseDto> {
@@ -287,6 +288,27 @@ export class AuthService {
     };
   }
 
+  async issueTokensForUser(
+    user: UserResponseDto,
+    ipAddress: string,
+    userAgent?: string,
+  ): Promise<AuthResponseDto> {
+    const tokens = await this.generateTokens(user, {
+      ipAddress,
+      userAgent: userAgent ?? null,
+      deviceInfo: this.resolveDeviceInfo(undefined, userAgent),
+    });
+
+    this.logger.log(`Tokens issued (Social Auth) for user: ${user.id}`);
+
+    return {
+      ...tokens,
+      user,
+      tokenType: 'Bearer',
+      expiresIn: 900,
+    };
+  }
+
   async logout(userId: string, sessionId?: string): Promise<void> {
     if (!sessionId) {
       return;
@@ -301,6 +323,13 @@ export class AuthService {
 
     if (!user.isActive) {
       throw new UnauthorizedException(this.translationService.translate('errors.auth.userDeactivated'));
+    }
+
+    if (!user.walletAddress) {
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      if (Date.now() - new Date(user.createdAt).getTime() > SEVEN_DAYS_MS) {
+        throw new UnauthorizedException('Grace period expired. Please link a Stellar wallet to continue.');
+      }
     }
 
     await this.sessionsService.validateActiveSession(payload.sub, payload.sessionId);

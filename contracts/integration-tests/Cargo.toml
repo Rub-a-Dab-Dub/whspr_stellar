@@ -5,7 +5,11 @@ edition = "2021"
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+bridge_adapter = { path = "../bridge_adapter" }
 messaging  = { path = "../messaging" }
 payments   = { path = "../payments" }
+private_payments = { path = "../contracts/private_payments", features = ["testhelpers"] }
 rooms      = { path = "../rooms" }
 xp         = { path = "../xp" }
+ed25519-dalek = { version = "2.1", default-features = false, features = ["rand_core"] }
+rand = { version = "0.8", default-features = false, features = ["std_rng"] }

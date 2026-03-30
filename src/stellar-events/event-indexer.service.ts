@@ -1,13 +1,14 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { xdr, scValToNative } from 'stellar-sdk';
+import { xdr, scValToNative } from '@stellar/stellar-sdk';
 import { Interval } from '@nestjs/schedule';
 import { ContractEvent } from './contract-event.entity';
 import { IndexerCursor } from './indexer-cursor.entity';
 import { SorobanRpcService, RawContractEvent } from './soroban-rpc.service';
 import { ContractEventName, EventPayloads } from './event-schemas';
+import { ContractStateCacheService } from '../contract-state-cache/contract-state-cache.service';
 
 @Injectable()
 export class EventIndexerService implements OnModuleInit {
@@ -21,6 +22,9 @@ export class EventIndexerService implements OnModuleInit {
     private readonly eventRepo: Repository<ContractEvent>,
     @InjectRepository(IndexerCursor)
     private readonly cursorRepo: Repository<IndexerCursor>,
+    @Optional()
+    @Inject(forwardRef(() => ContractStateCacheService))
+    private readonly contractStateCache?: ContractStateCacheService,
   ) {}
 
   onModuleInit() {
@@ -62,6 +66,11 @@ export class EventIndexerService implements OnModuleInit {
       if (events.length) {
         await this.persistEvents(events);
         maxLedger = Math.max(maxLedger, ...events.map((e) => e.ledgerSequence));
+        if (this.contractStateCache) {
+          void this.contractStateCache.invalidateAfterChainEvents(contractId).catch((err: Error) =>
+            this.logger.warn(`Contract state cache invalidate: ${err.message}`),
+          );
+        }
       }
 
       nextCursor = nc;

@@ -10,6 +10,8 @@ import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './config/winston.config';
 import { LoggingMiddleware } from './common/logging/logging.middleware';
 import { LoggerService } from './common/logging/logger.service';
+import { requestIdMiddleware } from './observability/request-id.middleware';
+import { RequestMetricsInterceptor } from './observability/request-metrics.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
