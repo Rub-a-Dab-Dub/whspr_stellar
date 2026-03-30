@@ -46,6 +46,37 @@ import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
 import { Sep10Module } from './sep10/sep10.module';
 import { RampModule } from './ramp/ramp.module';
 import { QrCodeModule } from './qr-code/qr-code.module';
+import { BotsModule } from './bots/bots.module';
+import { BlockchainTransactionsModule } from './blockchain-transactions/blockchain-transactions.module';
+import { MessageForwardingModule } from './message-forwarding/message-forwarding.module';
+import { PollsModule } from './polls/polls.module';
+import { MentionsModule } from './mentions/mentions.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { AppVersionModule } from './app-version/app-version.module';
+import { RecurringPaymentsModule } from './recurring-payments/recurring-payments.module';
+import { AnchorModule } from './anchor/anchor.module';
+import { MessageDraftsModule } from './message-drafts/message-drafts.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
+import { ConversationExportModule } from './conversation-export/conversation-export.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { RevenueModule } from './revenue/revenue.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
+import { PaymentSettingsModule } from './payment-settings/payment-settings.module';
+
+import { AddressBookModule } from './address-book/address-book.module';
+import { UsernameDiscoveryModule } from './username-discovery/username-discovery.module';
+import { DeveloperSandboxModule } from './developer-sandbox/developer-sandbox.module';
+import { StoriesModule } from './stories/stories.module';
+import { PaymentsModule } from './payments/payments.module';
+import { LinkPreviewsModule } from './link-previews/link-previews.module';
+import { NotificationDigestModule } from './notification-digest/notification-digest.module';
+import { ReceiptsModule } from './receipts/receipts.module';
+import { TrustNetworkModule } from './trust-network/trust-network.module';
+import { ReputationModule } from './reputation/reputation.module';
+import { AmlMonitoringModule } from './aml/aml-monitoring.module';
+import { ConnectionsModule } from './connections/connections.module';
+import { ActivityFeedModule } from './activity-feed/activity-feed.module';
+import { BlockEnforcementModule } from './block-enforcement/block-enforcement.module';
 
 @Module({
   imports: [
@@ -90,6 +121,7 @@ import { QrCodeModule } from './qr-code/qr-code.module';
     ReactionsModule,
     StickersModule,
     PrivacyModule,
+    BlockEnforcementModule,
     SpamDetectionModule,
     LeaderboardModule,
     PinnedMessagesModule,

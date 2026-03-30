@@ -13,6 +13,7 @@ import {
 import { UsersRepository } from '../users/users.repository';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { SavedAddressesService } from '../address-book/saved-addresses.service';
+import { BlockEnforcementService } from '../block-enforcement/block-enforcement.service';
 import { InitiateTransferDto } from './dto/initiate-transfer.dto';
 import { TransferPreviewDto } from './dto/transfer-preview.dto';
 import { TransferResponseDto } from './dto/transfer-response.dto';
@@ -53,6 +54,7 @@ export class InChatTransfersService {
     private readonly usersRepository: UsersRepository,
     private readonly sorobanTransfersService: SorobanTransfersService,
     private readonly savedAddressesService: SavedAddressesService,
+    private readonly blockEnforcementService: BlockEnforcementService,
   ) {}
 
   parseTransferCommand(raw: string): ParsedTransferCommand {
@@ -121,6 +123,12 @@ export class InChatTransfersService {
     const participants = await this.getConversationParticipants(conversationId);
     this.assertParticipant(participants, senderId);
 
+    const recipientIds = participants
+      .map((participant) => participant.userId)
+      .filter((userId) => userId !== senderId);
+
+    await this.blockEnforcementService.canTransferFunds(senderId, recipientIds);
+
     const resolved = await this.resolveCommand(senderId, participants, rawCommand);
     const feeEstimate = await this.estimateFee(
       resolved.asset,
@@ -171,6 +179,8 @@ export class InChatTransfersService {
     if (transfer.status !== TransferStatus.PENDING_CONFIRMATION) {
       throw new BadRequestException('Transfer preview must be created before confirmation.');
     }
+
+    await this.blockEnforcementService.canTransferFunds(senderId, transfer.recipientIds);
 
     transfer.status = TransferStatus.CONFIRMED;
     await this.transfersRepository.save(transfer);

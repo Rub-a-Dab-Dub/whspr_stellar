@@ -12,12 +12,12 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
 import { TranslationService } from '../i18n/services/translation.service';
-import { UserSettingsService } from '../user-settings/user-settings.service';
-import { PlatformInviteService } from '../platform-invites/platform-invite.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';import { BlockEnforcementService } from '../block-enforcement/block-enforcement.service';import { PlatformInviteService } from '../platform-invites/platform-invite.service';
 
 describe('UsersService', () => {
   let service: UsersService;
   let repository: jest.Mocked<UsersRepository>;
+  let blockService: jest.Mocked<BlockEnforcementService>;
 
   const mockUser: User = {
     id: '123e4567-e89b-12d3-a456-426614174000',
@@ -71,6 +71,10 @@ describe('UsersService', () => {
   };
 
   beforeEach(async () => {
+    blockService = {
+      canViewProfile: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<BlockEnforcementService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
@@ -84,12 +88,14 @@ describe('UsersService', () => {
           },
         },
         { provide: UserSettingsService, useValue: mockUserSettingsService },
+        { provide: BlockEnforcementService, useValue: blockService },
         { provide: PlatformInviteService, useValue: mockPlatformInviteService },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(UsersRepository);
+    blockService = module.get(BlockEnforcementService);
 
     jest.clearAllMocks();
     mockPlatformInviteService.isInviteModeEnabled.mockResolvedValue(false);
