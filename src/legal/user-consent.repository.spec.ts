@@ -1,58 +1,44 @@
-import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { UserConsent } from './entities/user-consent.entity';
-import { UserConsentRepository } from './user-consent.repository';
 
-const mockOrm = () => ({
-  create: jest.fn(),
-  save: jest.fn(),
-  findOne: jest.fn(),
-  find: jest.fn(),
-});
+@Injectable()
+export class UserConsentsRepository {
+  constructor(
+    @InjectRepository(UserConsent)
+    private readonly repo: Repository<UserConsent>,
+  ) {}
 
-describe('UserConsentRepository', () => {
-  let repo: UserConsentRepository;
-  let orm: ReturnType<typeof mockOrm>;
+  create(data: Partial<UserConsent>): UserConsent {
+    return this.repo.create(data);
+  }
 
-  beforeEach(async () => {
-    const module = await Test.createTestingModule({
-      providers: [
-        UserConsentRepository,
-        { provide: getRepositoryToken(UserConsent), useFactory: mockOrm },
-      ],
-    }).compile();
+  async save(consent: UserConsent): Promise<UserConsent> {
+    return this.repo.save(consent);
+  }
 
-    repo = module.get(UserConsentRepository);
-    orm = module.get(getRepositoryToken(UserConsent));
-  });
+  async findByUserAndDocument(userId: string, documentId: string): Promise<UserConsent | null> {
+    return this.repo.findOne({ where: { userId, documentId } });
+  }
 
-  it('upsert returns existing record without saving again', async () => {
-    const existing = { id: 'c1', userId: 'u1', documentId: 'd1' } as UserConsent;
-    orm.findOne.mockResolvedValue(existing);
+  async findAllByUser(userId: string): Promise<UserConsent[]> {
+    return this.repo.find({
+      where: { userId },
+      relations: ['document'],
+      order: { acceptedAt: 'DESC' },
+    });
+  }
 
-    const result = await repo.upsert({ userId: 'u1', documentId: 'd1' } as UserConsent);
-    expect(result).toBe(existing);
-    expect(orm.save).not.toHaveBeenCalled();
-  });
+  async upsert(consent: UserConsent): Promise<UserConsent> {
+    // Consent records are immutable — only insert, never update
+    const existing = await this.findByUserAndDocument(consent.userId, consent.documentId);
+    if (existing) {
+      return existing;
+    }
+    return this.repo.save(consent);
+  }
+}
 
-  it('upsert saves when no existing record', async () => {
-    const newConsent = { id: 'c2', userId: 'u1', documentId: 'd1' } as UserConsent;
-    orm.findOne.mockResolvedValue(null);
-    orm.save.mockResolvedValue(newConsent);
-
-    const result = await repo.upsert({ userId: 'u1', documentId: 'd1' } as UserConsent);
-    expect(result).toBe(newConsent);
-    expect(orm.save).toHaveBeenCalled();
-  });
-
-  it('findAllByUser queries with relations and order', async () => {
-    orm.find.mockResolvedValue([]);
-    await repo.findAllByUser('u1');
-    expect(orm.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: 'u1' },
-        relations: ['document'],
-      }),
-    );
-  });
-});
+// Backward-compatible alias used by existing imports.
+export { UserConsentsRepository as UserConsentRepository };

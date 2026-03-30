@@ -21,7 +21,7 @@ describe('ConsentGuard', () => {
       providers: [
         ConsentGuard,
         { provide: Reflector, useValue: { getAllAndOverride: jest.fn() } },
-        { provide: LegalService, useValue: { enforceConsent: jest.fn() } },
+        { provide: LegalService, useValue: { requireConsent: jest.fn() } },
       ],
     }).compile();
 
@@ -36,7 +36,7 @@ describe('ConsentGuard', () => {
       .mockReturnValueOnce(false); // skipConsent
     const ctx = makeContext({ id: 'user-uuid' });
     expect(await guard.canActivate(ctx)).toBe(true);
-    expect(legalService.enforceConsent).not.toHaveBeenCalled();
+    expect(legalService.requireConsent).not.toHaveBeenCalled();
   });
 
   it('passes through routes marked @SkipConsent', async () => {
@@ -45,27 +45,27 @@ describe('ConsentGuard', () => {
       .mockReturnValueOnce(true); // skipConsent
     const ctx = makeContext({ id: 'user-uuid' });
     expect(await guard.canActivate(ctx)).toBe(true);
-    expect(legalService.enforceConsent).not.toHaveBeenCalled();
+    expect(legalService.requireConsent).not.toHaveBeenCalled();
   });
 
   it('passes through when no user on request (unauthenticated)', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
     const ctx = makeContext(null);
     expect(await guard.canActivate(ctx)).toBe(true);
-    expect(legalService.enforceConsent).not.toHaveBeenCalled();
+    expect(legalService.requireConsent).not.toHaveBeenCalled();
   });
 
-  it('calls enforceConsent for authenticated users on protected routes', async () => {
+  it('calls requireConsent for authenticated users on protected routes', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
-    legalService.enforceConsent.mockResolvedValue(undefined);
+    legalService.requireConsent.mockResolvedValue(undefined);
     const ctx = makeContext({ id: 'user-uuid' });
     expect(await guard.canActivate(ctx)).toBe(true);
-    expect(legalService.enforceConsent).toHaveBeenCalledWith('user-uuid');
+    expect(legalService.requireConsent).toHaveBeenCalledWith('user-uuid');
   });
 
-  it('propagates ForbiddenException from enforceConsent', async () => {
+  it('propagates ForbiddenException from requireConsent', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
-    legalService.enforceConsent.mockRejectedValue(new Error('Forbidden'));
+    legalService.requireConsent.mockRejectedValue(new Error('Forbidden'));
     const ctx = makeContext({ id: 'user-uuid' });
     await expect(guard.canActivate(ctx)).rejects.toThrow('Forbidden');
   });

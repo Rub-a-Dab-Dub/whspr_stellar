@@ -15,6 +15,7 @@ import { AdminModule } from '../../../src/admin/admin.module';
 import { AppVersionModule } from '../../../src/app-version/app-version.module';
 import { CacheModule } from '../../../src/cache/cache.module';
 import { StoriesModule } from '../../../src/stories/stories.module';
+import { LegalModule } from '../../../src/legal/legal.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { StoriesModule } from '../../../src/stories/stories.module';
     CacheModule,
     AppVersionModule,
     StoriesModule,
+    LegalModule,
   ],
 })
 export class E2eAppModule {}
