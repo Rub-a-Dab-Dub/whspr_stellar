@@ -28,7 +28,7 @@ export class UserConsent {
   document!: LegalDocument;
 
   @Column({ type: 'varchar', length: 20 })
-  documentVersion!: string;
+  version!: string;
 
   @Column({ type: 'varchar', length: 45, nullable: true })
   ipAddress!: string | null;

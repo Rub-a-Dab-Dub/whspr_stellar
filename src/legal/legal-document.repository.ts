@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LegalDocument, LegalDocumentStatus, LegalDocumentType } from './entities/legal-document.entity';
+import { LegalDocument, LegalDocumentType } from './entities/legal-document.entity';
 
 @Injectable()
-export class LegalDocumentRepository {
+export class LegalDocumentsRepository {
   constructor(
     @InjectRepository(LegalDocument)
     private readonly repo: Repository<LegalDocument>,
@@ -24,15 +24,15 @@ export class LegalDocumentRepository {
 
   async findActive(type: LegalDocumentType): Promise<LegalDocument | null> {
     return this.repo.findOne({
-      where: { type, status: LegalDocumentStatus.ACTIVE },
-      order: { publishedAt: 'DESC' },
+      where: { type, isActive: true },
+      order: { effectiveDate: 'DESC' },
     });
   }
 
   async findAllActive(): Promise<LegalDocument[]> {
     return this.repo.find({
-      where: { status: LegalDocumentStatus.ACTIVE },
-      order: { type: 'ASC', publishedAt: 'DESC' },
+      where: { isActive: true },
+      order: { type: 'ASC', effectiveDate: 'DESC' },
     });
   }
 
@@ -40,10 +40,13 @@ export class LegalDocumentRepository {
     return this.repo.findOne({ where: { type, version } });
   }
 
-  async archiveActiveDocuments(type: LegalDocumentType): Promise<void> {
+  async deactivateCurrent(type: LegalDocumentType): Promise<void> {
     await this.repo.update(
-      { type, status: LegalDocumentStatus.ACTIVE },
-      { status: LegalDocumentStatus.ARCHIVED },
+      { type, isActive: true },
+      { isActive: false },
     );
   }
 }
+
+// Backward-compatible alias used by existing imports.
+export { LegalDocumentsRepository as LegalDocumentRepository };
