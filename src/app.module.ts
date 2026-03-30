@@ -72,6 +72,8 @@ import { ReceiptsModule } from './receipts/receipts.module';
 import { TrustNetworkModule } from './trust-network/trust-network.module';
 import { ReputationModule } from './reputation/reputation.module';
 import { ConnectionsModule } from './connections/connections.module';
+import { GroupMembersModule } from './group-members/group-members.module';
+import { DaoTreasuryModule } from './dao-treasury/dao-treasury.module';
 
 @Module({
   imports: [
@@ -147,6 +149,8 @@ import { ConnectionsModule } from './connections/connections.module';
     ReceiptsModule,
     TrustNetworkModule,
     ConnectionsModule,
+    GroupMembersModule,
+    DaoTreasuryModule,
   ],
 
   controllers: [AppController],

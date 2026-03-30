@@ -106,6 +106,8 @@ export const envValidationSchema = Joi.object({
     .default('https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze'),
   // Soroban
   SOROBAN_NETWORK_PASSPHRASE: Joi.string().default('Test SDF Network ; September 2015'),
+  DAO_TREASURY_CONTRACT_ID: Joi.string().allow('').optional(),
+  PROPOSAL_TTL_SECONDS: Joi.number().default(604800),
 
   // Stellar Name Service (optional HTTP resolver base, no trailing slash required)
   SNS_RESOLVER_BASE_URL: Joi.string().uri().allow('').optional(),
