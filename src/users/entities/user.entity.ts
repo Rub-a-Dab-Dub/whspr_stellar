@@ -22,9 +22,9 @@ export class User {
   @Index('idx_users_username')
   username!: string | null;
 
-  @Column({ type: 'varchar', length: 42, unique: true })
+  @Column({ type: 'varchar', length: 42, unique: true, nullable: true })
   @Index('idx_users_wallet_address')
-  walletAddress!: string;
+  walletAddress!: string | null;
 
   @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
   @Index('idx_users_email')
