@@ -17,6 +17,7 @@ import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue'
 import { TranslationService } from '../i18n/services/translation.service';
 import { UserSettingsService } from '../user-settings/user-settings.service';
 import { OnboardingService } from '../onboarding/onboarding.service';
+import { PlatformInviteService } from '../platform-invites/platform-invite.service';
 
 @Injectable()
 export class UsersService {
@@ -27,7 +28,6 @@ export class UsersService {
     private readonly moderationQueueService: ModerationQueueService,
     private readonly translationService: TranslationService,
     private readonly userSettingsService: UserSettingsService,
-    private readonly moderationQueueService: ModerationQueueService,
     @Optional() private readonly onboardingService?: OnboardingService,
     @Optional() private readonly platformInviteService?: PlatformInviteService,
   ) {}
@@ -36,11 +36,13 @@ export class UsersService {
     const { walletAddress, username, email } = createUserDto;
     const preferredLocale = this.normalizePreferredLocale(createUserDto.preferredLocale) ?? null;
 
-    const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
-    if (existingWallet) {
-      throw new ConflictException(
-        this.translationService.translate('errors.users.walletAlreadyRegistered'),
-      );
+    if (walletAddress) {
+      const existingWallet = await this.usersRepository.findByWalletAddress(walletAddress);
+      if (existingWallet) {
+        throw new ConflictException(
+          this.translationService.translate('errors.users.walletAlreadyRegistered'),
+        );
+      }
     }
 
     if (username) {
@@ -62,7 +64,7 @@ export class UsersService {
     const { inviteCode: _omitInvite, ...userFields } = createUserDto;
     const user = this.usersRepository.create({
       ...userFields,
-      walletAddress: walletAddress.toLowerCase(),
+      walletAddress: walletAddress ? walletAddress.toLowerCase() : null,
       email: email?.toLowerCase(),
       preferredLocale,
     });
@@ -106,6 +108,20 @@ export class UsersService {
       throw new NotFoundException(
         this.translationService.translate('errors.users.notFoundByUsername', {
           args: { username },
+        }),
+      );
+    }
+
+    return this.applyPrivacy(this.toResponseDto(user));
+  }
+
+  async findByEmail(email: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException(
+        this.translationService.translate('errors.users.notFoundByEmail', {
+          args: { email },
         }),
       );
     }

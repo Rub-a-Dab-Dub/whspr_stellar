@@ -19,6 +19,7 @@ import { UsersModule } from '../users/users.module';
 import { SessionsModule } from '../sessions/sessions.module';
 import { TwoFactorModule } from '../two-factor/two-factor.module';
 import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module';
+import { SocialAuthModule } from './social/social-auth.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module'
     UsersModule,
     SessionsModule,
     FraudDetectionModule,
+    forwardRef(() => SocialAuthModule),
   ],
   controllers: [AuthController],
   providers: [
