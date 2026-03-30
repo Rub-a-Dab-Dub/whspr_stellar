@@ -41,6 +41,7 @@ import { ReactionsModule } from './reactions/reactions.module';
 import { StickersModule } from './stickers/stickers.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { SpamDetectionModule } from './spam-detection/spam-detection.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
 import { EmailModule } from './email/email.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PinnedMessagesModule } from './pinned-messages/pinned-messages.module';
@@ -124,6 +125,7 @@ import { BlockEnforcementModule } from './block-enforcement/block-enforcement.mo
     PrivacyModule,
     BlockEnforcementModule,
     SpamDetectionModule,
+    ApiKeysModule,
     EmailModule,
     LeaderboardModule,
     PinnedMessagesModule,

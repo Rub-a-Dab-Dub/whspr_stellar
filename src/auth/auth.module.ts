@@ -4,6 +4,8 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ApiKeysModule } from '../api-keys/api-keys.module';
+import { ApiKeyAuthGuard } from '../api-keys/guards/api-key-auth.guard';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './services/auth.service';
@@ -36,6 +38,7 @@ import { SocialAuthModule } from './social/social-auth.module';
     }),
     UsersModule,
     SessionsModule,
+    ApiKeysModule,
     FraudDetectionModule,
     forwardRef(() => SocialAuthModule),
   ],
@@ -44,6 +47,10 @@ import { SocialAuthModule } from './social/social-auth.module';
     AuthService,
     CryptoService,
     JwtStrategy,
+    {
+      provide: APP_GUARD,
+      useClass: ApiKeyAuthGuard,
+    },
     // Apply JwtAuthGuard globally — routes opt-out with @Public()
     {
       provide: APP_GUARD,
