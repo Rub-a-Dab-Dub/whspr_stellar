@@ -80,6 +80,8 @@ import { AmlMonitoringModule } from './aml/aml-monitoring.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ActivityFeedModule } from './activity-feed/activity-feed.module';
 import { BlockEnforcementModule } from './block-enforcement/block-enforcement.module';
+import { ChangelogModule } from './changelog/changelog.module';
+import { GroupKeyManagementModule } from './group-key-management/group-key-management.module';
 
 @Module({
   imports: [
@@ -141,6 +143,33 @@ import { BlockEnforcementModule } from './block-enforcement/block-enforcement.mo
     ObservabilityModule,
     AdminModule,
     MembershipTierModule,
+    CacheModule,
+    ReportsModule,
+    BlockchainTransactionsModule,
+    MessageForwardingModule,
+    PollsModule,
+    MentionsModule,
+    RecurringPaymentsModule,
+    AnchorModule,
+    ConversationExportModule,
+    FeedbackModule,
+    RevenueModule,
+    PortfolioModule,
+    AddressBookModule,
+    UsernameDiscoveryModule,
+    DeveloperSandboxModule,
+    StoriesModule,
+    PaymentsModule,
+    LinkPreviewsModule,
+    NotificationDigestModule,
+    ReceiptsModule,
+    TrustNetworkModule,
+    AmlMonitoringModule,
+    ConnectionsModule,
+    PaymentSettingsModule,
+    ActivityFeedModule,
+    ChangelogModule,
+    GroupKeyManagementModule,
   ],
   controllers: [AppController],
   providers: [
