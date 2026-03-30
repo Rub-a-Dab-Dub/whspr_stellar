@@ -2,6 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AIModerationModule } from '../ai-moderation/ai-moderation.module';
+import { BlockEnforcementModule } from '../block-enforcement/block-enforcement.module';
 import { OnboardingModule } from '../onboarding/onboarding.module';
 import { UserSettingsModule } from '../user-settings/user-settings.module';
 import { User } from './entities/user.entity';
@@ -14,6 +15,7 @@ import { UsersService } from './users.service';
     TypeOrmModule.forFeature([User]),
     AnalyticsModule,
     AIModerationModule,
+    forwardRef(() => BlockEnforcementModule),
     forwardRef(() => UserSettingsModule),
     forwardRef(() => OnboardingModule),
   ],

@@ -14,6 +14,7 @@ import {
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { UsersRepository } from '../users/users.repository';
 import { SavedAddressesService } from '../address-book/saved-addresses.service';
+import { BlockEnforcementService } from '../block-enforcement/block-enforcement.service';
 import { SorobanTransfersService } from './soroban-transfers.service';
 import { InChatTransfersService } from './in-chat-transfers.service';
 
@@ -95,6 +96,12 @@ describe('InChatTransfersService', () => {
           provide: SavedAddressesService,
           useValue: {
             trackUsageByWalletAddress: jest.fn(),
+          },
+        },
+        {
+          provide: BlockEnforcementService,
+          useValue: {
+            canTransferFunds: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

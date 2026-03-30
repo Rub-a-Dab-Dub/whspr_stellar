@@ -13,12 +13,13 @@ import {
 import { validationMessages } from '../../i18n/validation-messages';
 
 export class CreateUserDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Ethereum wallet address',
     example: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
   })
+  @IsOptional()
   @IsEthereumAddress({ message: validationMessages.ethereumAddress() })
-  walletAddress!: string;
+  walletAddress?: string;
 
   @ApiPropertyOptional({
     description: 'Unique username (3-50 characters, alphanumeric and underscores)',

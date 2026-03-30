@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ContentType, Message } from './message.entity';
 import { MessagesRepository } from './messages.repository';
 import { SendMessageDto } from './dto/send-message.dto';
+import { ConversationsService } from '../../Conversation Module/src/conversations/services/conversations.service';
+import { BlockEnforcementService } from '../../block-enforcement/block-enforcement.service';
 import { EditMessageDto } from './dto/edit-message.dto';
 import { PaginatedResult, PaginationQuery } from './pagination';
 import { MessagesGateway } from './messages.gateway';
@@ -13,9 +15,18 @@ export class MessagesService {
     private readonly repository: MessagesRepository,
     private readonly gateway: MessagesGateway,
     private readonly soroban: SorobanService,
+    private readonly conversationsService: ConversationsService,
+    private readonly blockEnforcementService: BlockEnforcementService,
   ) {}
 
   async sendMessage(conversationId: string, senderId: string, dto: SendMessageDto): Promise<Message> {
+    const conversation = await this.conversationsService.getConversation(conversationId, senderId);
+    const recipients = conversation.participants
+      .map((participant: any) => participant.userId)
+      .filter((userId: string) => userId !== senderId);
+
+    await this.blockEnforcementService.canSendMessage(senderId, recipients);
+
     const sentAt = new Date();
     const encrypted = this.encrypt(dto.content);
     const message = await this.repository.create({

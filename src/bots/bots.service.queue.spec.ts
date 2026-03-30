@@ -130,6 +130,22 @@ describe('BotsService queue mode', () => {
     expect((global as unknown as { fetch: jest.Mock }).fetch).toHaveBeenCalled();
   });
 
+  it('does not dispatch webhook when bot is removed from group before job is processed', async () => {
+    botGroupMembersRepository.findOne.mockResolvedValue(null);
+    (global as unknown as { fetch: typeof fetch }).fetch = jest.fn();
+
+    await workerProcessor({
+      data: {
+        groupId: 'group-1',
+        botId: 'bot-1',
+        eventType: 'group.message.created',
+        payload: { messageId: 'msg-1' },
+      },
+    });
+
+    expect((global as unknown as { fetch: jest.Mock }).fetch).not.toHaveBeenCalled();
+  });
+
   it('closes BullMQ queue and worker on module destroy', async () => {
     await service.onModuleDestroy();
     expect(queueCloseMock).toHaveBeenCalled();

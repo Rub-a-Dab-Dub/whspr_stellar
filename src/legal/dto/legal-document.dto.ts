@@ -1,12 +1,12 @@
 import {
+  IsDateString,
   IsEnum,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MaxLength,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LegalDocumentType, LegalDocumentStatus } from '../entities/legal-document.entity';
+import { ApiProperty } from '@nestjs/swagger';
+import { LegalDocumentType } from '../entities/legal-document.entity';
 
 export class CreateLegalDocumentDto {
   @ApiProperty({ enum: LegalDocumentType })
@@ -24,17 +24,9 @@ export class CreateLegalDocumentDto {
   @IsNotEmpty()
   content!: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  title?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  summary?: string;
+  @ApiProperty({ example: '2026-03-30T00:00:00.000Z' })
+  @IsDateString()
+  effectiveDate!: string;
 }
 
 export class LegalDocumentResponseDto {
@@ -48,23 +40,14 @@ export class LegalDocumentResponseDto {
   version!: string;
 
   @ApiProperty()
+  effectiveDate!: Date;
+
+  @ApiProperty()
   content!: string;
 
-  @ApiPropertyOptional()
-  title!: string | null;
-
-  @ApiPropertyOptional()
-  summary!: string | null;
-
-  @ApiProperty({ enum: LegalDocumentStatus })
-  status!: LegalDocumentStatus;
-
-  @ApiPropertyOptional()
-  publishedAt!: Date | null;
+  @ApiProperty()
+  isActive!: boolean;
 
   @ApiProperty()
   createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
 }

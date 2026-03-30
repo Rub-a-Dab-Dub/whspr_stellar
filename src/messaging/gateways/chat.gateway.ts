@@ -286,10 +286,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(roomId).emit('reaction:remove', event);
   }
 
-  async sendPollUpdated(conversationId: string, payload: Record<string, unknown>): Promise<void> {
+  async sendExpenseNew(conversationId: string, expense: Record<string, unknown>): Promise<void> {
     const roomId = `conversation:${conversationId}`;
-    await this.eventReplayService.storeEvent(roomId, 'poll:updated', payload);
-    this.server.to(roomId).emit('poll:updated', payload);
+    await this.eventReplayService.storeEvent(roomId, 'expense:new', expense);
+    this.server.to(roomId).emit('expense:new', expense);
+  }
+
+  async sendExpenseSettled(conversationId: string, expense: Record<string, unknown>): Promise<void> {
+    const roomId = `conversation:${conversationId}`;
+    await this.eventReplayService.storeEvent(roomId, 'expense:settled', expense);
+    this.server.to(roomId).emit('expense:settled', expense);
   }
 
   emitMessagePinned(conversationId: string, payload: Record<string, unknown>): void {

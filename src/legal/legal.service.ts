@@ -6,12 +6,12 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { LegalDocument, LegalDocumentStatus, LegalDocumentType } from './entities/legal-document.entity';
+import { LegalDocument, LegalDocumentType } from './entities/legal-document.entity';
 import { UserConsent } from './entities/user-consent.entity';
-import { LegalDocumentRepository } from './legal-document.repository';
-import { UserConsentRepository } from './user-consent.repository';
+import { LegalDocumentsRepository } from './legal-document.repository';
+import { UserConsentsRepository } from './user-consent.repository';
 import { CreateLegalDocumentDto, LegalDocumentResponseDto } from './dto/legal-document.dto';
-import { ConsentStatusDto, UserConsentResponseDto } from './dto/user-consent.dto';
+import { UserConsentResponseDto } from './dto/user-consent.dto';
 import { LegalEmailService } from './legal-email.service';
 import { UsersService } from '../users/users.service';
 
@@ -20,8 +20,8 @@ export class LegalService {
   private readonly logger = new Logger(LegalService.name);
 
   constructor(
-    private readonly documentRepo: LegalDocumentRepository,
-    private readonly consentRepo: UserConsentRepository,
+    private readonly documentRepo: LegalDocumentsRepository,
+    private readonly consentRepo: UserConsentsRepository,
     private readonly emailService: LegalEmailService,
     private readonly usersService: UsersService,
   ) {}
@@ -37,11 +37,9 @@ export class LegalService {
     const doc = this.documentRepo.create({
       type: dto.type,
       version: dto.version,
+      effectiveDate: new Date(dto.effectiveDate),
       content: dto.content,
-      title: dto.title ?? null,
-      summary: dto.summary ?? null,
-      status: LegalDocumentStatus.DRAFT,
-      publishedBy: adminId,
+      isActive: false,
     });
 
     const saved = await this.documentRepo.save(doc);
@@ -55,24 +53,24 @@ export class LegalService {
       throw new NotFoundException('Legal document not found');
     }
 
-    if (doc.status !== LegalDocumentStatus.DRAFT) {
-      throw new BadRequestException('Only DRAFT documents can be published');
+    if (doc.isActive) {
+      throw new BadRequestException('Document is already published');
     }
 
-    // Archive any currently active document of the same type
-    await this.documentRepo.archiveActiveDocuments(doc.type);
+    // Deactivate any currently active document of the same type
+    await this.documentRepo.deactivateCurrent(doc.type);
 
-    doc.status = LegalDocumentStatus.ACTIVE;
-    doc.publishedAt = new Date();
-    doc.publishedBy = adminId;
+    doc.isActive = true;
 
     const saved = await this.documentRepo.save(doc);
     this.logger.log(`Admin ${adminId} published ${saved.type} v${saved.version}`);
 
-    // Fire-and-forget email notifications
-    this.sendPublishNotifications(saved).catch((err) =>
-      this.logger.error('Failed to send publish notifications', err),
-    );
+    // Fire-and-forget email notifications for Terms changes that require re-acceptance.
+    if (saved.type === LegalDocumentType.TERMS) {
+      this.sendPublishNotifications(saved).catch((err) =>
+        this.logger.error('Failed to send publish notifications', err),
+      );
+    }
 
     return this.toDocumentDto(saved);
   }
@@ -94,23 +92,19 @@ export class LegalService {
 
   async recordConsent(
     userId: string,
-    documentId: string,
+    type: LegalDocumentType,
     ipAddress: string | null,
     userAgent: string | null,
   ): Promise<UserConsentResponseDto> {
-    const doc = await this.documentRepo.findById(documentId);
+    const doc = await this.documentRepo.findActive(type);
     if (!doc) {
-      throw new NotFoundException('Legal document not found');
-    }
-
-    if (doc.status !== LegalDocumentStatus.ACTIVE) {
-      throw new BadRequestException('Consent can only be recorded for active documents');
+      throw new NotFoundException(`No active ${type} document found`);
     }
 
     const consent = this.consentRepo.create({
       userId,
-      documentId,
-      documentVersion: doc.version,
+      documentId: doc.id,
+      version: doc.version,
       ipAddress,
       userAgent,
     });
@@ -119,22 +113,10 @@ export class LegalService {
     return this.toConsentDto(saved);
   }
 
-  async checkConsent(userId: string, documentId: string): Promise<ConsentStatusDto> {
-    const consent = await this.consentRepo.findByUserAndDocument(userId, documentId);
-    if (!consent) {
-      return { hasAccepted: false };
-    }
-    return {
-      hasAccepted: true,
-      acceptedAt: consent.acceptedAt,
-      documentVersion: consent.documentVersion,
-    };
-  }
-
-  async hasAcceptedLatestTerms(userId: string): Promise<boolean> {
-    const activeDoc = await this.documentRepo.findActive(LegalDocumentType.TERMS_OF_SERVICE);
+  async hasAcceptedCurrent(userId: string, type: LegalDocumentType = LegalDocumentType.TERMS): Promise<boolean> {
+    const activeDoc = await this.documentRepo.findActive(type);
     if (!activeDoc) {
-      // No ToS published yet — don't block
+      // No active document for this type yet — no acceptance required.
       return true;
     }
 
@@ -147,13 +129,22 @@ export class LegalService {
     return consents.map((c) => this.toConsentDto(c));
   }
 
-  async enforceConsent(userId: string): Promise<void> {
-    const accepted = await this.hasAcceptedLatestTerms(userId);
+  async requireConsent(userId: string): Promise<void> {
+    const accepted = await this.hasAcceptedCurrent(userId, LegalDocumentType.TERMS);
     if (!accepted) {
       throw new ForbiddenException(
-        'You must accept the latest Terms of Service to continue. Please review and accept the current terms.',
+        'You must accept the current Terms to continue.',
       );
     }
+  }
+
+  // Backward-compatible aliases used by existing callers/tests.
+  async hasAcceptedLatestTerms(userId: string): Promise<boolean> {
+    return this.hasAcceptedCurrent(userId, LegalDocumentType.TERMS);
+  }
+
+  async enforceConsent(userId: string): Promise<void> {
+    return this.requireConsent(userId);
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
@@ -172,13 +163,10 @@ export class LegalService {
       id: doc.id,
       type: doc.type,
       version: doc.version,
+      effectiveDate: doc.effectiveDate,
       content: doc.content,
-      title: doc.title,
-      summary: doc.summary,
-      status: doc.status,
-      publishedAt: doc.publishedAt,
+      isActive: doc.isActive,
       createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
     };
   }
 
@@ -187,7 +175,7 @@ export class LegalService {
       id: consent.id,
       userId: consent.userId,
       documentId: consent.documentId,
-      documentVersion: consent.documentVersion,
+      version: consent.version,
       ipAddress: consent.ipAddress,
       userAgent: consent.userAgent,
       acceptedAt: consent.acceptedAt,

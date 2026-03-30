@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AcceptConsentDto {
-  // documentId comes from route param, userId from JWT
+  // document type comes from route param, userId from JWT
 }
 
 export class UserConsentResponseDto {
@@ -15,7 +15,7 @@ export class UserConsentResponseDto {
   documentId!: string;
 
   @ApiProperty()
-  documentVersion!: string;
+  version!: string;
 
   @ApiPropertyOptional()
   ipAddress!: string | null;
@@ -35,5 +35,5 @@ export class ConsentStatusDto {
   acceptedAt?: Date;
 
   @ApiPropertyOptional()
-  documentVersion?: string;
+  version?: string;
 }
