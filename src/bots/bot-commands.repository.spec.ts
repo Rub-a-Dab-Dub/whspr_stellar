@@ -11,31 +11,24 @@ describe('BotCommandsRepository', () => {
     repository = new BotCommandsRepository(dataSource);
   });
 
-  it('replaceForBot deletes existing commands then saves new ones', async () => {
+  it('replaces commands by deleting old commands first', async () => {
     const deleteSpy = jest.spyOn(repository, 'delete').mockResolvedValue({} as any);
     const createSpy = jest.spyOn(repository, 'create').mockImplementation((entity: any) => entity);
-    const saveSpy = jest.spyOn(repository, 'save').mockResolvedValue([
-      {
-        botId: 'bot-1',
-        command: '/help',
-        description: 'Show help',
-        usage: '/help',
-      },
-    ] as any);
+    const saveSpy = jest.spyOn(repository, 'save').mockResolvedValue([] as any);
 
-    const result = await repository.replaceForBot('bot-1', [
+    await repository.replaceForBot('bot-1', [
       { command: '/help', description: 'Show help', usage: '/help' },
+      { command: '/ping', description: 'Ping', usage: '/ping' },
     ]);
 
     expect(deleteSpy).toHaveBeenCalledWith({ botId: 'bot-1' });
-    expect(createSpy).toHaveBeenCalled();
+    expect(createSpy).toHaveBeenCalledTimes(2);
     expect(saveSpy).toHaveBeenCalled();
-    expect(result).toHaveLength(1);
   });
 
-  it('replaceForBot returns empty list when no commands are provided', async () => {
+  it('returns empty array when no commands are provided', async () => {
     jest.spyOn(repository, 'delete').mockResolvedValue({} as any);
-    const saveSpy = jest.spyOn(repository, 'save');
+    const saveSpy = jest.spyOn(repository, 'save').mockResolvedValue([] as any);
 
     const result = await repository.replaceForBot('bot-1', []);
 

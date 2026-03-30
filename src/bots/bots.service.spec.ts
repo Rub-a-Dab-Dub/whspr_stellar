@@ -251,6 +251,44 @@ describe('BotsService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  it('aborts webhook dispatch after 2 seconds', async () => {
+    jest.useFakeTimers();
+    botGroupMembersRepository.find.mockResolvedValue([
+      {
+        groupId: 'group-1',
+        botId: 'bot-1',
+        bot: {
+          id: 'bot-1',
+          ownerId: 'owner-1',
+          name: 'Slow Bot',
+          username: 'slow_bot',
+          avatarUrl: null,
+          webhookUrl: 'https://example.com',
+          webhookSecret: 'secret',
+          scopes: ['events:read'],
+          isActive: true,
+          createdAt: new Date(),
+          commands: [],
+          groupMemberships: [],
+        },
+      },
+    ] as unknown as BotGroupMember[]);
+
+    (global as unknown as { fetch: typeof fetch }).fetch = jest.fn(
+      (_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        }),
+    );
+
+    const dispatchPromise = service.dispatchEvent('group-1', 'group.message.created', { messageId: 'msg-1' });
+    const assertion = expect(dispatchPromise).rejects.toThrow('aborted');
+    await jest.advanceTimersByTimeAsync(2001);
+
+    await assertion;
+    jest.useRealTimers();
+  });
+
   it('lists user bots', async () => {
     botsRepository.findByOwner.mockResolvedValue([
       {
