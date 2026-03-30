@@ -15,6 +15,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "airdrop_distribution"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -187,6 +194,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "bridge_adapter"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
 ]
 
 [[package]]
@@ -566,6 +580,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bfcf67fea2815c2fc3b90873fae90957be12ff417335dfadc7f52927feb03b2"
 
 [[package]]
+name = "escrow_payment"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "ethnum"
 version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -764,6 +785,7 @@ checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
 name = "integration-tests"
 version = "0.1.0"
 dependencies = [
+ "bridge_adapter",
  "ed25519-dalek",
  "messaging",
  "payments",
@@ -1478,6 +1500,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "staking_rewards"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1620,6 +1649,13 @@ name = "user_registry"
 version = "0.1.0"
 dependencies = [
  "gasless-common",
+ "soroban-sdk",
+]
+
+[[package]]
+name = "username_registry"
+version = "0.1.0"
+dependencies = [
  "soroban-sdk",
 ]
 
@@ -1787,6 +1823,13 @@ dependencies = [
 
 [[package]]
 name = "xp"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "yield_aggregator"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
