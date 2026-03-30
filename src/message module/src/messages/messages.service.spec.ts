@@ -4,6 +4,8 @@ import { MessagesRepository } from './messages.repository';
 import { MessagesGateway } from './messages.gateway';
 import { SorobanService } from './soroban.service';
 import { ContentType } from './message.entity';
+import { ConversationsService } from '../../Conversation Module/src/conversations/services/conversations.service';
+import { BlockEnforcementService } from '../../block-enforcement/block-enforcement.service';
 
 class GatewayMock {
   emitNewMessage = jest.fn();
@@ -20,12 +22,22 @@ describe('MessagesService', () => {
   let soroban: SorobanMock;
 
   beforeEach(async () => {
+    const conversationsServiceMock = {
+      getConversation: jest.fn().mockResolvedValue({ participants: [{ userId: 'u1' }, { userId: 'u2' }] }),
+    } as unknown as ConversationsService;
+
+    const blockEnforcementServiceMock = {
+      canSendMessage: jest.fn().mockResolvedValue(undefined),
+    } as unknown as BlockEnforcementService;
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         MessagesService,
         MessagesRepository,
         { provide: MessagesGateway, useClass: GatewayMock },
         { provide: SorobanService, useClass: SorobanMock },
+        { provide: ConversationsService, useValue: conversationsServiceMock },
+        { provide: BlockEnforcementService, useValue: blockEnforcementServiceMock },
       ],
     }).compile();
 

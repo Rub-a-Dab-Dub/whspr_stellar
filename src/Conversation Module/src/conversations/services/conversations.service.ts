@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject } from '@nestjs/common';
+import { BlockEnforcementService } from '../../block-enforcement/block-enforcement.service';
 import { ModuleRef } from '@nestjs/core';
 import { MessageType } from '../../../messages/entities/message.entity';
 import { CommandFrameworkService } from '../../../command-framework/command-framework.service';
@@ -19,6 +20,7 @@ export class ConversationsService {
     private readonly participantRepo: Repository<ConversationParticipant>,
     @InjectRepository(Message)
     private readonly messageRepo: Repository<Message>,
+    private readonly blockEnforcementService: BlockEnforcementService,
   ) {}
 
   async createDirect(dto: CreateConversationDto, currentUserId: string): Promise<Conversation> {
@@ -193,6 +195,11 @@ export class ConversationsService {
 
     if (!participant) {
       throw new NotFoundException('Participant not found');
+    }
+
+    const shouldApplyRead = await this.blockEnforcementService.shouldApplyReadReceipt(userId);
+    if (!shouldApplyRead) {
+      return;
     }
 
     participant.lastReadAt = new Date();

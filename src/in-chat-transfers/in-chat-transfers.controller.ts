@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Post, Query, Body } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Body, UseGuards } from '@nestjs/common';
+import { BlockGuard } from '../block-enforcement/block.guard';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { LocalizedParseUUIDPipe } from '../i18n/pipes/localized-parse-uuid.pipe';
@@ -18,6 +19,7 @@ export class InChatTransfersController {
     private readonly transfersGateway: TransfersGateway,
   ) {}
 
+  @UseGuards(BlockGuard)
   @Post('conversations/:id/transfers')
   @ApiOperation({ summary: 'Create a transfer preview for a conversation command' })
   @ApiResponse({ status: 201, type: TransferPreviewDto })
@@ -38,6 +40,7 @@ export class InChatTransfersController {
     return this.inChatTransfersService.listConversationTransfers(conversationId);
   }
 
+  @UseGuards(BlockGuard)
   @Post('transfers/:id/confirm')
   @ApiOperation({ summary: 'Confirm and submit a pending transfer preview' })
   @ApiResponse({ status: 201, type: TransferResponseDto })

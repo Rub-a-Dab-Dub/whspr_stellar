@@ -7,6 +7,7 @@ import { Message } from '../messages/entities/message.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { UsersModule } from '../users/users.module';
+import { BlockEnforcementModule } from '../block-enforcement/block-enforcement.module';
 import { FeeSponsorshipModule } from '../fee-sponsorship/fee-sponsorship.module';
 import { InChatTransfersController } from './in-chat-transfers.controller';
 import { InChatTransfersService } from './in-chat-transfers.service';
@@ -25,6 +26,7 @@ import { TransfersGateway } from './transfers.gateway';
       Wallet,
     ]),
     UsersModule,
+    BlockEnforcementModule,
     AddressBookModule,
     FeeSponsorshipModule,
   ],
