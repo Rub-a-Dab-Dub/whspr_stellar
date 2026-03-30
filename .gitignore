@@ -5,6 +5,25 @@
 # Logs
 logs
 *.log
+
+# Rust contract artifacts
+/contracts/*/target
+/contracts/whsper_stellar/test_snapshots
+contracts/target/
+contracts/out/
+contracts/target-tarpaulin/
+contracts/**/test_snapshots/
+contracts/scripts/__pycache__/
+*.pyc
+*.wasm
+!contracts/out/*.wasm
+
+# Allow contracts env files (public network config, no secrets)
+!contracts/.env.local
+!contracts/.env.testnet
+!contracts/.env.mainnet
+
+# logs
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
@@ -41,18 +60,6 @@ lerna-debug.log*
 .env.*.local
 
 package-lock.json
-
-# Rust / Soroban
-contracts/target/
-contracts/out/
-contracts/target-tarpaulin/
-contracts/**/test_snapshots/
-contracts/scripts/__pycache__/
-*.pyc
-*.wasm
-!contracts/out/*.wasm
-
-# Allow contracts env files (public network config, no secrets)
-!contracts/.env.local
-!contracts/.env.testnet
-!contracts/.env.mainnet
+requirements.md
+PR_DESCRIPTION.md
+ISSUE_CONTEXT.md

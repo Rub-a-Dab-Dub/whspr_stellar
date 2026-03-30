@@ -82,6 +82,8 @@ import { ReputationModule } from './reputation/reputation.module';
 import { AmlMonitoringModule } from './aml/aml-monitoring.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ActivityFeedModule } from './activity-feed/activity-feed.module';
+import { ChangelogModule } from './changelog/changelog.module';
+import { GroupKeyManagementModule } from './group-key-management/group-key-management.module';
 
 
 @Module({
@@ -162,6 +164,8 @@ import { ActivityFeedModule } from './activity-feed/activity-feed.module';
     ConnectionsModule,
     PaymentSettingsModule,
     ActivityFeedModule,
+    ChangelogModule,
+    GroupKeyManagementModule,
   ],
 
   beforeEach(async () => {
