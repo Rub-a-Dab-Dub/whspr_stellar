@@ -1,9 +1,3 @@
-// Unit tests stub
-import { Test, TestingModule } from '@nestjs/testing';
-import { CommandFrameworkService } from '../command-framework.service';
-
-describe('CommandFrameworkService', () => {
-  let service: CommandFrameworkService;
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -29,10 +23,10 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
-import { AIModerationModule } from './ai-moderation/ai-moderation.module';
 import { NFTsModule } from './nfts/nfts.module';
 import { AppI18nModule } from './i18n/app-i18n.module';
 import { InChatTransfersModule } from './in-chat-transfers/in-chat-transfers.module';
+import { GroupExpensesModule } from './group-expenses/group-expenses.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
@@ -95,27 +89,37 @@ import { BlockEnforcementModule } from './block-enforcement/block-enforcement.mo
     TypeOrmModule.forRootAsync({ useFactory: typeOrmConfig }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     RedisCacheModule,
-    ScheduleModule.forRoot(),
-    WaitlistModule,
-    LoggingModule,
     HealthModule,
     UsersModule,
     AuthModule,
     TwoFactorModule,
+    StellarEventsModule,
+    TypeOrmModule.forRootAsync({
+      useFactory: typeOrmConfig,
+    }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
+    CacheModule,
+    FraudDetectionModule,
+    LoggingModule,
+    ScheduleModule.forRoot(),
+    AppI18nModule,
+    HealthModule,
+    UsersModule,
+    UserSettingsModule,
+    AppConfigModule,
+    AuthModule,
     SessionsModule,
     WalletsModule,
     AnalyticsModule,
     TransactionsModule,
-    LoggingModule,
-    ScheduledJobsModule,
-    NFTsModule,
-    AppI18nModule,
-    StellarEventsModule,
-    ContractStateCacheModule,
     NotificationsModule,
     ReactionsModule,
     StickersModule,
-    UserStickerPacksModule,
     PrivacyModule,
     BlockEnforcementModule,
     SpamDetectionModule,
@@ -124,57 +128,21 @@ import { BlockEnforcementModule } from './block-enforcement/block-enforcement.mo
     Sep10Module,
     RampModule,
     QrCodeModule,
-    PollsModule,
-    OnboardingModule,
-    MessageDraftsModule,
     ScheduledJobsModule,
-    AIModerationModule,
     InChatTransfersModule,
-    BotsModule,
+    GroupExpensesModule,
     WebhooksModule,
     ObservabilityModule,
-    UserSettingsModule,
-    AppConfigModule,
-    AppVersionModule,
     AdminModule,
     MembershipTierModule,
-    CacheModule,
-    ReportsModule,
-    BlockchainTransactionsModule,
-    MessageForwardingModule,
-    PollsModule,
-    MentionsModule,
-    RecurringPaymentsModule,
-    AnchorModule,
-    ConversationExportModule,
-    FeedbackModule,
-    RevenueModule,
-    PortfolioModule,
-    AddressBookModule,
-    UsernameDiscoveryModule,
-    DeveloperSandboxModule,
-    StoriesModule,
-    PaymentsModule,
-    LinkPreviewsModule,
-    NotificationDigestModule,
-    ReceiptsModule,
-    TrustNetworkModule,
-    AmlMonitoringModule,
-    ConnectionsModule,
-    PaymentSettingsModule,
-    ActivityFeedModule,
   ],
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [CommandFrameworkService],
-    }).compile();
-
-    service = module.get<CommandFrameworkService>(CommandFrameworkService);
-  });
-
-  it('should parse command', () => {
-    expect(service.parseCommand('/help')).toBeDefined();
-  });
-  // TODO: full coverage >85%
-});
+  controllers: [AppController],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: AdvancedThrottlerGuard,
+    },
+  ],
+})
+export class AppModule {}
