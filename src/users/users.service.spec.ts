@@ -1,16 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersRepository } from './users.repository';
 import { User, UserTier } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ModerationQueueService } from '../ai-moderation/queue/moderation.queue';
 import { TranslationService } from '../i18n/services/translation.service';
-import { UserSettingsService } from '../user-settings/user-settings.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';import { BlockEnforcementService } from '../block-enforcement/block-enforcement.service';import { PlatformInviteService } from '../platform-invites/platform-invite.service';
 
 describe('UsersService', () => {
   let service: UsersService;
   let repository: jest.Mocked<UsersRepository>;
+  let blockService: jest.Mocked<BlockEnforcementService>;
 
   const mockUser: User = {
     id: '123e4567-e89b-12d3-a456-426614174000',
@@ -21,7 +28,7 @@ describe('UsersService', () => {
     avatarUrl: 'https://example.com/avatar.jpg',
     bio: 'Test bio',
     preferredLocale: null,
-    tier: UserTier.FREE,
+    referralCode: null,
     tier: UserTier.SILVER,
     isActive: true,
     isVerified: false,
@@ -42,6 +49,12 @@ describe('UsersService', () => {
     isWalletAddressAvailable: jest.fn(),
   };
 
+  const mockModerationQueueService = {
+    enqueueProfileModeration: jest.fn(),
+    enqueueUserModeration: jest.fn(),
+    enqueueImageModeration: jest.fn(),
+  };
+
   const mockUserSettingsService = {
     ensureSettingsForUser: jest.fn(),
     getPrivacySettings: jest.fn().mockResolvedValue({
@@ -51,30 +64,41 @@ describe('UsersService', () => {
     }),
   };
 
+  const mockPlatformInviteService = {
+    isInviteModeEnabled: jest.fn().mockResolvedValue(false),
+    validateForRegistration: jest.fn(),
+    redeemAfterRegistration: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
+    blockService = {
+      canViewProfile: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<BlockEnforcementService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        {
-          provide: UsersRepository,
-          useValue: mockRepository,
-        },
+        { provide: UsersRepository, useValue: mockRepository },
+        { provide: ModerationQueueService, useValue: mockModerationQueueService },
         {
           provide: TranslationService,
           useValue: {
             translate: jest.fn((key: string) => key),
             normalizeSupportedLocale: jest.fn((locale?: string | null) => locale ?? null),
           },
-          provide: UserSettingsService,
-          useValue: mockUserSettingsService,
         },
+        { provide: UserSettingsService, useValue: mockUserSettingsService },
+        { provide: BlockEnforcementService, useValue: blockService },
+        { provide: PlatformInviteService, useValue: mockPlatformInviteService },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(UsersRepository);
+    blockService = module.get(BlockEnforcementService);
 
     jest.clearAllMocks();
+    mockPlatformInviteService.isInviteModeEnabled.mockResolvedValue(false);
     mockUserSettingsService.getPrivacySettings.mockResolvedValue({
       lastSeenVisibility: 'everyone',
       readReceiptsEnabled: true,
@@ -109,6 +133,7 @@ describe('UsersService', () => {
       expect(repository.findByUsername).toHaveBeenCalledWith(createUserDto.username);
       expect(repository.findByEmail).toHaveBeenCalledWith(createUserDto.email);
       expect(repository.save).toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueUserModeration).toHaveBeenCalled();
       expect(mockUserSettingsService.ensureSettingsForUser).toHaveBeenCalled();
     });
 
@@ -153,7 +178,52 @@ describe('UsersService', () => {
       expect(result).toBeDefined();
       expect(repository.findByUsername).not.toHaveBeenCalled();
       expect(repository.findByEmail).not.toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueUserModeration).toHaveBeenCalled();
       expect(mockUserSettingsService.ensureSettingsForUser).toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when invite mode on and no code', async () => {
+      mockPlatformInviteService.isInviteModeEnabled.mockResolvedValue(true);
+
+      await expect(service.create(createUserDto)).rejects.toThrow(ForbiddenException);
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when invite mode on and code invalid', async () => {
+      mockPlatformInviteService.isInviteModeEnabled.mockResolvedValue(true);
+      mockPlatformInviteService.validateForRegistration.mockResolvedValue({
+        valid: false,
+        message: 'bad code',
+      });
+
+      await expect(
+        service.create({
+          ...createUserDto,
+          inviteCode: 'abcdefghijklmnop',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockPlatformInviteService.validateForRegistration).toHaveBeenCalled();
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('redeems invite after create when invite mode on', async () => {
+      const code = 'abcdefghijklmnop';
+      mockPlatformInviteService.isInviteModeEnabled.mockResolvedValue(true);
+      mockPlatformInviteService.validateForRegistration.mockResolvedValue({ valid: true, message: 'OK' });
+
+      repository.findByWalletAddress.mockResolvedValue(null);
+      repository.findByUsername.mockResolvedValue(null);
+      repository.findByEmail.mockResolvedValue(null);
+      repository.create.mockReturnValue(mockUser);
+      repository.save.mockResolvedValue(mockUser);
+
+      await service.create({ ...createUserDto, inviteCode: code });
+
+      expect(mockPlatformInviteService.redeemAfterRegistration).toHaveBeenCalledWith(
+        code,
+        mockUser.id,
+      );
     });
   });
 
@@ -240,6 +310,7 @@ describe('UsersService', () => {
       expect(result.displayName).toBe(updateDto.displayName);
       expect(result.bio).toBe(updateDto.bio);
       expect(repository.save).toHaveBeenCalled();
+      expect(mockModerationQueueService.enqueueProfileModeration).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if user not found', async () => {

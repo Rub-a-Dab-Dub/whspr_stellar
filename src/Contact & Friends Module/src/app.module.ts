@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Contact } from './contacts/entities/contact.entity';
+import { ContactImportSession } from './contacts/entities/contact-import-session.entity';
+import { UserContactHashIndex } from './contacts/entities/user-contact-hash-index.entity';
 import { ContactsModule } from './contacts/contacts.module';
 import { AuthModule } from './auth/auth.module';
 
@@ -13,7 +15,7 @@ import { AuthModule } from './auth/auth.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASS ?? 'postgres',
       database: process.env.DB_NAME ?? 'contacts_db',
-      entities: [Contact],
+      entities: [Contact, ContactImportSession, UserContactHashIndex],
       synchronize: process.env.NODE_ENV !== 'production',
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     }),

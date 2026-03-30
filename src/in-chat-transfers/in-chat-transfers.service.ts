@@ -12,6 +12,8 @@ import {
 } from './entities/in-chat-transfer.entity';
 import { UsersRepository } from '../users/users.repository';
 import { Wallet } from '../wallets/entities/wallet.entity';
+import { SavedAddressesService } from '../address-book/saved-addresses.service';
+import { BlockEnforcementService } from '../block-enforcement/block-enforcement.service';
 import { InitiateTransferDto } from './dto/initiate-transfer.dto';
 import { TransferPreviewDto } from './dto/transfer-preview.dto';
 import { TransferResponseDto } from './dto/transfer-response.dto';
@@ -51,6 +53,8 @@ export class InChatTransfersService {
     private readonly walletsRepository: Repository<Wallet>,
     private readonly usersRepository: UsersRepository,
     private readonly sorobanTransfersService: SorobanTransfersService,
+    private readonly savedAddressesService: SavedAddressesService,
+    private readonly blockEnforcementService: BlockEnforcementService,
   ) {}
 
   parseTransferCommand(raw: string): ParsedTransferCommand {
@@ -119,6 +123,12 @@ export class InChatTransfersService {
     const participants = await this.getConversationParticipants(conversationId);
     this.assertParticipant(participants, senderId);
 
+    const recipientIds = participants
+      .map((participant) => participant.userId)
+      .filter((userId) => userId !== senderId);
+
+    await this.blockEnforcementService.canTransferFunds(senderId, recipientIds);
+
     const resolved = await this.resolveCommand(senderId, participants, rawCommand);
     const feeEstimate = await this.estimateFee(
       resolved.asset,
@@ -170,6 +180,8 @@ export class InChatTransfersService {
       throw new BadRequestException('Transfer preview must be created before confirmation.');
     }
 
+    await this.blockEnforcementService.canTransferFunds(senderId, transfer.recipientIds);
+
     transfer.status = TransferStatus.CONFIRMED;
     await this.transfersRepository.save(transfer);
 
@@ -184,7 +196,7 @@ export class InChatTransfersService {
         senderId,
         asset: transfer.asset,
         totalAmount: transfer.totalAmount,
-        status: TransactionStatus.SUBMITTED,
+        status: TransactionStatus.PENDING,
       }),
     );
 
@@ -193,15 +205,18 @@ export class InChatTransfersService {
     await this.transfersRepository.save(transfer);
 
     try {
-      const txHash = await this.sorobanTransfersService.submitTransfer({
-        senderAddress,
-        recipientAddresses: recipientUsers.map((user) => user.walletAddress),
-        asset: transfer.asset,
-        amountPerRecipient: transfer.amountPerRecipient,
-        totalAmount: transfer.totalAmount,
-      });
+      const txHash = await this.sorobanTransfersService.submitTransfer(
+        {
+          senderAddress,
+          recipientAddresses: recipientUsers.map((user) => user.walletAddress),
+          asset: transfer.asset,
+          amountPerRecipient: transfer.amountPerRecipient,
+          totalAmount: transfer.totalAmount,
+        },
+        { userId: senderId },
+      );
 
-      transaction.status = TransactionStatus.COMPLETED;
+      transaction.status = TransactionStatus.CONFIRMED;
       transaction.txHash = txHash;
       await this.transactionsRepository.save(transaction);
 
@@ -227,6 +242,12 @@ export class InChatTransfersService {
       transfer.messageId = message.id;
       transfer.transactionId = transaction.id;
       await this.transfersRepository.save(transfer);
+
+      await Promise.all(
+        recipientUsers.map((recipient) =>
+          this.savedAddressesService.trackUsageByWalletAddress(senderId, recipient.walletAddress),
+        ),
+      );
 
       return {
         transferId: transfer.id,

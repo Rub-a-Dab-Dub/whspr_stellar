@@ -60,6 +60,9 @@ export class LeaderboardEntry {
   @Column('integer', { default: 0 })
   changeFromLastPeriod: number; // Rank change (positive = improved)
 
+  @Column('jsonb', { nullable: true })
+  metadata: Record<string, any>; // Additional context (transfers, referrals, etc.)
+
   @CreateDateColumn()
   createdAt: Date;
 

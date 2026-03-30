@@ -32,6 +32,52 @@ export class PrivacyService {
     @InjectQueue('data-export') private readonly exportQueue: Queue,
   ) {}
 
+
+  const exportQueue = new Queue("data-export");
+    const request = await saveExportRequest({
+      userId,
+      status: ExportStatus.PENDING,
+      requestedAt: new Date(),
+    });
+
+    await exportQueue.add("generate", { userId, requestId: request.id });
+    return request;
+  }
+
+  async getExportStatus(userId: string) {
+    return findExportByUser(userId);
+  }
+
+  async downloadExport(userId: string) {
+    const request = await findExportByUser(userId);
+    if (!request || request.status !== ExportStatus.READY) return null;
+    if (request.expiresAt < new Date()) return null;
+    return request.fileUrl;
+  }
+
+  async deleteAccount(userId: string) {
+    await anonymizeUser(userId); // anonymize PII, retain transactions
+  }
+
+  async recordConsent(userId: string, type: string, ip: string, agent: string) {
+    const record = new ConsentRecord();
+    record.userId = userId;
+    record.consentType = type;
+    record.isGranted = true;
+    record.ipAddress = ip;
+    record.userAgent = agent;
+    record.grantedAt = new Date();
+    return record;
+  }
+
+  async revokeConsent(userId: string, type: string) {
+    // mark revokedAt but keep immutable record
+  }
+
+  async getConsentHistory(userId: string) {
+    // return all consent records for user
+  }
+}
   /**
    * Request data export for authenticated user
    */

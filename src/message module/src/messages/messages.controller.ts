@@ -9,7 +9,9 @@ import {
   Post,
   Query,
   Headers,
+  UseGuards,
 } from '@nestjs/common';
+import { BlockGuard } from '../../block-enforcement/block.guard';
 import { MessagesService } from './messages.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
@@ -20,6 +22,7 @@ import { PaginatedResult } from './pagination';
 export class MessagesController {
   constructor(private readonly service: MessagesService) {}
 
+  @UseGuards(BlockGuard)
   @Post('conversations/:id/messages')
   async sendMessage(
     @Param('id') conversationId: string,

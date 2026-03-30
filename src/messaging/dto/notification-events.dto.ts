@@ -5,26 +5,28 @@ export enum NotificationType {
   TRANSFER_RECEIVED = 'TRANSFER_RECEIVED',
   GROUP_INVITE = 'GROUP_INVITE',
   CONTACT_REQUEST = 'CONTACT_REQUEST',
+  CONNECTION_REQUEST = 'CONNECTION_REQUEST',
   PROPOSAL_VOTE = 'PROPOSAL_VOTE',
   TRANSACTION_CONFIRMED = 'TRANSACTION_CONFIRMED',
   MESSAGE = 'message',
   FRIEND_REQUEST = 'friend_request',
   TRANSFER = 'transfer',
   SYSTEM = 'system',
+  MENTION = 'MENTION',
 }
 
 export class NotificationDto {
   @IsString()
-  id: string;
+  id!: string;
 
   @IsEnum(NotificationType)
-  type: NotificationType;
+  type!: NotificationType;
 
   @IsString()
-  title: string;
+  title!: string;
 
   @IsString()
-  body: string;
+  body!: string;
 
   @IsOptional()
   data?: Record<string, unknown>;
@@ -32,10 +34,10 @@ export class NotificationDto {
 
 export class TransferUpdateDto {
   @IsString()
-  transferId: string;
+  transferId!: string;
 
   @IsString()
-  status: string;
+  status!: string;
 
   @IsOptional()
   @IsString()

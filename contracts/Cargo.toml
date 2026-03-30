@@ -2,7 +2,9 @@
 resolver = "2"
 members = [
     "gasless-common",
+    "bridge_adapter",
     "contracts/*",
+    "integration-tests",
 ]
 
 [workspace.dependencies]

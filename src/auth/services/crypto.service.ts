@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
@@ -6,6 +7,12 @@ import * as bcrypt from 'bcrypt';
 @Injectable()
 export class CryptoService {
   private readonly logger = new Logger(CryptoService.name);
+  private readonly encryptionKey: Buffer;
+
+  constructor(private readonly configService: ConfigService) {
+    const key = this.configService.get<string>('OAUTH_ENCRYPTION_KEY') || 'default_32_byte_secret_key_for_dev_only';
+    this.encryptionKey = crypto.scryptSync(key, 'salt', 32);
+  }
 
   /**
    * Generate a random nonce for authentication challenge
@@ -90,5 +97,38 @@ export class CryptoService {
    */
   generateSecureToken(): string {
     return crypto.randomBytes(32).toString('base64url');
+  }
+
+  /**
+   * Encrypt sensitive data (like OAuth tokens) using AES-256
+   */
+  encryptSymmetric(text: string): string {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', this.encryptionKey, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return `${iv.toString('hex')}:${encrypted}`;
+  }
+
+  /**
+   * Decrypt data encrypted by encryptSymmetric
+   */
+  decryptSymmetric(encryptedText: string): string {
+    try {
+      const [ivHex, hexText] = encryptedText.split(':');
+      if (!ivHex || !hexText) {
+        throw new Error('Invalid format');
+      }
+      const iv = Buffer.from(ivHex, 'hex');
+      const decipher = crypto.createDecipheriv('aes-256-cbc', this.encryptionKey, iv);
+      let decrypted = decipher.update(hexText, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      return decrypted;
+    } catch (err) {
+      this.logger.error('Error decrypting token:', err);
+      // Return the string back if it fails, maybe it wasn't encrypted (legacy support)
+      // Throwing might be safer, but we can just throw
+      throw new Error('Failed to decrypt data');
+    }
   }
 }

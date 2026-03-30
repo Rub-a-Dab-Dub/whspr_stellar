@@ -3,9 +3,9 @@ import { Counter, Registry } from 'prom-client';
 
 @Injectable()
 export class CacheMetricsService implements OnModuleInit {
-  private hitCounter: Counter;
-  private missCounter: Counter;
-  private errorCounter: Counter;
+  private hitCounter!: Counter;
+  private missCounter!: Counter;
+  private errorCounter!: Counter;
 
   constructor(private readonly registry: Registry) {}
 

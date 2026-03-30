@@ -10,6 +10,7 @@ import { ConversationParticipant } from './conversation-participant.entity';
 import { Message } from '../../messages/entities/message.entity';
 import { InChatTransfer } from '../../in-chat-transfers/entities/in-chat-transfer.entity';
 import { PinnedMessage } from '../../pinned-messages/entities/pinned-message.entity';
+import { GroupExpense } from '../../group-expenses/entities/group-expense.entity';
 
 export enum ConversationType {
   DIRECT = 'direct',
@@ -45,6 +46,9 @@ export class Conversation {
 
   @OneToMany(() => PinnedMessage, (pin) => pin.conversation)
   pinnedMessages!: PinnedMessage[];
+
+  @OneToMany(() => GroupExpense, (expense) => expense.conversation)
+  expenses!: GroupExpense[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;

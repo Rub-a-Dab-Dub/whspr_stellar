@@ -12,6 +12,7 @@ import { NotificationsGateway } from '../../messaging/gateways/notifications.gat
 import { InAppNotificationType } from '../../notifications/entities/notification.entity';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { Wallet, WalletNetwork } from '../../wallets/entities/wallet.entity';
+import { SavedAddressesService } from '../../address-book/saved-addresses.service';
 import { ListTransactionsQueryDto } from '../dto/list-transactions-query.dto';
 import {
   TransactionListResponseDto,
@@ -24,6 +25,9 @@ import {
 } from '../entities/transaction.entity';
 import { TransactionsRepository } from '../repositories/transactions.repository';
 import { SorobanTransactionsService } from './soroban-transactions.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { AmlMonitoringService } from '../../aml/aml-monitoring.service';
 
 export interface CreateTransactionInput {
   txHash: string;
@@ -52,6 +56,10 @@ export class TransactionsService {
     private readonly chatGateway: ChatGateway,
     @InjectRepository(Wallet)
     private readonly walletsRepository: Repository<Wallet>,
+    private readonly savedAddressesService: SavedAddressesService,
+    private readonly amlService: AmlMonitoringService,
+    @InjectQueue('aml-analysis')
+    private readonly amlQueue: Queue<{ txId: string }>,
   ) {}
 
   async createTransaction(input: CreateTransactionInput): Promise<TransactionResponseDto> {
@@ -109,6 +117,11 @@ export class TransactionsService {
 
     if (updated.status !== existing.status || updated.ledger !== existing.ledger) {
       await this.handleStatusChange(updated);
+    }
+
+    // AML analysis for confirmed transactions
+    if (updated.status === TransactionStatus.CONFIRMED) {
+      await this.amlQueue.add('analyze-transaction', { txId: updated.id });
     }
 
     return this.toDto(updated);
@@ -253,6 +266,8 @@ export class TransactionsService {
       await this.notificationsGateway.sendTransferUpdate(senderId, transferPayload);
 
       if (transaction.status === TransactionStatus.CONFIRMED) {
+        await this.savedAddressesService.trackUsageByWalletAddress(senderId, transaction.toAddress);
+
         await this.notificationsService.createNotification({
           userId: senderId,
           type: InAppNotificationType.TRANSACTION_CONFIRMED,
