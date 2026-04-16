@@ -1,7 +1,0 @@
-[default]
-workspace = true
-exclude = ["integration-tests"]
-out = ["Xml", "Html"]
-output-dir = "coverage"
-fail-under = 90
-timeout = "120s"
