@@ -1,0 +1,38 @@
+{
+  "name": "whspr-stellar",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run start:dev --workspace=api",
+    "dev:web": "npm run dev --workspace=web",
+    "build": "npm run build --workspace=api && npm run build --workspace=web",
+    "build:api": "npm run build --workspace=api",
+    "build:web": "npm run build --workspace=web",
+    "test": "npm run test --workspace=api && npm run test --workspace=web",
+    "test:api": "npm run test --workspace=api",
+    "test:web": "npm run test --workspace=web",
+    "test:e2e": "npm run test:e2e --workspace=api",
+    "lint": "npm run lint --workspace=api && npm run lint --workspace=web",
+    "lint:api": "npm run lint --workspace=api",
+    "lint:web": "npm run lint --workspace=web",
+    "contracts:build": "cd contracts && make build",
+    "contracts:test": "cd contracts && make test",
+    "contracts:deploy:testnet": "cd contracts && make deploy-testnet",
+    "contracts:deploy:mainnet": "cd contracts && make deploy-mainnet",
+    "docker:start": "docker compose up -d",
+    "docker:stop": "docker compose stop",
+    "docker:restart": "docker compose restart",
+    "docker:logs": "docker compose logs -f",
+    "docker:clean": "docker compose down -v",
+    "clean": "rm -rf api/node_modules api/dist web/node_modules web/.next node_modules",
+    "fresh": "npm run clean && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
