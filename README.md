@@ -2,7 +2,7 @@
 
 **A gamified, on-chain messaging app where gossip meets Web3**
 
-Chat, tip friends, join exclusive rooms, and level up—all with near-zero gas fees on BNB, Celo, and Base.
+Chat, tip friends, join exclusive rooms, and level up—all with near-zero fees on Stellar.
 
 🌐 **Live App**: [www.gaslessgossip.com](https://www.gaslessgossip.com)  
 📚 **Docs**: [Coming Soon]  
@@ -28,16 +28,11 @@ Chat, tip friends, join exclusive rooms, and level up—all with near-zero gas f
 - Node.js 18+
 - Docker Desktop ([Download](https://www.docker.com/products/docker-desktop/)) **OR** PostgreSQL 14+
 - Flutter 3.x (for mobile, optional)
-- EVM-compatible wallet (MetaMask, Celo Wallet, etc.)
+- Stellar-compatible wallet (Freighter, xBull, etc.)
 
 ### Option A: Docker Setup (Recommended) 🐳
 
 **Fastest way to get started!** Docker handles PostgreSQL and Redis automatically.
-
-
-
-
-
 
 ### 3️⃣ Backend Setup (NestJS)
 
@@ -54,12 +49,12 @@ DATABASE_USER=gasless_user
 DATABASE_PASS=your_secure_password
 DATABASE_NAME=gasless
 
-# EVM Chain (BNB, Celo, Base)
-EVM_RPC_URL=https://rpc-url-for-your-chain
-EVM_ACCOUNT_ADDRESS=your_account_address
-EVM_PRIVATE_KEY=your_private_key
-EVM_CONTRACT_ADDRESS=your_deployed_contract
-EVM_NETWORK=base # or bnb, celo
+# Stellar
+STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+STELLAR_ACCOUNT_ADDRESS=your_stellar_public_key
+STELLAR_SECRET_KEY=your_stellar_secret_key
+STELLAR_CONTRACT_ADDRESS=your_deployed_contract_id
+STELLAR_NETWORK=testnet # or mainnet
 
 # Auth
 JWT_SECRET=your_jwt_secret_minimum_32_chars
@@ -85,7 +80,7 @@ npm install
 # Create .env.local
 cat > .env.local << EOF
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_EVM_NETWORK=base # or bnb, celo
+NEXT_PUBLIC_STELLAR_NETWORK=testnet # or mainnet
 EOF
 
 # Start web app
@@ -109,7 +104,7 @@ flutter run
 
 ---
 
-## � NPM Scripts Reference
+## 📜 NPM Scripts Reference
 
 ### One-Command Development
 
@@ -171,7 +166,7 @@ npm run fresh            # Clean + reinstall everything
 
 ---
 
-## �🏗️ Architecture
+## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -191,10 +186,10 @@ npm run fresh            # Clean + reinstall everything
 └─────────────────────┬─────────────────────────┘
                       │
 ┌─────────────────────▼─────────────────────────┐
-│        EVM Chains: BNB, Celo, Base             │
-│  • GGPay Contract (payments)                   │
-│  • Account Abstraction (gasless)               │
-│  • Session Keys (auto-approve)                 │
+│                  Stellar                       │
+│  • GGPay Soroban Contract (payments)           │
+│  • Near-zero fee transactions                  │
+│  • Stellar SDK (JS + Rust)                     │
 └───────────────────────────────────────────────┘
 ```
 
@@ -209,7 +204,7 @@ gasless_gossip/
 │   │   ├── auth/          # JWT authentication
 │   │   ├── users/         # User management
 │   │   ├── rooms/         # Room logic
-│   │   ├── contracts/     # EVM integration
+│   │   ├── contracts/     # Stellar/Soroban integration
 │   │   └── wallets/       # Wallet creation queue
 │   └── package.json
 │
@@ -226,9 +221,12 @@ gasless_gossip/
 │   └── pubspec.yaml
 │
 └── contract/              # Smart contracts
-    ├── evm/               # Solidity contracts for BNB, Celo, Base
-    │   ├── GGPay.sol
-    │   └── tests/
+    └── soroban/           # Soroban contracts (Rust) for Stellar
+        ├── ggpay/
+        │   ├── src/
+        │   │   └── lib.rs
+        │   └── Cargo.toml
+        └── tests/
 ```
 
 ---
@@ -244,12 +242,12 @@ npm run test:e2e          # E2E tests
 npm run test:cov          # Coverage
 ```
 
-### Contract Tests (EVM)
+### Contract Tests (Soroban)
 
 ```bash
-cd contract/evm
-npx hardhat test          # Run all tests
-npx hardhat test test_tip_user.js  # Run specific test
+cd contract/soroban/ggpay
+cargo test                         # Run all Soroban contract tests
+cargo test test_tip_user           # Run specific test
 ```
 
 ### Frontend Tests
@@ -270,9 +268,9 @@ We welcome contributions! Here's how to get started:
 
 ```bash
 # Fork on GitHub, then:
-git clone https://github.com/YOUR_USERNAME/gasless_gossip.git
-cd gasless_gossip
-git remote add upstream https://github.com/Rub-a-Dab-Dub/gasless_gossip.git
+git clone https://github.com/YOUR_USERNAME/whspr_stellar.git
+cd whspr_stellar
+git remote add upstream https://github.com/Rub-a-Dab-Dub/whspr_stellar.git
 ```
 
 ### 2. Create Feature Branch
@@ -287,7 +285,7 @@ git checkout -b feature/your-feature-name
 
 ### 3. Make Changes
 
-- Follow existing code style (ESLint/Prettier for TS, Solidity formatting for contracts)
+- Follow existing code style (ESLint/Prettier for TS, Rust formatting for Soroban contracts)
 - Write tests for new features
 - Update documentation if needed
 
@@ -300,8 +298,8 @@ cd api && npm run test && npm run lint
 # Web
 cd web && npm run build && npm run lint
 
-# Contracts
-cd contract/evm && npx hardhat test
+# Soroban Contracts
+cd contract/soroban/ggpay && cargo test
 ```
 
 ### 5. Commit & Push
@@ -331,19 +329,19 @@ git push origin feature/your-feature-name
 ### Good First Issues
 
 Look for issues tagged `good-first-issue` or `help-wanted`:
-- [Backend Issues](https://github.com/Rub-a-Dab-Dub/gasless_gossip/labels/backend)
-- [Frontend Issues](https://github.com/Rub-a-Dab-Dub/gasless_gossip/labels/frontend)
-- [Contract Issues](https://github.com/Rub-a-Dab-Dub/gasless_gossip/labels/contracts)
+- [Backend Issues](https://github.com/Rub-a-Dab-Dub/whspr_stellar/labels/backend)
+- [Frontend Issues](https://github.com/Rub-a-Dab-Dub/whspr_stellar/labels/frontend)
+- [Contract Issues](https://github.com/Rub-a-Dab-Dub/whspr_stellar/labels/contracts)
 
 ---
 
 ## 📚 Key Concepts
 
-### Account Abstraction
-Users never pay gas fees. The backend's paymaster account sponsors all transactions using session keys.
+### Near-Zero Fees on Stellar
+Stellar's fee structure makes microtransactions practical. Users enjoy near-free messaging, tipping, and transfers without the high gas costs typical of other chains.
 
 ### Token Tipping
-Send tokens in chats with a 2% platform fee. Tips are instant and on-chain.
+Send tokens in chats with a 2% platform fee. Tips are instant and settled on the Stellar network.
 
 ### Room Entry Fees
 Creators can set token-gated rooms. Platform takes 2%, creator gets 98%.
@@ -361,12 +359,12 @@ Creators can set token-gated rooms. Platform takes 2%, creator gets 98%.
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | **Frontend Web** | Next.js 14, TypeScript, TailwindCSS | Responsive web interface |
-| **Frontend Mobile** | Flutter 3.x, web3dart | iOS/Android apps |
+| **Frontend Mobile** | Flutter 3.x, stellar_flutter_dart | iOS/Android apps |
 | **Backend** | NestJS, TypeORM, Bull | REST API, WebSockets, queues |
 | **Database** | PostgreSQL 14+ | User data, messages, rooms |
-| **Blockchain** | BNB, Celo, Base (Solidity) | Payment contracts |
+| **Blockchain** | Stellar + Soroban (Rust) | Payment contracts |
 | **Storage** | IPFS/Arweave | Media files (hashed on-chain) |
-| **Auth** | JWT, session keys | Gasless transactions |
+| **Auth** | JWT, Stellar keypairs | Secure transactions |
 
 ---
 
@@ -382,10 +380,11 @@ DATABASE_USER=gasless_user
 DATABASE_PASS=your_password
 DATABASE_NAME=gasless
 
-EVM_RPC_URL=https://rpc-url-for-your-chain
-EVM_ACCOUNT_ADDRESS=0x...
-EVM_PRIVATE_KEY=0x...
-EVM_CONTRACT_ADDRESS=0x...
+STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+STELLAR_ACCOUNT_ADDRESS=G...      # Stellar public key
+STELLAR_SECRET_KEY=S...           # Stellar secret key
+STELLAR_CONTRACT_ADDRESS=C...     # Deployed Soroban contract ID
+STELLAR_NETWORK=testnet           # or mainnet
 
 JWT_SECRET=minimum_32_character_secret
 
@@ -400,7 +399,7 @@ RETRY_DELAY_MS=2000
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_EVM_NETWORK=base # or bnb, celo
+NEXT_PUBLIC_STELLAR_NETWORK=testnet # or mainnet
 ```
 
 ---
@@ -431,14 +430,15 @@ npm run docker:logs      # Look for "database system is ready"
 
 ### Backend Issues
 
-### Backend won't start
+**Backend won't start**
 - Check PostgreSQL is running: `brew services list`
 - Verify database exists: `psql -U postgres -l`
 - Check `.env` file has all required variables
 
-### EVM transactions fail
-- Check contract address is correct
-- Verify RPC URL is responsive
+**Stellar transactions fail**
+- Verify your Soroban contract ID is correct
+- Confirm your account is funded (use Friendbot on testnet)
+- Check that `STELLAR_RPC_URL` is reachable
 
 ### Mobile app build fails
 - Run `flutter doctor` to check dependencies
@@ -459,16 +459,16 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## 🙏 Acknowledgments
 
-- BNB Chain, Celo, and Base for blockchain infrastructure
-- OpenZeppelin for secure contract libraries
+- Stellar Foundation for blockchain infrastructure
+- Soroban team for the smart contract platform
 - NestJS team for excellent backend framework
 
 ---
 
 ## 📞 Contact & Community
 
-- **Website**: [www.gaslessgossip.com](https://www.gaslessgossip.com)
-- **GitHub**: [Rub-a-Dab-Dub/gasless_gossip](https://github.com/Rub-a-Dab-Dub/gasless_gossip)
+- **Website**: [www.gaslessgossip.com](https://www.gaslessgossip.xyz)
+- **GitHub**: [Rub-a-Dab-Dub/whspr_stellar](https://github.com/Rub-a-Dab-Dub/whspr_stellar)
 - **Twitter**: [@gaslessgossip](https://twitter.com/gaslessgossip)
 - **Telegram**: [Join Group](https://t.me/gaslessgossip)
 - **Discord**: [Join Server](https://discord.gg/gaslessgossip)
