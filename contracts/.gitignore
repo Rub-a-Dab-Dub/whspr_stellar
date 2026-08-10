@@ -1,5 +1,0 @@
-target/
-.env
-.env.local
-.env.testnet
-.env.mainnet
