@@ -36,7 +36,16 @@ pub struct MessagingContract;
 impl MessagingContract {
     /// One-time setup: sets the address that receives the 2% platform fee
     /// on tips. Must be called before `tip_user`.
+    ///
+    /// Requires `platform_address` to authorize the call, so no one can set
+    /// an address they don't control as the fee recipient. This does *not*
+    /// fully close the front-running window on a freshly deployed contract
+    /// (the platform's own address could still race someone else's), so the
+    /// deploy script should call `initialize` immediately after deployment,
+    /// ideally as part of the same submitted transaction batch.
     pub fn initialize(env: Env, platform_address: Address) {
+        platform_address.require_auth();
+
         if env.storage().instance().has(&DataKey::PlatformAddress) {
             panic!("already initialized");
         }
@@ -252,5 +261,19 @@ mod tests {
         let recipient = Address::generate(&env);
 
         client.tip_user(&tipper, &recipient, &token_address, &100);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_initialize_requires_platform_address_auth() {
+        let env = Env::default();
+        // Deliberately no mock_all_auths(): the platform address never
+        // authorized this call, so initialize() must reject it.
+
+        let contract_id = env.register_contract(None, MessagingContract);
+        let client = MessagingContractClient::new(&env, &contract_id);
+
+        let platform = Address::generate(&env);
+        client.initialize(&platform);
     }
 }
