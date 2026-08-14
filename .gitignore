@@ -1,5 +1,6 @@
 # Rust / Soroban
 target/
+test_snapshots/
 
 # Environment files
 .env

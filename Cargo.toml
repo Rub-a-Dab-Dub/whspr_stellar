@@ -5,7 +5,10 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-soroban-sdk = { version = "21.0.0", features = ["testutils"] }
+# No default features here: the "testutils" feature pulls in std-only code
+# (serde_json, rand) that can't compile for the no_std wasm32 release target.
+# Member crates opt into it explicitly under [dev-dependencies] instead.
+soroban-sdk = { version = "21.0.0" }
 
 [profile.release]
 opt-level = "z"
